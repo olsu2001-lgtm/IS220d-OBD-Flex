@@ -16,6 +16,19 @@ const cliPath = path.join(nitronRoot, "dist", "cli.js");
 const nitronCacheRoot = path.join(buildRoot, "nitron-cache-root");
 const nitronAndroidCache = path.join(nitronCacheRoot, ".nitron", "android");
 const bundledAapt2 = path.join(root, "node_modules", "aaptjs3", "bin", "x64", "linux", "aapt2");
+const packageMeta = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+
+function resolveBuildSha() {
+  const fromEnvironment = String(process.env.GITHUB_SHA || "").trim();
+  if (/^[0-9a-f]{7,40}$/i.test(fromEnvironment)) return fromEnvironment.toLowerCase();
+  const result = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
+  const fromGit = String(result.stdout || "").trim();
+  return /^[0-9a-f]{7,40}$/i.test(fromGit) ? fromGit.toLowerCase() : "local";
+}
+
+const buildSha = resolveBuildSha();
+const buildShortSha = buildSha === "local" ? "local" : buildSha.slice(0, 12);
+const appVersion = String(packageMeta.version || "0.0.0");
 
 for (const required of [apktoolJar, templateApk, cliPath, bundledAapt2]) {
   if (!fs.existsSync(required)) throw new Error(`Puuttuva rakennusriippuvuus: ${required}. Suorita ensin npm install.`);
@@ -34,6 +47,7 @@ const frameworkEntry = apktoolZip.getEntry("brut/androlib/android-framework.jar"
 if (!frameworkEntry) throw new Error("Apktool-paketista puuttuu Android framework -resurssipaketti");
 fs.writeFileSync(path.join(nitronAndroidCache, "android.jar"), frameworkEntry.getData());
 
+console.log(`Build provenance: ${appVersion} · ${buildShortSha}`);
 console.log("[1/5] Kootaan Bluetooth Classic + BLE -natiivisillat…");
 const smaliBuild = spawnSync("java", ["-jar", apktoolJar, "b", smaliProject, "-o", path.join(buildRoot, "ignored.apk")], {
   cwd: root,
@@ -82,6 +96,7 @@ async function buildVariant(label, minify, filename) {
     platform: "browser",
     target: ["chrome90"],
     minify,
+    banner: { js: `globalThis.__IS220D_BUILD_SHA__=${JSON.stringify(buildShortSha)};` },
     outfile: path.join(nitronProject, "app.bundle.js")
   });
   const nitron = spawnSync(process.execPath, [cliPath, "build", "--project", nitronProject], {
@@ -99,9 +114,20 @@ async function buildVariant(label, minify, filename) {
   for (const entry of requiredEntries) {
     if (!finalZip.getEntry(entry)) throw new Error(`${label}-APK:sta puuttuu ${entry}`);
   }
+  const bundleText = finalZip.readAsText("assets/app.bundle.js");
+  if (!bundleText.includes(buildShortSha)) throw new Error(`${label}-APK:sta puuttuu build-SHA ${buildShortSha}`);
   return output;
 }
 
 const debugOutput = await buildVariant("debug", false, "IS220d_OBD-Flex-0.6.9-debug.apk");
 const releaseOutput = await buildVariant("release", true, "IS220d_OBD-Flex-0.6.9-release.apk");
+const buildInfo = {
+  schemaVersion: 1,
+  appVersion,
+  gitSha: buildSha,
+  gitShortSha: buildShortSha,
+  outputs: [path.basename(debugOutput), path.basename(releaseOutput)]
+};
+fs.writeFileSync(path.join(root, "dist", "build-info.json"), `${JSON.stringify(buildInfo, null, 2)}\n`, "utf8");
 console.log("Valmiit APK:t:", debugOutput, releaseOutput);
+console.log("Build-info:", path.join(root, "dist", "build-info.json"));
