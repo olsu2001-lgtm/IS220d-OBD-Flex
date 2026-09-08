@@ -1,0 +1,115 @@
+name: Temporary ECU Survey UI patch
+
+on:
+  push:
+    branches: [feat/ecu-survey-ui]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/ecu-survey-ui
+      - name: Apply exact UI edits
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          index = Path('index.html')
+          html = index.read_text()
+          marker = 'id="ecuSurveyTopologyCard"'
+          if marker not in html:
+              old = '''        <div id="diagnosticSummary" class="inline-message hidden"></div>\n        <div id="diagnosticReportActions" class="diagnostic-actions hidden">'''
+              new = '''        <div id="diagnosticSummary" class="inline-message hidden"></div>\n        <div id="ecuSurveyTopologyCard" class="ecu-survey-panel hidden" aria-live="polite">\n          <div class="ecu-survey-header">\n            <div><div class="eyebrow">ECU SURVEY · PAIKALLINEN HISTORIA</div><h4>CAN-topologia</h4></div>\n            <span id="ecuSurveyRepeatabilityBadge" class="survey-badge collecting">Ei dataa</span>\n          </div>\n          <div id="ecuSurveyMeta" class="ecu-survey-meta"></div>\n          <div id="ecuSurveyNodes" class="ecu-survey-nodes"></div>\n          <details id="ecuSurveyHistoryDetails" class="ecu-survey-history">\n            <summary>Viimeiset survey-ajot</summary>\n            <div id="ecuSurveyHistoryList" class="ecu-survey-history-list"></div>\n          </details>\n          <p class="ecu-survey-boundary">Vakaa topologia tarkoittaa kolmea samanlaista yhteensopivaa survey-ajoa. Se ei yksin todista ECU:n identiteettiä tai vikaa.</p>\n        </div>\n        <div id="diagnosticReportActions" class="diagnostic-actions hidden">'''
+              if old not in html:
+                  raise SystemExit('index.html insertion point not found')
+              index.write_text(html.replace(old, new, 1))
+
+          styles = Path('styles.css')
+          css = styles.read_text()
+          if '.ecu-survey-panel {' not in css:
+              anchor = '.diagnostic-actions { display: grid; gap: 0; margin-bottom: 10px; }\n'
+              addition = '''.diagnostic-actions { display: grid; gap: 0; margin-bottom: 10px; }\n.ecu-survey-panel { margin: 0 0 14px; padding: 13px; border: 1px solid var(--line); border-radius: 13px; background: #0a0e13; }\n.ecu-survey-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 11px; }\n.ecu-survey-header h4 { margin: 1px 0 0; font-size: 15px; }\n.survey-badge { flex: 0 0 auto; padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 10px; font-weight: 850; letter-spacing: .02em; }\n.survey-badge.collecting { border-color: #67542d; background: #2d2616; color: var(--yellow); }\n.survey-badge.stable { border-color: #286246; background: #10271d; color: var(--green); }\n.survey-badge.changed { border-color: #6c3036; background: #2c171a; color: #ffb4b4; }\n.ecu-survey-meta { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; margin-bottom: 10px; }\n.ecu-survey-meta > div { padding: 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }\n.ecu-survey-meta span { display: block; color: var(--muted); font-size: 9px; font-weight: 750; text-transform: uppercase; }\n.ecu-survey-meta strong { display: block; margin-top: 4px; font-size: 12px; }\n.ecu-survey-nodes { display: grid; gap: 6px; }\n.ecu-survey-node { display: grid; grid-template-columns: 56px minmax(0,1fr) auto; align-items: center; gap: 9px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }\n.ecu-survey-node.responding { border-color: #286246; }\n.ecu-survey-node.unmapped { border-color: #67542d; }\n.ecu-survey-node.attention { border-color: #6c3036; }\n.ecu-survey-node.muted { opacity: .62; }\n.ecu-survey-address { color: var(--blue); font: 800 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n.ecu-survey-node-main { min-width: 0; }\n.ecu-survey-node-main strong { display: block; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }\n.ecu-survey-node-main small { display: block; margin-top: 2px; color: var(--muted); font: 9px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n.ecu-survey-node-state { color: var(--muted); font-size: 9px; font-weight: 800; text-align: right; }\n.ecu-survey-node.responding .ecu-survey-node-state { color: var(--green); }\n.ecu-survey-node.unmapped .ecu-survey-node-state { color: var(--yellow); }\n.ecu-survey-node.attention .ecu-survey-node-state { color: #ffb4b4; }\n.ecu-survey-history { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 9px; }\n.ecu-survey-history summary { cursor: pointer; color: #cbd5df; font-size: 11px; font-weight: 750; }\n.ecu-survey-history-list { display: grid; gap: 6px; margin-top: 8px; }\n.ecu-survey-history-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 9px; border-radius: 9px; background: var(--surface); font-size: 10px; }\n.ecu-survey-history-row span { color: var(--muted); }\n.ecu-survey-history-row code { grid-column: 1 / -1; overflow: hidden; color: #75879b; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }\n.ecu-survey-boundary { margin: 10px 1px 0; color: var(--muted); font-size: 10px; line-height: 1.4; }\n'''
+              if anchor not in css:
+                  raise SystemExit('styles.css insertion point not found')
+              styles.write_text(css.replace(anchor, addition, 1))
+
+          main = Path('src/main.js')
+          js = main.read_text()
+          if 'buildEcuSurveyUiModel' not in js:
+              old_import = 'import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";\n'
+              new_import = 'import { recordEcuSurveySnapshot, summarizeEcuSurveyHistory } from "./ecu-survey-history.js";\nimport { buildEcuSurveyUiModel } from "./ecu-survey-ui.js";\n'
+              if old_import not in js:
+                  raise SystemExit('main.js import point not found')
+              js = js.replace(old_import, new_import, 1)
+
+              anchor = '''function finishFullDiagnosticUi(run) {\n'''
+              render_fn = r'''function renderEcuSurveyTopology(snapshot = null, historyResult = null) {
+  const history = historyResult || summarizeEcuSurveyHistory();
+  const currentSnapshot = snapshot || history.latestSnapshot || history.snapshots?.[history.snapshots.length - 1] || null;
+  const model = buildEcuSurveyUiModel(currentSnapshot, history);
+  const panel = $("#ecuSurveyTopologyCard");
+  if (!panel) return;
+  panel.classList.toggle("hidden", !model.visible);
+  if (!model.visible) return;
+
+  const badge = $("#ecuSurveyRepeatabilityBadge");
+  badge.className = `survey-badge ${model.repeatability.code}`;
+  badge.textContent = model.repeatability.label;
+
+  $("#ecuSurveyMeta").innerHTML = [
+    ["Vastaavat", `${model.respondingCount}/${model.plannedCount}`],
+    ["Historia", `${model.compatibleHistoryRuns}/${model.totalHistoryRuns}`],
+    ["Viimeisin", Number.isFinite(model.timestamp) ? formatDateTime(model.timestamp) : "–"]
+  ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
+
+  $("#ecuSurveyNodes").innerHTML = model.nodes.map(node => `
+    <div class="ecu-survey-node ${node.stateCode}">
+      <div class="ecu-survey-address">${escapeHtml(node.requestHeader)}</div>
+      <div class="ecu-survey-node-main"><strong>${escapeHtml(node.ecuLabel)}</strong><small>${escapeHtml(node.requestHeader)} → ${escapeHtml(node.responseHeader)}</small></div>
+      <div class="ecu-survey-node-state">${escapeHtml(node.stateLabel)}</div>
+    </div>`).join("");
+
+  $("#ecuSurveyHistoryList").innerHTML = model.history.length
+    ? model.history.map(item => `
+      <div class="ecu-survey-history-row">
+        <span>${Number.isFinite(item.timestamp) ? escapeHtml(formatDateTime(item.timestamp)) : "Aika ei tiedossa"}${item.compatible ? " · yhteensopiva" : " · eri profiili"}</span>
+        <strong>${item.respondingCount}/${item.plannedCount}</strong>
+        <code>${escapeHtml(item.topologySignature)}</code>
+      </div>`).join("")
+    : '<div class="empty-state">Ei tallennettuja survey-ajoja.</div>';
+}
+
+'''
+              if anchor not in js:
+                  raise SystemExit('main.js finish function point not found')
+              js = js.replace(anchor, render_fn + anchor, 1)
+
+              finish_anchor = '  state.fullDiagnosticReport = `${baseReport}\\n\\n${buildEcuSurveyTextReport(run.ecuSurvey, surveyHistory)}`;\n'
+              finish_new = finish_anchor + '  renderEcuSurveyTopology(run.ecuSurvey, surveyHistory);\n'
+              if finish_anchor not in js:
+                  raise SystemExit('main.js survey report point not found')
+              js = js.replace(finish_anchor, finish_new, 1)
+
+              init_anchor = '  renderQuicklynksDiagnostics();\n  await renderSessionList();\n'
+              init_new = '  renderQuicklynksDiagnostics();\n  renderEcuSurveyTopology();\n  await renderSessionList();\n'
+              if init_anchor not in js:
+                  raise SystemExit('main.js init point not found')
+              js = js.replace(init_anchor, init_new, 1)
+              main.write_text(js)
+          PY
+      - name: Commit UI wiring
+        run: |
+          if git diff --quiet; then
+            echo "No patch needed"
+            exit 0
+          fi
+          git config user.name "olsu2001-lgtm"
+          git config user.email "olsu2001@gmail.com"
+          git add index.html styles.css src/main.js
+          git commit -m "feat: show ECU Survey topology in diagnostics"
+          git push origin HEAD:feat/ecu-survey-ui
