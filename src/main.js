@@ -59,6 +59,7 @@ import {
 import { AdaptivePollScheduler } from "./poll-scheduler.js";
 import { ecuSurveySnapshotFromDiagnosticRun } from "./ecu-survey-diagnostic.js";
 import { buildEcuSurveyTextReport } from "./ecu-survey-report.js";
+import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -1650,9 +1651,16 @@ function diagnosticHasValid(run, command, requestHeader = "") {
 function finishFullDiagnosticUi(run) {
   run.summary = summarizeFullDiagnostic(run);
   run.ecuSurvey = ecuSurveySnapshotFromDiagnosticRun(run);
+  const surveyHistory = recordEcuSurveySnapshot(run.ecuSurvey);
+  run.ecuSurveyHistory = {
+    persisted: surveyHistory.persisted,
+    error: surveyHistory.error,
+    storedRuns: surveyHistory.snapshots.length,
+    repeatability: surveyHistory.repeatability
+  };
   state.adapterCapabilities = run.summary.adapterCapabilities;
   const baseReport = buildFullDiagnosticReport(run);
-  state.fullDiagnosticReport = `${baseReport}\n\n${buildEcuSurveyTextReport(run.ecuSurvey)}`;
+  state.fullDiagnosticReport = `${baseReport}\n\n${buildEcuSurveyTextReport(run.ecuSurvey, surveyHistory)}`;
   const summary = run.summary;
   const status = $("#diagnosticSummary");
   if (status) {
