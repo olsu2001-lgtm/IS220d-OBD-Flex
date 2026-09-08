@@ -78,7 +78,7 @@ test("truncated ISO-TP identity response fails closed as parse-error", () => {
   const identity = extractMode09IdentityFromDiagnosticRun(truncated);
   assert.equal(identity.overall, "partial");
   assert.equal(identity.fields.vin.value, "");
-  assert.equal(identity.fields.vin.status, "not-observed");
+  assert.equal(identity.fields.vin.status, "parse-error");
 });
 
 test("NO DATA identity result remains not-observed", () => {
