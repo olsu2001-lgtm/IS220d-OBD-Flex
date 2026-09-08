@@ -59,6 +59,7 @@ export function compactEcuSurveySnapshot(snapshot) {
     profileVersion: String(snapshot.profileVersion || ""),
     safeProbe: String(snapshot.safeProbe || "0100"),
     runId: String(snapshot.runId || ""),
+    buildSha: String(snapshot.buildSha || ""),
     startedAt: Number.isFinite(snapshot.startedAt) ? Number(snapshot.startedAt) : null,
     endedAt: Number.isFinite(snapshot.endedAt) ? Number(snapshot.endedAt) : null,
     nodes: Object.freeze(snapshot.nodes.map(compactNode)),
