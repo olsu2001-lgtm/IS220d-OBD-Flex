@@ -29,6 +29,27 @@ read-only Android diagnostic application for a Lexus IS220d / XE20 / 2AD-FHV.
 Read `docs/SAFETY.md` and `docs/PROTOCOL.md` before changing any transport,
 profile, parser, measurement or Android bridge code.
 
+## Imported Drive evidence
+
+The project Drive has been reconciled into the versioned evidence index under
+`docs/README.md`. Read it when historical design, field captures, archived
+builds or vehicle identity matter to a task.
+
+- `docs/VEHICLE_EVIDENCE.md` records target-vehicle identity and calibration
+  evidence.
+- `docs/FIELD_EVIDENCE.md` records sanitized real-device/transport findings.
+- `docs/DRIVE_ARCHIVE.md` records what remains in Drive and why.
+- `docs/HISTORICAL_0_7_X.md` records the older multi-vehicle `Lexus OBD Flex`
+  0.7.x line.
+- `docs/DEVELOPMENT_STUDY_2026-08-11.md` preserves the older development-study
+  architecture and roadmap.
+
+Historical evidence never overrides this contract, `docs/SAFETY.md`,
+`docs/PROTOCOL.md`, current source or current regression tests. In particular,
+commands from the historical 0.7.x CT 200h or injector experiments are not in
+the active IS220d transmit allowlist unless they are separately reintroduced
+through a reviewed profile change with matching evidence and tests.
+
 ## Change workflow
 
 1. Work on a dedicated branch; do not push an unreviewed change to `main`.
@@ -54,4 +75,3 @@ profile, parser, measurement or Android bridge code.
 A change is complete only when all tests pass, both APK variants build, safety
 tests remain green, documentation matches behavior and no generated files or
 signing secrets are committed.
-

@@ -1,0 +1,32 @@
+# IS220d OBD Flex documentation
+
+This directory separates the **active development contract** from historical Drive material and field evidence.
+
+## Authoritative current documents
+
+1. [`../AGENTS.md`](../AGENTS.md) — AI/development contract and current project identity.
+2. [`SAFETY.md`](SAFETY.md) — current fail-closed, read-only safety model.
+3. [`PROTOCOL.md`](PROTOCOL.md) — current verified IS220d production protocol profile and Toyota allowlist.
+4. Executable source and regression tests — the final source of truth for shipped behavior.
+
+Historical documents never expand the active command allowlist by themselves.
+
+## Imported / reconciled project evidence
+
+- [`VEHICLE_EVIDENCE.md`](VEHICLE_EVIDENCE.md) — target IS220d ECU/bus/calibration evidence from the project Drive.
+- [`FIELD_EVIDENCE.md`](FIELD_EVIDENCE.md) — useful real-device and diagnostic observations retained from the older Flex work.
+- [`DRIVE_ARCHIVE.md`](DRIVE_ARCHIVE.md) — inventory of relevant Drive artifacts and the Git migration decision for each class of artifact.
+- [`HISTORICAL_0_7_X.md`](HISTORICAL_0_7_X.md) — the August 2026 multi-vehicle `Lexus OBD Flex` 0.7.x branch, kept as historical evidence rather than the current baseline.
+- [`DEVELOPMENT_STUDY_2026-08-11.md`](DEVELOPMENT_STUDY_2026-08-11.md) — source-faithful digest of the 40-page Drive development study, reconciled against the current read-only repository policy.
+
+## Authority rule for future development
+
+When historical Drive material conflicts with the current repository, use this order:
+
+1. `AGENTS.md`, `SAFETY.md` and `PROTOCOL.md`.
+2. Current source code and tests.
+3. Vehicle-verified field evidence.
+4. Techstream-derived evidence explicitly marked as pending vehicle confirmation.
+5. Historical plans and experimental branches.
+
+The archived 0.7.x branch and the August development study contain useful design and test evidence, but they do not authorize CT 200h commands, service operations, coding, Active Tests, DTC clearing or ECU writes in the current IS220d-only project.
