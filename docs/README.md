@@ -8,7 +8,8 @@ This directory separates the **active development contract** from historical Dri
 2. [`SAFETY.md`](SAFETY.md) — current fail-closed, read-only safety model.
 3. [`PROTOCOL.md`](PROTOCOL.md) — current verified IS220d production protocol profile and Toyota allowlist.
 4. [`ECU_SURVEY.md`](ECU_SURVEY.md) — current read-only ECU Survey policy/data-model foundation and integration boundary.
-5. Executable source and regression tests — the final source of truth for shipped behavior.
+5. [`MODE09_IDENTITY.md`](MODE09_IDENTITY.md) — parsing and evidence-comparison boundary for VIN, Calibration ID, CVN and ECU-name results already collected by the wide diagnostic.
+6. Executable source and regression tests — the final source of truth for shipped behavior.
 
 Historical documents never expand the active command allowlist by themselves.
 
