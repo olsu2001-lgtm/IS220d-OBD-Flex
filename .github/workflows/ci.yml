@@ -38,8 +38,27 @@ jobs:
       - name: Build debug and release APKs
         run: npm run build
 
-      - name: Verify generated APKs
+      - name: Verify generated APKs and provenance
         run: |
-          test -s dist/IS220d_OBD-Flex-0.6.9-debug.apk
-          test -s dist/IS220d_OBD-Flex-0.6.9-release.apk
+          set -euo pipefail
+          DEBUG_APK=dist/IS220d_OBD-Flex-0.6.9-debug.apk
+          RELEASE_APK=dist/IS220d_OBD-Flex-0.6.9-release.apk
+          test -s "$DEBUG_APK"
+          test -s "$RELEASE_APK"
+          test -s dist/build-info.json
+          node -e 'const fs=require("fs"); const info=JSON.parse(fs.readFileSync("dist/build-info.json","utf8")); if(info.gitSha!==process.env.GITHUB_SHA) throw new Error(`build-info SHA ${info.gitSha} != ${process.env.GITHUB_SHA}`); if(info.gitShortSha!==process.env.GITHUB_SHA.slice(0,12)) throw new Error("short SHA mismatch");'
+          SHORT_SHA="${GITHUB_SHA:0:12}"
+          unzip -p "$DEBUG_APK" assets/app.bundle.js | grep -Fq "$SHORT_SHA"
+          unzip -p "$RELEASE_APK" assets/app.bundle.js | grep -Fq "$SHORT_SHA"
 
+      - name: Upload field-validation APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IS220d-OBD-Flex-${{ github.sha }}
+          path: |
+            dist/IS220d_OBD-Flex-0.6.9-debug.apk
+            dist/IS220d_OBD-Flex-0.6.9-release.apk
+            dist/build-info.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
