@@ -1,4 +1,5 @@
 import { evaluateEcuSurveyRepeatability } from "./ecu-survey.js";
+import { installEcuSurveyUi, notifyEcuSurveyUi } from "./ecu-survey-ui-runtime.js";
 
 export const ECU_SURVEY_HISTORY_KEY = "is220d-obd:ecu-survey-history:v1";
 export const ECU_SURVEY_HISTORY_LIMIT = 10;
@@ -123,13 +124,15 @@ export function recordEcuSurveySnapshot(snapshot, storage = undefined) {
   } catch (caught) {
     error = caught?.message || String(caught);
   }
-  return Object.freeze({
+  const result = Object.freeze({
     persisted,
     error,
     snapshots,
     comparableSnapshots,
     repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3)
   });
+  notifyEcuSurveyUi(snapshot, result);
+  return result;
 }
 
 export function clearEcuSurveyHistory(storage = undefined) {
@@ -141,4 +144,8 @@ export function clearEcuSurveyHistory(storage = undefined) {
   } catch {
     return false;
   }
+}
+
+if (typeof document !== "undefined") {
+  installEcuSurveyUi({ loadHistory: () => summarizeEcuSurveyHistory() });
 }
