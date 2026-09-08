@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   VLINKER_CAPABILITY_PROBES,
+  VLINKER_IDENTITY_TIMEOUT_MS,
+  VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS,
   classifyAdapterDevice,
   sortAdapterDevices,
   selectedAdapterHelp,
@@ -42,6 +44,15 @@ test("vLinker capability -sallintalista sisältää vain identiteetti- ja tilalu
     "ATI", "STI", "STDI", "AT@1", "AT@2", "ATRV", "ATIGN", "ATDP", "ATDPN", "ATCS"
   ]);
   assert.equal(VLINKER_CAPABILITY_PROBES.some(item => /^(04|ATSH|ATSP|ATZ)/.test(item.command)), false);
+});
+
+test("vLinker capability -vaiheen timeout-budjetti pysyy rajattuna ennen ECU-probea", () => {
+  assert.equal(VLINKER_IDENTITY_TIMEOUT_MS, 3000);
+  assert.equal(VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS, 1500);
+  assert.equal(VLINKER_CAPABILITY_PROBES[0].timeoutMs, VLINKER_IDENTITY_TIMEOUT_MS);
+  assert.equal(VLINKER_CAPABILITY_PROBES.slice(1).every(item => item.timeoutMs === VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS), true);
+  const worstCaseBudgetMs = VLINKER_CAPABILITY_PROBES.reduce((sum, item) => sum + item.timeoutMs, 0);
+  assert.equal(worstCaseBudgetMs, 16500);
 });
 
 test("capability-yhteenveto tunnistaa vLinkerin, ST-ytimen, jännitteen ja protokollan", () => {

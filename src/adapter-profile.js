@@ -1,17 +1,19 @@
 export const VLINKER_PROFILE_VERSION = "vlinker-mc-plus-v1";
 export const MANAGED_RECONNECT_DELAYS_MS = Object.freeze([700, 1500, 3000]);
+export const VLINKER_IDENTITY_TIMEOUT_MS = 3000;
+export const VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS = 1500;
 
 export const VLINKER_CAPABILITY_PROBES = Object.freeze([
-  Object.freeze({ command: "ATI", expected: "identity", label: "ELM/adapteritunniste", timeoutMs: 5000 }),
-  Object.freeze({ command: "STI", expected: "identity", optional: true, label: "STN-yhteensopivan ytimen tunniste", timeoutMs: 3500 }),
-  Object.freeze({ command: "STDI", expected: "optional", optional: true, label: "STN-laitetunniste", timeoutMs: 3500 }),
-  Object.freeze({ command: "AT@1", expected: "optional", optional: true, label: "Adapterin kuvaus", timeoutMs: 3500 }),
-  Object.freeze({ command: "AT@2", expected: "optional", optional: true, label: "Adapterin laitetunniste", timeoutMs: 3500 }),
-  Object.freeze({ command: "ATRV", expected: "optional", optional: true, label: "OBD-liitännän jännite", timeoutMs: 3500 }),
-  Object.freeze({ command: "ATIGN", expected: "optional", optional: true, label: "Sytytysvirran tila", timeoutMs: 3500 }),
-  Object.freeze({ command: "ATDP", expected: "optional", optional: true, label: "Nykyisen protokollan kuvaus", timeoutMs: 3500 }),
-  Object.freeze({ command: "ATDPN", expected: "optional", optional: true, label: "Nykyisen protokollan numero", timeoutMs: 3500 }),
-  Object.freeze({ command: "ATCS", expected: "optional", optional: true, label: "CAN-ohjaimen raportoima tila", timeoutMs: 3500 })
+  Object.freeze({ command: "ATI", expected: "identity", label: "ELM/adapteritunniste", timeoutMs: VLINKER_IDENTITY_TIMEOUT_MS }),
+  Object.freeze({ command: "STI", expected: "identity", optional: true, label: "STN-yhteensopivan ytimen tunniste", timeoutMs: VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS }),
+  Object.freeze({ command: "STDI", expected: "optional", optional: true, label: "STN-laitetunniste", timeoutMs: VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS }),
+  Object.freeze({ command: "AT@1", expected: "optional", optional: true, label: "Adapterin kuvaus", timeoutMs: VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS }),
+  Object.freeze({ command: "AT@2", expected: "optional", optional: true, label: "Adapterin laitetunniste", timeoutMs: VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS }),
+  Object.freeze({ command: "ATRV", expected: "optional", optional: true, label: "OBD-liitännän jännite", timeoutMs: VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS }),
+  Object.freeze({ command: "ATIGN", expected: "optional", optional: true, label: "Sytytysvirran tila", timeoutMs: VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS }),
+  Object.freeze({ command: "ATDP", expected: "optional", optional: true, label: "Nykyisen protokollan kuvaus", timeoutMs: VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS }),
+  Object.freeze({ command: "ATDPN", expected: "optional", optional: true, label: "Nykyisen protokollan numero", timeoutMs: VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS }),
+  Object.freeze({ command: "ATCS", expected: "optional", optional: true, label: "CAN-ohjaimen raportoima tila", timeoutMs: VLINKER_OPTIONAL_CAPABILITY_TIMEOUT_MS })
 ]);
 
 const cleanName = value => String(value || "").trim().replace(/\s+/g, " ");
