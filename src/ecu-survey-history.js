@@ -1,4 +1,5 @@
 import { evaluateEcuSurveyRepeatability } from "./ecu-survey.js";
+import { installEcuSurveyUi, notifyEcuSurveyUi } from "./ecu-survey-ui-runtime.js";
 
 export const ECU_SURVEY_HISTORY_KEY = "is220d-obd:ecu-survey-history:v1";
 export const ECU_SURVEY_HISTORY_LIMIT = 10;
@@ -94,6 +95,20 @@ export function loadEcuSurveyHistory(storage = undefined) {
   }
 }
 
+export function summarizeEcuSurveyHistory(storage = undefined) {
+  const snapshots = loadEcuSurveyHistory(storage);
+  const latestSnapshot = snapshots.length ? snapshots[snapshots.length - 1] : null;
+  const comparableSnapshots = latestSnapshot
+    ? Object.freeze(snapshots.filter(item => compatibleWith(item, latestSnapshot)))
+    : Object.freeze([]);
+  return Object.freeze({
+    snapshots,
+    latestSnapshot,
+    comparableSnapshots,
+    repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3)
+  });
+}
+
 export function recordEcuSurveySnapshot(snapshot, storage = undefined) {
   const compact = compactEcuSurveySnapshot(snapshot);
   const targetStorage = resolveStorage(storage);
@@ -109,13 +124,15 @@ export function recordEcuSurveySnapshot(snapshot, storage = undefined) {
   } catch (caught) {
     error = caught?.message || String(caught);
   }
-  return Object.freeze({
+  const result = Object.freeze({
     persisted,
     error,
     snapshots,
     comparableSnapshots,
     repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3)
   });
+  notifyEcuSurveyUi(snapshot, result);
+  return result;
 }
 
 export function clearEcuSurveyHistory(storage = undefined) {
@@ -127,4 +144,8 @@ export function clearEcuSurveyHistory(storage = undefined) {
   } catch {
     return false;
   }
+}
+
+if (typeof document !== "undefined") {
+  installEcuSurveyUi({ loadHistory: () => summarizeEcuSurveyHistory() });
 }
