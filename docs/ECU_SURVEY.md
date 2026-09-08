@@ -1,6 +1,6 @@
 # ECU Survey foundation
 
-Status: **wired into the existing wide ELM diagnostic report with compact local repeatability history; no separate survey transmit path or topology UI yet**.
+Status: **wired into the existing wide ELM diagnostic report with compact local repeatability history and a read-only topology panel; no separate survey transmit path**.
 
 This module implements the first reusable part of the historical 0.7.0 ECU Survey roadmap while preserving the current IS220d-only read-only contract.
 
@@ -8,7 +8,7 @@ This module implements the first reusable part of the historical 0.7.0 ECU Surve
 
 The August development study identified topology discovery as the next major step before expanding functions or data coverage. It also required equipment-aware interpretation: an optional ECU that is not installed must not automatically be reported as faulty.
 
-`src/ecu-survey.js` turns that requirement into deterministic code. `src/ecu-survey-diagnostic.js` converts the wide diagnostic's already collected `ECU-osoitehaku` results into the survey model, `src/ecu-survey-history.js` keeps a compact local history, and `src/ecu-survey-report.js` appends a human-readable survey section to the same exported report.
+`src/ecu-survey.js` turns that requirement into deterministic code. `src/ecu-survey-diagnostic.js` converts the wide diagnostic's already collected `ECU-osoitehaku` results into the survey model, `src/ecu-survey-history.js` keeps a compact local history, `src/ecu-survey-report.js` appends a human-readable survey section to the exported report, and `src/ecu-survey-ui*.js` exposes the same evidence in a compact local UI.
 
 ## Current survey boundary
 
@@ -35,8 +35,9 @@ At report-finalization time:
 4. raw response headers are extracted without guessing an identity;
 5. the results are converted to an ECU Survey snapshot;
 6. a compact snapshot is appended to local history;
-7. the last three topologies are compared;
-8. the text snapshot and repeatability result are appended to the existing full diagnostic report.
+7. the last three compatible topologies are compared;
+8. the text snapshot and repeatability result are appended to the existing full diagnostic report;
+9. the local topology UI is refreshed from the same snapshot/history result.
 
 This integration therefore adds **zero new vehicle requests** to a diagnostic run.
 
@@ -56,7 +57,7 @@ The current production profile names only one ECU mapping:
 
 - request `7E0` → response `7E8` → `engine` / 2AD-FHV engine ECU.
 
-The survey **does not derive or guess identities for `7E1`–`7E7`**. A valid response from an address without a profile definition is stored as `unmapped-response` until independent evidence identifies the ECU.
+The survey **does not derive or guess identities for `7E1`–`7E7`**. A valid response from an address without a profile definition is stored and shown as `unmapped-response` / `Tunnistamaton ECU` until independent evidence identifies it.
 
 This is deliberate: CAN address arithmetic or a response alone is not enough evidence to publish an ECU identity.
 
@@ -131,27 +132,44 @@ Invalid or unreadable history fails to an empty history. A localStorage write fa
 
 Default gate:
 
-- at least 3 completed survey snapshots;
+- at least 3 completed compatible survey snapshots;
 - the last 3 responding-topology signatures must be identical;
 - only then is `stable: true` returned.
 
-The report presents repeatability as:
+Compatibility requires the same survey schema version, profile version and safe probe. Older history can remain stored without being mixed into the current repeatability decision.
 
-- `collecting` before three runs exist;
-- `stable` when the latest three topologies are identical;
-- `changed` when at least three runs exist but their latest topologies differ.
+The report and UI present repeatability as:
+
+- `collecting` / `Kerätään` before three compatible runs exist;
+- `stable` / `Vakaa` when the latest three compatible topologies are identical;
+- `changed` / `Topologia muuttui` when at least three compatible runs exist but their latest topologies differ.
 
 The signature contains request header, observed response header(s) and a profile-defined ECU ID when one exists. Unknown responders remain `unmapped`.
 
 Stable topology is evidence of repeatability, **not proof of ECU identity**.
 
+## Topology UI
+
+`src/ecu-survey-ui.js` creates a DOM-independent view model and `src/ecu-survey-ui-runtime.js` installs the panel next to the existing wide diagnostic summary.
+
+The panel shows:
+
+- current responding/planned header count;
+- compatible/total local history count;
+- latest survey timestamp;
+- each `7E0`–`7E7` request header, observed response header and known/unmapped identity;
+- repeatability badge;
+- the five latest stored topology signatures.
+
+The UI runtime is loaded through the already imported history module. It only reads local survey state, creates DOM elements and listens for a local history-update event. It contains no ELM/OBD transport call and no vehicle command path.
+
 ## Next integration step
 
-The next useful runtime step is a compact topology UI rather than more traffic:
+The next evidence-driven step is to compare stable repeated survey topologies against Techstream Health Check / vehicle equipment evidence before naming any new ECU:
 
-1. show the latest survey topology and the `collecting/stable/changed` state on the connection/diagnostic screen;
-2. allow the user to inspect the last survey runs without exposing unnecessary raw data;
-3. compare repeated snapshots against Techstream Health Check before adding any new ECU identity to the profile;
+1. collect at least three repeatable real-car survey runs;
+2. compare observed responders with Techstream's ECU/system list from the same vehicle;
+3. promote an unmapped responder to a named profile ECU only when independent evidence supports the mapping;
 4. add equipment expectations only when the specific vehicle configuration supports them.
 
 Future integration must not widen `TOYOTA_READ_DATA_ALLOWED_COMMANDS` or the production IS220d `21xx` profile without separate evidence and review.
