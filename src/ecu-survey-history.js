@@ -94,6 +94,20 @@ export function loadEcuSurveyHistory(storage = undefined) {
   }
 }
 
+export function summarizeEcuSurveyHistory(storage = undefined) {
+  const snapshots = loadEcuSurveyHistory(storage);
+  const latestSnapshot = snapshots.length ? snapshots[snapshots.length - 1] : null;
+  const comparableSnapshots = latestSnapshot
+    ? Object.freeze(snapshots.filter(item => compatibleWith(item, latestSnapshot)))
+    : Object.freeze([]);
+  return Object.freeze({
+    snapshots,
+    latestSnapshot,
+    comparableSnapshots,
+    repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3)
+  });
+}
+
 export function recordEcuSurveySnapshot(snapshot, storage = undefined) {
   const compact = compactEcuSurveySnapshot(snapshot);
   const targetStorage = resolveStorage(storage);
