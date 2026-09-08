@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "profileId": "is220d-xe20-2ad-fhv-readonly-v1",
+  "description": "Flexin omat, vain luku -regressioskenaariot. Raakavastaukset ovat synteettisiä testiarvoja, eivät uuden ajoneuvodatan väitteitä.",
+  "scenarios": {
+    "toyota_happy_path": {
+      "name": "Toyota 21xx happy path",
+      "description": "Moottori-ECU 7E0/7E8 vastaa kaikkiin kolmeen varmennettuun Toyota-lukupyyntöön.",
+      "steps": [
+        { "command": "ATSH7E0", "response": "OK\r>" },
+        { "command": "217E", "responseChunks": ["7E8 06 61 7E 0A ", "04 02 00\r>"] },
+        { "command": "ATSH7E0", "response": "OK\r>" },
+        { "command": "217F", "response": "7E8 06 61 7F 01 00 02 00\r>" },
+        { "command": "ATSH7E0", "response": "OK\r>" },
+        { "command": "212C", "response": "7E8 03 61 2C 80\r>" }
+      ]
+    },
+    "negative_response": {
+      "name": "Toyota NRC 12",
+      "description": "ECU tavoitetaan, mutta tunnistetta tai alitoimintoa ei tueta.",
+      "steps": [
+        { "command": "ATSH7E0", "response": "OK\r>" },
+        { "command": "217E", "response": "7E8 03 7F 21 12\r>" }
+      ]
+    },
+    "no_data": {
+      "name": "ELM NO DATA",
+      "steps": [
+        { "command": "ATSH7E0", "response": "OK\r>" },
+        { "command": "217E", "response": "NO DATA\r>" }
+      ]
+    },
+    "can_error": {
+      "name": "ELM CAN ERROR",
+      "steps": [
+        { "command": "ATSH7E0", "response": "OK\r>" },
+        { "command": "217E", "response": "CAN ERROR\r>" }
+      ]
+    },
+    "truncated_multiframe": {
+      "name": "Katkennut ISO-TP-monikehys",
+      "description": "Positiivinen 61 7E -alku näkyy, mutta ilmoitettu hyötykuorma ei valmistu.",
+      "steps": [
+        { "command": "ATSH7E0", "response": "OK\r>" },
+        { "command": "217E", "response": "7E8 10 0A 61 7E 0A 04 02\r7E8 21 00\r>" }
+      ]
+    },
+    "slow_timeout": {
+      "name": "Hidas vastaus ja osittainen raakadata",
+      "steps": [
+        { "command": "ATSH7E0", "response": "OK\r>" },
+        { "command": "217E", "delayMs": 7000, "partialRaw": "7E8 10 0A 61 7E\r" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="fi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#0b0f14">
+  <title>IS220d OBD Flex</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">LEXUS 2AD-FHV · EOBD</div>
+      <h1>IS220d OBD Flex</h1>
+    </div>
+    <button id="connectionBadge" class="status-badge offline" type="button" data-go="connection">
+      <span class="status-dot"></span><span>Ei yhteyttä</span>
+    </button>
+  </header>
+
+  <main id="main">
+    <section id="page-connection" class="page active" aria-labelledby="nav-connection">
+      <div class="hero-card">
+        <div class="hero-icon">OBD</div>
+        <div>
+          <h2>Yhdistä adapteriin</h2>
+          <p>vLinker MC+ Classic/BLE, Quicklynks BLE327 tai muu ELM327</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <label for="deviceSelect">OBD-lukija</label>
+        <div class="field-row">
+          <select id="deviceSelect" aria-label="Bluetooth OBD -lukija"></select>
+          <button id="refreshDevices" class="secondary compact" type="button">Päivitä</button>
+        </div>
+        <p id="deviceHelp" class="hint">vLinker MC+: Classic paritetaan Androidissa, BLE valitaan suoraan Flexissä.</p>
+        <div id="bleDiagnostic" class="inline-message diagnostic hidden"></div>
+        <button id="copyBleDiagnostics" class="secondary full compact" type="button">Kopioi BLE-diagnostiikka</button>
+
+        <label for="protocolSelect">OBD-protokolla</label>
+        <select id="protocolSelect">
+          <option value="auto">Automaattinen (ATSP0)</option>
+          <option value="can6">ISO 15765-4 CAN 11 bit / 500 kbit/s (ATSP6)</option>
+        </select>
+
+        <div class="button-row">
+          <button id="connectButton" class="primary" type="button">Yhdistä</button>
+          <button id="disconnectButton" class="secondary" type="button" disabled>Katkaise</button>
+        </div>
+        <div id="connectionError" class="inline-message error hidden" role="alert"></div>
+
+        <div id="connectionStages" class="connection-stages" aria-live="polite">
+          <div id="stageBluetooth" class="connection-stage idle"><span class="stage-dot"></span><div><span>Bluetooth</span><strong>Ei yhteyttä</strong></div></div>
+          <div id="stageElm" class="connection-stage idle"><span class="stage-dot"></span><div><span>ELM327</span><strong>Ei testattu</strong></div></div>
+          <div id="stageEcu" class="connection-stage idle"><span class="stage-dot"></span><div><span>Moottori-ECU</span><strong>Ei testattu</strong></div></div>
+        </div>
+      </div>
+
+      <div id="elmDiagnosticCard" class="card hidden">
+        <div class="section-title compact-title">
+          <div><div class="eyebrow">VLINKER / ELM327 / TOYOTA · VAIN LUKU</div><h3>Laaja vLinker-, ELM- ja Toyota-testi</h3></div>
+        </div>
+        <p class="hint">Yksi ajo tunnistaa vLinker MC+:n ja sen ELM/ST-ytimen, tarkistaa Classic- tai BLE-kuljetuksen, CAN-yhteyden, osoitteet 7DF ja 7E0–7E7 sekä 20 sekunnin CAN-kuuntelun. Lopuksi se kokeilee Techstreamista varmennetut Toyota-lukupyynnöt <code>217E</code>, <code>217F</code> ja <code>212C</code> normaalisti, tarvittaessa 7E8-suodatuksella ja lopuksi raakana ISO-TP-yksikehyksenä. Testi jatkaa raporttiin asti myös <code>NO DATA</code>-vastauksen jälkeen. Se ei lähetä Active Test-, poisto-, kirjoitus- tai regenerointikomentoja.</p>
+        <label for="diagnosticNote">Oire tai testin huomio</label>
+        <textarea id="diagnosticNote" rows="3" placeholder="Esim. moottori käynnissä, vLinker MC+ Classic yhdistetty mutta ECU ei vastaa"></textarea>
+        <label for="diagnosticEngineState">Moottorin tila testissä</label>
+        <select id="diagnosticEngineState">
+          <option value="auto">Varmista kierrosluvusta automaattisesti</option>
+          <option value="running">Moottori käy</option>
+          <option value="stopped">Moottori ei käy</option>
+        </select>
+        <div class="diagnostic-progress" aria-live="polite">
+          <div class="diagnostic-progress-track"><span id="diagnosticProgressBar"></span></div>
+          <div class="diagnostic-progress-meta"><span id="diagnosticProgressText">Ei ajettu</span><strong id="diagnosticResultCounts">PASS 0 · WARN 0 · FAIL 0 · SKIP 0</strong></div>
+        </div>
+        <div id="gekoTestResult" class="inline-message hidden"></div>
+        <div class="button-row">
+          <button id="runGekoTest" class="primary" type="button" disabled>Aja vLinker / ELM + Toyota -testi</button>
+          <button id="cancelGekoTest" class="secondary" type="button" disabled>Keskeytä</button>
+        </div>
+        <div id="diagnosticSummary" class="inline-message hidden"></div>
+        <div id="diagnosticReportActions" class="diagnostic-actions hidden">
+          <button id="shareElmDiagnostics" class="primary full" type="button">Jaa raportti ChatGPT:lle</button>
+          <div class="button-row">
+            <button id="saveElmDiagnostics" class="secondary" type="button">Tallenna .txt</button>
+            <button id="copyElmDiagnostics" class="secondary" type="button">Kopioi raportti</button>
+          </div>
+        </div>
+        <button id="openElmTerminal" class="secondary full compact" type="button" data-go="terminal">Avaa raakaterminaali</button>
+        <div id="elmDiagnostic" class="inline-message diagnostic hidden"></div>
+      </div>
+
+      <div id="quicklynksDiagnosticCard" class="card hidden">
+        <div class="section-title compact-title">
+          <div><div class="eyebrow">QUICKLYNKS FFF0/FFF6 · VAIN LUKU</div><h3>Laaja DPF/EGR-tutkimusdiagnostiikka</h3></div>
+        </div>
+        <p class="hint">Ensin tutkitaan kuusi lukittua PID-tukibittikandidaattia (<code>00/20/40/60/80/A0</code>), sitten kolme kierrosta standardeja kierrosluku-, EGR-, pakokaasu- ja DPF-PIDejä. Yhteensä tehdään 51 vain lukevaa Quicklynksin <code>02 41 PID</code> -kyselyä. Raporttiin tallentuvat alkuperäiset BLE-ilmoituspalat, turvallisesti kootut kehykset, vasteajat, artefaktiluokitus, payload-pituus ja toistettavuus. Toyota 21xx-, ELM-ASCII-, Active Test-, kirjoitus-, poisto- tai regenerointikomentoja ei lähetetä.</p>
+        <label for="quicklynksDiagnosticNote">Oire tai testin huomio</label>
+        <textarea id="quicklynksDiagnosticNote" rows="3" placeholder="Esim. moottori lämmin, tyhjäkäynti tasainen, ei DPF-polttoa havaittu"></textarea>
+        <label for="quicklynksDiagnosticEngineState">Moottorin tila testissä</label>
+        <select id="quicklynksDiagnosticEngineState">
+          <option value="auto">Varmista Quicklynks-RPM:stä automaattisesti</option>
+          <option value="running">Moottori käy</option>
+          <option value="stopped">Moottori ei käy</option>
+        </select>
+        <div class="diagnostic-progress" aria-live="polite">
+          <div class="diagnostic-progress-track"><span id="quicklynksDiagnosticProgressBar"></span></div>
+          <div class="diagnostic-progress-meta"><span id="quicklynksDiagnosticProgressText">Ei ajettu</span><strong id="quicklynksDiagnosticResultCounts">PASS 0 · WARN 0 · FAIL 0</strong></div>
+        </div>
+        <div class="button-row">
+          <button id="runQuicklynksDiagnostic" class="primary" type="button" disabled>Aja Quicklynks-diagnostiikka</button>
+          <button id="cancelQuicklynksDiagnostic" class="secondary" type="button" disabled>Keskeytä</button>
+        </div>
+        <div id="quicklynksDiagnosticSummary" class="inline-message hidden"></div>
+        <div id="quicklynksDiagnosticReportActions" class="diagnostic-actions hidden">
+          <button id="shareQuicklynksDiagnostics" class="primary full" type="button">Jaa diagnostiikkaraportti ChatGPT:lle</button>
+          <div class="button-row">
+            <button id="saveQuicklynksDiagnostics" class="secondary" type="button">Tallenna .txt</button>
+            <button id="copyQuicklynksDiagnostics" class="secondary" type="button">Kopioi raportti</button>
+          </div>
+        </div>
+        <div id="quicklynksDiagnosticReport" class="inline-message diagnostic hidden"></div>
+      </div>
+
+      <div id="obdPlusTraceCard" class="card">
+        <div class="section-title compact-title">
+          <div><div class="eyebrow">OBD PLUS / QUICKLYNKS · PASSIIVINEN</div><h3>BLE-liikennejäljen analyysi</h3></div>
+        </div>
+        <p class="hint">Tämä toiminto ei yhdistä adapteriin eikä lähetä autolle mitään. Se lukee paikallisesti Androidin Bluetooth HCI snoop -lokin tai bugiraportin ZIP-paketin, tunnistaa Quicklynksin tunnetusta <code>41/61</code>-taulukkopyynnöstä oikean ATT-kahvan ja jättää muun Bluetooth-liikenteen pois raportista.</p>
+        <div class="inline-message warning">
+          Ota ensin kehittäjäasetuksista <strong>Bluetooth HCI snoop log</strong> käyttöön, käytä OBD Plus -sovellusta Quicklynksillä ja luo sen jälkeen Androidin bugiraportti. Valitse tähän bugiraportin ZIP tai siitä purettu <code>btsnoop_hci.log</code>. Flex osaa purkaa myös ZIPin pää-TXT:n <code>BTSNOOP_LOG_SUMMARY</code>-osion.
+        </div>
+        <label for="obdPlusTraceFile">Bugiraportti tai HCI-loki</label>
+        <input id="obdPlusTraceFile" class="file-picker" type="file" accept=".zip,.log,.btsnoop,application/zip,application/octet-stream">
+        <button id="analyzeObdPlusTrace" class="primary full" type="button" disabled>Analysoi BLE-jälki</button>
+        <div id="obdPlusTraceStatus" class="inline-message hidden" aria-live="polite"></div>
+        <div id="obdPlusTraceActions" class="diagnostic-actions hidden">
+          <button id="shareObdPlusTrace" class="primary full" type="button">Jaa jälkiraportti ChatGPT:lle</button>
+          <div class="button-row">
+            <button id="saveObdPlusTrace" class="secondary" type="button">Tallenna .txt</button>
+            <button id="copyObdPlusTrace" class="secondary" type="button">Kopioi raportti</button>
+          </div>
+        </div>
+        <div id="obdPlusTraceReport" class="inline-message diagnostic hidden"></div>
+      </div>
+
+      <div class="card two-column-info">
+        <div><span class="label">Adapteri</span><strong id="adapterIdentity">–</strong></div>
+        <div><span class="label">Protokolla</span><strong id="protocolIdentity">–</strong></div>
+        <div><span class="label">Yhteystapa</span><strong id="transportIdentity">–</strong></div>
+        <div><span class="label">Adapterituki</span><strong id="adapterSupportIdentity">Tunnistetaan yhdistettäessä</strong></div>
+        <div><span class="label">Firmware / ydin</span><strong id="adapterFirmwareIdentity">Tunnistetaan yhdistettäessä</strong></div>
+        <div><span class="label">Auto</span><strong>Lexus IS220d 2008</strong></div>
+        <div><span class="label">Moottori</span><strong>2AD-FHV · 2,2 D-CAT</strong></div>
+        <div id="quicklynksRawRow" class="raw-data-row hidden"><span class="label">Quicklynks · vielä tulkitsemattomat kentät</span><strong id="quicklynksRaw">–</strong></div>
+      </div>
+
+      <div class="card checklist">
+        <h3>Ennen yhdistämistä</h3>
+        <p><span>1</span> Adapteri OBD-porttiin.</p>
+        <p><span>2</span> Virrat päälle tai moottori käyntiin.</p>
+        <p><span>3</span> Sulje Car Scanner, OBD Plus ja muut adapteria käyttävät sovellukset.</p>
+        <p><span>4</span> vLinker MC+ Classic: paina mustaa painiketta, parita <strong>vLinker MC</strong> tai <strong>vLinker MC-Android</strong> PINillä 1234.</p>
+        <p><span>5</span> vLinker MC+ BLE: valitse Flexissä <strong>vLinker MC-IOS</strong>; BLE:tä ei pariteta Androidin asetuksissa.</p>
+      </div>
+    </section>
+
+    <section id="page-dtc" class="page" aria-labelledby="nav-dtc">
+      <div class="section-title">
+        <div><div class="eyebrow">MODE 01 / 03 / 07 / 0A</div><h2>Vikakoodit</h2></div>
+        <button id="scanDtcButton" class="primary compact" type="button">Lue koodit</button>
+      </div>
+      <div id="milCard" class="card mil-card neutral">
+        <div><span class="label">Moottorin vikavalo</span><strong id="milState">Ei luettu</strong></div>
+        <div><span class="label">ECU:n ilmoittama määrä</span><strong id="milCount">–</strong></div>
+      </div>
+      <div id="dtcNotice" class="inline-message hidden"></div>
+      <div class="dtc-group"><h3>Tallennetut</h3><div id="storedDtc" class="dtc-list empty-state">Ei luettu</div></div>
+      <div class="dtc-group"><h3>Odottavat</h3><div id="pendingDtc" class="dtc-list empty-state">Ei luettu</div></div>
+      <div class="dtc-group"><h3>Pysyvät</h3><div id="permanentDtc" class="dtc-list empty-state">Ei luettu</div></div>
+      <button id="clearDtcButton" class="danger full" type="button">Poista vikakoodit…</button>
+      <p class="hint centered">Poisto nollaa myös freeze frame -tietoja ja päästövalmiusmonitoreita.</p>
+    </section>
+
+    <section id="page-live" class="page" aria-labelledby="nav-live">
+      <div class="section-title">
+        <div><div class="eyebrow">MODE 01 + TECHSTREAM 21 · VAIN LUKU</div><h2>Live-data</h2></div>
+        <button id="toggleLiveButton" class="primary compact" type="button">Aloita</button>
+      </div>
+      <div id="supportNotice" class="inline-message">Yhdistä autoon ja aloita. Sovellus kysyy ensin ECU:lta tuetut PIDit.</div>
+      <div id="pollHealth" class="inline-message hidden" aria-live="polite"></div>
+      <div id="metricGrid" class="metric-grid"></div>
+      <div class="card chart-card">
+        <div class="chart-header">
+          <label for="liveChartMetric">Kuvaaja</label>
+          <select id="liveChartMetric"></select>
+        </div>
+        <canvas id="liveChart" height="210" aria-label="Live-datan kuvaaja"></canvas>
+      </div>
+    </section>
+
+    <section id="page-dpnr" class="page" aria-labelledby="nav-dpnr">
+      <div class="section-title">
+        <div><div class="eyebrow">VGATE VLINKER · TOYOTA 21 · VAIN LUKU</div><h2>DPNR-tarkistus</h2></div>
+        <button id="dpnrToggleLiveButton" class="primary compact" type="button">Aloita</button>
+      </div>
+      <div id="dpnrSupportNotice" class="inline-message">Yhdistä Vgate vLinker MC+:aan ja aloita mittaus. Flex käyttää vain sallittuja Toyota-lukuja 217E, 217F ja 212C sekä tavallisia OBD-arvoja.</div>
+      <div id="dpnrAssessment" class="inline-message hidden" aria-live="polite"></div>
+      <div class="dpnr-context" aria-label="Mittauksen olosuhteet">
+        <div><span>KIERROKSET</span><strong id="dpnrRpm">–</strong><small>rpm</small></div>
+        <div><span>JÄÄHDYTYSNESTE</span><strong id="dpnrCoolant">–</strong><small>°C</small></div>
+        <div><span>MAF</span><strong id="dpnrMaf">–</strong><small>g/s</small></div>
+        <div><span>JÄNNITE</span><strong id="dpnrVoltage">–</strong><small>V</small></div>
+      </div>
+      <div id="dpnrMetricGrid" class="dpnr-grid"></div>
+      <div class="card raw-card">
+        <h3>ECU:n raakavasteet</h3>
+        <div><span>217E · paine ja regenerointitilat</span><code id="dpnrRaw217e">–</code></div>
+        <div><span>217F · lämpötilat</span><code id="dpnrRaw217f">–</code></div>
+        <p>Raakavaste tallennetaan CSV:hen tulkitun arvon rinnalle. Näin mahdollinen anturi-, adapteri- tai dekoodausvirhe voidaan erottaa toisistaan.</p>
+      </div>
+      <div class="card chart-card">
+        <div class="chart-header">
+          <label for="dpnrChartMetric">DPNR-kuvaaja</label>
+          <select id="dpnrChartMetric"></select>
+        </div>
+        <canvas id="dpnrChart" height="210" aria-label="DPNR-mittauksen kuvaaja"></canvas>
+      </div>
+      <button id="dpnrRecordButton" class="primary jumbo" type="button">Aloita DPNR-loki</button>
+      <label class="switch-row"><input id="dpnrKeepAwake" type="checkbox" checked><span>Pidä näyttö päällä mittauksen aikana</span></label>
+      <div class="inline-message warning">
+        Techstreamin <strong>DPF Thermal Deteriorate</strong>, <strong>DPF PM Block</strong> ja <strong>DPF No Activate</strong> ovat ECU:n tilalippuja. Flex ei väitä mittaavansa niitä ennen kuin niiden Toyota-tunniste ja tavurakenne on varmennettu tästä autosta. Tämä näkymä mittaa nyt luotettavasti vertailukelpoiset paine-, lämpötila-, regenerointi- ja käyttöolosuhdearvot.
+      </div>
+    </section>
+
+    <section id="page-drive" class="page" aria-labelledby="nav-drive">
+      <div class="drive-warning">Älä käytä sovellusta kädessä ajon aikana. Kiinnitä puhelin telineeseen.</div>
+      <div id="dpfRegenBanner" class="dpf-banner unavailable" role="status" aria-live="polite">
+        <span class="dpf-dot" aria-hidden="true"></span>
+        <div><span>DPNR / DPF -POLTON TILA</span><strong id="dpfRegenState">Ei tietoa</strong></div>
+      </div>
+      <div class="drive-values">
+        <div class="drive-value"><span>KIERROKSET</span><strong id="driveRpm">–</strong><small>rpm</small></div>
+        <div class="drive-value"><span>NOPEUS</span><strong id="driveSpeed">–</strong><small>km/h</small></div>
+      </div>
+      <div id="driveSecondary" class="drive-secondary"></div>
+      <div class="card recording-card">
+        <div><span class="label">Tallennus</span><strong id="recordingState">Ei käynnissä</strong></div>
+        <div><span class="label">Kesto</span><strong id="recordingDuration">00:00</strong></div>
+        <div><span class="label">Näytteitä</span><strong id="recordingSamples">0</strong></div>
+      </div>
+      <button id="recordButton" class="primary jumbo" type="button">Aloita tallennus</button>
+      <button id="markerButton" class="marker jumbo" type="button" disabled>Merkitse tapahtuma</button>
+      <label class="switch-row"><input id="keepAwake" type="checkbox" checked><span>Pidä näyttö päällä tallennuksen aikana</span></label>
+    </section>
+
+    <section id="page-sessions" class="page" aria-labelledby="nav-sessions">
+      <div class="section-title"><div><div class="eyebrow">VAIN TÄLLÄ PUHELIMELLA</div><h2>Tallennetut ajot</h2></div></div>
+      <div id="sessionList" class="session-list empty-state">Ei tallennettuja ajoja</div>
+      <div id="sessionDetail" class="hidden"></div>
+    </section>
+
+    <section id="page-terminal" class="page" aria-labelledby="nav-terminal">
+      <div class="section-title"><div><div class="eyebrow">ASIANTUNTIJANÄKYMÄ</div><h2>Raakaterminaali</h2></div></div>
+      <div class="inline-message warning">Vain AT-komennot, lukevat OBD-moodit 01, 02, 03, 07, 09 ja 0A sekä Techstreamista varmennetut Toyota-lukukomennot 21 7E, 21 7F ja 21 2C sallitaan. Mode 04 toimii vain Vikakoodit-näkymän vahvistuksesta.</div>
+      <div class="terminal-presets" aria-label="Turvalliset pikakomennot">
+        <button class="secondary compact" type="button" data-terminal-command="ATI">ATI</button>
+        <button class="secondary compact" type="button" data-terminal-command="ATDP">ATDP</button>
+        <button class="secondary compact" type="button" data-terminal-command="ATDPN">ATDPN</button>
+        <button class="secondary compact" type="button" data-terminal-command="ATCS">ATCS</button>
+        <button class="secondary compact" type="button" data-terminal-command="ATSH7E0">ATSH7E0</button>
+        <button class="secondary compact" type="button" data-terminal-command="0100">0100</button>
+        <button class="secondary compact" type="button" data-terminal-command="010C">010C</button>
+        <button class="secondary compact" type="button" data-terminal-command="217E">217E</button>
+        <button class="secondary compact" type="button" data-terminal-command="217F">217F</button>
+        <button class="secondary compact" type="button" data-terminal-command="212C">212C</button>
+      </div>
+      <div id="terminalLog" class="terminal" aria-live="polite"></div>
+      <div class="terminal-input">
+        <input id="terminalCommand" type="text" inputmode="text" autocapitalize="characters" placeholder="Esim. ATI tai 010C">
+        <button id="terminalSend" class="primary compact" type="button">Lähetä</button>
+      </div>
+      <div class="button-row">
+        <button id="copyTerminal" class="secondary" type="button">Kopioi loki</button>
+        <button id="clearTerminal" class="secondary" type="button">Tyhjennä</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Päänavigaatio">
+    <button id="nav-connection" class="nav-item active" data-page="connection"><span>⌁</span>Yhteys</button>
+    <button id="nav-dtc" class="nav-item" data-page="dtc"><span>!</span>Koodit</button>
+    <button id="nav-live" class="nav-item" data-page="live"><span>⌇</span>Live</button>
+    <button id="nav-dpnr" class="nav-item" data-page="dpnr"><span>DPF</span>DPNR</button>
+    <button id="nav-drive" class="nav-item" data-page="drive"><span>●</span>Koeajo</button>
+    <button id="nav-sessions" class="nav-item" data-page="sessions"><span>▤</span>Ajot</button>
+    <button id="nav-terminal" class="nav-item" data-page="terminal"><span>&gt;_</span>Term.</button>
+  </nav>
+
+  <dialog id="confirmDialog">
+    <form method="dialog">
+      <h2 id="dialogTitle">Vahvista</h2>
+      <p id="dialogText"></p>
+      <div class="button-row">
+        <button value="cancel" class="secondary">Peruuta</button>
+        <button id="dialogConfirm" value="confirm" class="danger">Vahvista</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
