@@ -23,6 +23,56 @@ function nodeUiState(node) {
   }
 }
 
+function identityUiState(status) {
+  switch (status) {
+    case "match": return Object.freeze({ code: "match", label: "Täsmää" });
+    case "mismatch": return Object.freeze({ code: "mismatch", label: "Poikkeaa" });
+    case "observed": return Object.freeze({ code: "observed", label: "Havaittu" });
+    case "parse-error": return Object.freeze({ code: "parse-error", label: "Ei voitu purkaa" });
+    default: return Object.freeze({ code: "not-observed", label: "Ei luettu" });
+  }
+}
+
+function identityOverallState(overall) {
+  switch (overall) {
+    case "match": return Object.freeze({ code: "match", label: "Ajoneuvo täsmää evidenssiin" });
+    case "mismatch": return Object.freeze({ code: "mismatch", label: "Identiteettitiedoissa poikkeama" });
+    case "partial": return Object.freeze({ code: "partial", label: "Identiteetti osittain luettu" });
+    default: return Object.freeze({ code: "not-observed", label: "Identiteettiä ei luettu" });
+  }
+}
+
+function identityModel(identity) {
+  if (!identity || typeof identity !== "object") {
+    return Object.freeze({ visible: false, overallCode: "not-observed", overallLabel: "Identiteettiä ei luettu", fields: Object.freeze([]) });
+  }
+  const order = ["vin", "calibrationId", "calibrationVerificationNumber", "ecuName"];
+  const fields = order
+    .map(key => identity.fields?.[key])
+    .filter(Boolean)
+    .map(field => {
+      const state = identityUiState(field.status);
+      return Object.freeze({
+        id: String(field.id || ""),
+        label: String(field.label || field.id || ""),
+        value: String(field.value || ""),
+        expected: String(field.expected || ""),
+        responseHeader: String(field.responseHeader || ""),
+        stateCode: state.code,
+        stateLabel: state.label
+      });
+    });
+  const overall = identityOverallState(identity.overall);
+  return Object.freeze({
+    visible: fields.length > 0,
+    overallCode: overall.code,
+    overallLabel: overall.label,
+    source: String(identity.source || ""),
+    evidenceSource: String(identity.evidenceSource || ""),
+    fields: Object.freeze(fields)
+  });
+}
+
 function snapshotTimestamp(snapshot) {
   if (Number.isFinite(snapshot?.endedAt)) return Number(snapshot.endedAt);
   if (Number.isFinite(snapshot?.startedAt)) return Number(snapshot.startedAt);
@@ -68,7 +118,8 @@ export function buildEcuSurveyUiModel(snapshot, historyResult = null) {
       respondingCount: snapshotRespondingCount(item),
       plannedCount: Array.isArray(item?.nodes) ? item.nodes.length : 0,
       topologySignature: ecuSurveyTopologySignature(item) || "none",
-      compatible: comparableRunIds.has(String(item?.runId || ""))
+      compatible: comparableRunIds.has(String(item?.runId || "")),
+      identityOverall: String(item?.identity?.overall || "not-observed")
     }));
 
   return Object.freeze({
@@ -83,6 +134,7 @@ export function buildEcuSurveyUiModel(snapshot, historyResult = null) {
     totalHistoryRuns: historySnapshots.length,
     compatibleHistoryRuns: comparableSnapshots.length,
     topologySignature: ecuSurveyTopologySignature(snapshot) || "none",
+    identity: identityModel(snapshot.identity),
     nodes: Object.freeze(nodes),
     history: Object.freeze(history)
   });
