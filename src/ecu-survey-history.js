@@ -49,6 +49,13 @@ function resolveStorage(storage) {
   }
 }
 
+function compatibleWith(snapshot, reference) {
+  return snapshot?.mode === "read-only" &&
+    Number(snapshot?.schemaVersion) === Number(reference?.schemaVersion) &&
+    String(snapshot?.profileVersion || "") === String(reference?.profileVersion || "") &&
+    String(snapshot?.safeProbe || "") === String(reference?.safeProbe || "");
+}
+
 export function normalizeEcuSurveyHistory(value, limit = ECU_SURVEY_HISTORY_LIMIT) {
   const max = Math.max(1, Math.trunc(Number(limit) || ECU_SURVEY_HISTORY_LIMIT));
   const snapshots = Array.isArray(value) ? value : [];
@@ -92,6 +99,7 @@ export function recordEcuSurveySnapshot(snapshot, storage = undefined) {
   const targetStorage = resolveStorage(storage);
   const previous = loadEcuSurveyHistory(targetStorage);
   const snapshots = normalizeEcuSurveyHistory([...previous, compact]);
+  const comparableSnapshots = Object.freeze(snapshots.filter(item => compatibleWith(item, compact)));
   let persisted = false;
   let error = "";
   try {
@@ -105,7 +113,8 @@ export function recordEcuSurveySnapshot(snapshot, storage = undefined) {
     persisted,
     error,
     snapshots,
-    repeatability: evaluateEcuSurveyRepeatability(snapshots, 3)
+    comparableSnapshots,
+    repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3)
   });
 }
 
