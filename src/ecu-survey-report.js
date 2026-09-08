@@ -33,9 +33,11 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
   ];
 
   if (historyResult) {
+    const compatibleRuns = historyResult.comparableSnapshots?.length ?? historyResult.snapshots?.length ?? 0;
     lines.push(
       `History persisted: ${historyResult.persisted ? "yes" : "no"}`,
       `History runs: ${Number(historyResult.snapshots?.length || 0)}`,
+      `Compatible history runs: ${Number(compatibleRuns)}`,
       `Repeatability: ${repeatabilityLabel(repeatability)}${repeatability ? ` (${Number(repeatability.observedRuns || 0)}/${Number(repeatability.requiredRuns || 3)} runs)` : ""}`
     );
     if (historyResult.error) lines.push(`History warning: ${clean(historyResult.error)}`);
