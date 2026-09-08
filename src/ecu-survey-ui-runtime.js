@@ -16,41 +16,21 @@ const styles = `
 .ecu-survey-meta>div{padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 .ecu-survey-meta span{display:block;color:var(--muted);font-size:9px;font-weight:750;text-transform:uppercase}
 .ecu-survey-meta strong{display:block;margin-top:4px;font-size:12px}
+.ecu-identity{margin:0 0 11px;padding:10px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+.ecu-identity-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.ecu-identity-header strong{font-size:11px}.identity-overall{font-size:9px;font-weight:850}.identity-overall.match{color:var(--green)}.identity-overall.mismatch{color:#ffb4b4}.identity-overall.partial{color:var(--yellow)}.identity-overall.not-observed{color:var(--muted)}
+.ecu-identity-fields{display:grid;gap:6px}.ecu-identity-row{display:grid;grid-template-columns:100px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:10px}.ecu-identity-row span:first-child{color:var(--muted)}.ecu-identity-row code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#d7e1eb}.identity-state{font-size:9px;font-weight:850}.identity-state.match{color:var(--green)}.identity-state.mismatch{color:#ffb4b4}.identity-state.observed{color:var(--blue)}.identity-state.parse-error{color:var(--yellow)}.identity-state.not-observed{color:var(--muted)}
+.ecu-identity-expected{grid-column:2/-1;color:var(--muted);font-size:8px}
 .ecu-survey-nodes{display:grid;gap:6px}
 .ecu-survey-node{display:grid;grid-template-columns:56px minmax(0,1fr) auto;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
-.ecu-survey-node.responding{border-color:#286246}
-.ecu-survey-node.unmapped{border-color:#67542d}
-.ecu-survey-node.attention{border-color:#6c3036}
-.ecu-survey-node.muted{opacity:.62}
-.ecu-survey-address{color:var(--blue);font:800 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.ecu-survey-node-main{min-width:0}
-.ecu-survey-node-main strong{display:block;overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
-.ecu-survey-node-main small{display:block;margin-top:2px;color:var(--muted);font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.ecu-survey-node-state{color:var(--muted);font-size:9px;font-weight:800;text-align:right}
-.ecu-survey-node.responding .ecu-survey-node-state{color:var(--green)}
-.ecu-survey-node.unmapped .ecu-survey-node-state{color:var(--yellow)}
-.ecu-survey-node.attention .ecu-survey-node-state{color:#ffb4b4}
-.ecu-survey-history{margin-top:10px;border-top:1px solid var(--line);padding-top:9px}
-.ecu-survey-history summary{cursor:pointer;color:#cbd5df;font-size:11px;font-weight:750}
-.ecu-survey-history-list{display:grid;gap:6px;margin-top:8px}
-.ecu-survey-history-row{display:grid;grid-template-columns:1fr auto;gap:8px;padding:8px 9px;border-radius:9px;background:var(--surface);font-size:10px}
-.ecu-survey-history-row span{color:var(--muted)}
-.ecu-survey-history-row code{grid-column:1/-1;overflow:hidden;color:#75879b;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
-.ecu-survey-boundary{margin:10px 1px 0;color:var(--muted);font-size:10px;line-height:1.4}
-@media(max-width:420px){.ecu-survey-meta{grid-template-columns:1fr 1fr}.ecu-survey-meta>div:last-child{grid-column:1/-1}.ecu-survey-node{grid-template-columns:48px minmax(0,1fr)}.ecu-survey-node-state{grid-column:2;text-align:left}}
+.ecu-survey-node.responding{border-color:#286246}.ecu-survey-node.unmapped{border-color:#67542d}.ecu-survey-node.attention{border-color:#6c3036}.ecu-survey-node.muted{opacity:.62}
+.ecu-survey-address{color:var(--blue);font:800 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.ecu-survey-node-main{min-width:0}.ecu-survey-node-main strong{display:block;overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.ecu-survey-node-main small{display:block;margin-top:2px;color:var(--muted);font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.ecu-survey-node-state{color:var(--muted);font-size:9px;font-weight:800;text-align:right}.ecu-survey-node.responding .ecu-survey-node-state{color:var(--green)}.ecu-survey-node.unmapped .ecu-survey-node-state{color:var(--yellow)}.ecu-survey-node.attention .ecu-survey-node-state{color:#ffb4b4}
+.ecu-survey-history{margin-top:10px;border-top:1px solid var(--line);padding-top:9px}.ecu-survey-history summary{cursor:pointer;color:#cbd5df;font-size:11px;font-weight:750}.ecu-survey-history-list{display:grid;gap:6px;margin-top:8px}.ecu-survey-history-row{display:grid;grid-template-columns:1fr auto;gap:8px;padding:8px 9px;border-radius:9px;background:var(--surface);font-size:10px}.ecu-survey-history-row span{color:var(--muted)}.ecu-survey-history-row code{grid-column:1/-1;overflow:hidden;color:#75879b;font-size:8px;text-overflow:ellipsis;white-space:nowrap}.ecu-survey-boundary{margin:10px 1px 0;color:var(--muted);font-size:10px;line-height:1.4}
+@media(max-width:420px){.ecu-survey-meta{grid-template-columns:1fr 1fr}.ecu-survey-meta>div:last-child{grid-column:1/-1}.ecu-identity-row{grid-template-columns:82px minmax(0,1fr)}.identity-state{grid-column:2}.ecu-survey-node{grid-template-columns:48px minmax(0,1fr)}.ecu-survey-node-state{grid-column:2;text-align:left}}
 `;
 
-function appendText(element, text) {
-  element.textContent = String(text ?? "");
-  return element;
-}
-
-function create(tag, className = "", text = "") {
-  const element = document.createElement(tag);
-  if (className) element.className = className;
-  if (text !== "") appendText(element, text);
-  return element;
-}
+function appendText(element, text) { element.textContent = String(text ?? ""); return element; }
+function create(tag, className = "", text = "") { const element = document.createElement(tag); if (className) element.className = className; if (text !== "") appendText(element, text); return element; }
 
 function ensureStyles() {
   if (document.getElementById(STYLE_ID)) return;
@@ -72,124 +52,94 @@ function ensurePanel() {
 
   const header = create("div", "ecu-survey-header");
   const titleWrap = create("div");
-  titleWrap.append(create("div", "eyebrow", "ECU SURVEY · PAIKALLINEN HISTORIA"));
-  titleWrap.append(create("h4", "", "CAN-topologia"));
+  titleWrap.append(create("div", "eyebrow", "ECU SURVEY · PAIKALLINEN HISTORIA"), create("h4", "", "CAN-topologia"));
   const badge = create("span", "survey-badge collecting", "Ei dataa");
   badge.id = "ecuSurveyRepeatabilityBadge";
   header.append(titleWrap, badge);
 
-  const meta = create("div", "ecu-survey-meta");
-  meta.id = "ecuSurveyMeta";
-  const nodes = create("div", "ecu-survey-nodes");
-  nodes.id = "ecuSurveyNodes";
-
+  const meta = create("div", "ecu-survey-meta"); meta.id = "ecuSurveyMeta";
+  const identity = create("div", "ecu-identity hidden"); identity.id = "ecuSurveyIdentity";
+  const nodes = create("div", "ecu-survey-nodes"); nodes.id = "ecuSurveyNodes";
   const details = create("details", "ecu-survey-history");
-  const detailsSummary = create("summary", "", "Viimeiset survey-ajot");
-  const historyList = create("div", "ecu-survey-history-list");
-  historyList.id = "ecuSurveyHistoryList";
-  details.append(detailsSummary, historyList);
+  const historyList = create("div", "ecu-survey-history-list"); historyList.id = "ecuSurveyHistoryList";
+  details.append(create("summary", "", "Viimeiset survey-ajot"), historyList);
 
-  panel.append(
-    header,
-    meta,
-    nodes,
-    details,
-    create("p", "ecu-survey-boundary", "Vakaa topologia tarkoittaa kolmea samanlaista yhteensopivaa survey-ajoa. Se ei yksin todista ECU:n identiteettiä tai vikaa.")
-  );
-
+  panel.append(header, meta, identity, nodes, details, create("p", "ecu-survey-boundary", "Vakaa topologia tarkoittaa kolmea samanlaista yhteensopivaa survey-ajoa. Mode 09 -poikkeama on evidenssihavainto, ei itsessään ECU-vika."));
   summary.insertAdjacentElement("afterend", panel);
   return panel;
 }
 
 function formatTime(timestamp) {
   if (!Number.isFinite(timestamp)) return "–";
-  try {
-    return new Date(timestamp).toLocaleString("fi-FI", { dateStyle: "short", timeStyle: "short" });
-  } catch {
-    return new Date(timestamp).toISOString();
-  }
+  try { return new Date(timestamp).toLocaleString("fi-FI", { dateStyle: "short", timeStyle: "short" }); }
+  catch { return new Date(timestamp).toISOString(); }
 }
 
 function renderMeta(model) {
-  const root = document.getElementById("ecuSurveyMeta");
-  if (!root) return;
+  const root = document.getElementById("ecuSurveyMeta"); if (!root) return;
   root.replaceChildren();
-  const values = [
-    ["Vastaavat", `${model.respondingCount}/${model.plannedCount}`],
-    ["Historia", `${model.compatibleHistoryRuns}/${model.totalHistoryRuns}`],
-    ["Viimeisin", formatTime(model.timestamp)]
-  ];
-  for (const [label, value] of values) {
-    const item = create("div");
-    item.append(create("span", "", label), create("strong", "", value));
-    root.append(item);
+  for (const [label, value] of [["Vastaavat", `${model.respondingCount}/${model.plannedCount}`], ["Historia", `${model.compatibleHistoryRuns}/${model.totalHistoryRuns}`], ["Viimeisin", formatTime(model.timestamp)]]) {
+    const item = create("div"); item.append(create("span", "", label), create("strong", "", value)); root.append(item);
   }
 }
 
+function renderIdentity(model) {
+  const root = document.getElementById("ecuSurveyIdentity"); if (!root) return;
+  root.replaceChildren();
+  root.classList.toggle("hidden", !model.identity?.visible);
+  if (!model.identity?.visible) return;
+  const header = create("div", "ecu-identity-header");
+  header.append(create("strong", "", "Mode 09 · ajoneuvon identiteetti"), create("span", `identity-overall ${model.identity.overallCode}`, model.identity.overallLabel));
+  const fields = create("div", "ecu-identity-fields");
+  for (const field of model.identity.fields) {
+    const row = create("div", "ecu-identity-row");
+    row.append(create("span", "", field.label), create("code", "", field.value || "–"), create("span", `identity-state ${field.stateCode}`, field.stateLabel));
+    if (field.expected && field.stateCode === "mismatch") row.append(create("small", "ecu-identity-expected", `Odotettu evidenssi: ${field.expected}`));
+    fields.append(row);
+  }
+  root.append(header, fields);
+}
+
 function renderNodes(model) {
-  const root = document.getElementById("ecuSurveyNodes");
-  if (!root) return;
+  const root = document.getElementById("ecuSurveyNodes"); if (!root) return;
   root.replaceChildren();
   for (const node of model.nodes) {
     const row = create("div", `ecu-survey-node ${node.stateCode}`);
-    const address = create("div", "ecu-survey-address", node.requestHeader);
     const main = create("div", "ecu-survey-node-main");
-    main.append(
-      create("strong", "", node.ecuLabel),
-      create("small", "", `${node.requestHeader} → ${node.responseHeader}`)
-    );
-    row.append(address, main, create("div", "ecu-survey-node-state", node.stateLabel));
+    main.append(create("strong", "", node.ecuLabel), create("small", "", `${node.requestHeader} → ${node.responseHeader}`));
+    row.append(create("div", "ecu-survey-address", node.requestHeader), main, create("div", "ecu-survey-node-state", node.stateLabel));
     root.append(row);
   }
 }
 
 function renderHistory(model) {
-  const root = document.getElementById("ecuSurveyHistoryList");
-  if (!root) return;
+  const root = document.getElementById("ecuSurveyHistoryList"); if (!root) return;
   root.replaceChildren();
-  if (!model.history.length) {
-    root.append(create("div", "empty-state", "Ei tallennettuja survey-ajoja."));
-    return;
-  }
+  if (!model.history.length) { root.append(create("div", "empty-state", "Ei tallennettuja survey-ajoja.")); return; }
   for (const item of model.history) {
+    const identitySuffix = item.identityOverall && item.identityOverall !== "not-observed" ? ` · ID ${item.identityOverall}` : "";
     const row = create("div", "ecu-survey-history-row");
-    row.append(
-      create("span", "", `${formatTime(item.timestamp)}${item.compatible ? " · yhteensopiva" : " · eri profiili"}`),
-      create("strong", "", `${item.respondingCount}/${item.plannedCount}`),
-      create("code", "", item.topologySignature)
-    );
+    row.append(create("span", "", `${formatTime(item.timestamp)}${item.compatible ? " · yhteensopiva" : " · eri profiili"}${identitySuffix}`), create("strong", "", `${item.respondingCount}/${item.plannedCount}`), create("code", "", item.topologySignature));
     root.append(row);
   }
 }
 
 function render(snapshot, historyResult) {
   ensureStyles();
-  const panel = ensurePanel();
-  if (!panel) return;
+  const panel = ensurePanel(); if (!panel) return;
   const current = snapshot || historyResult?.latestSnapshot || historyResult?.snapshots?.[historyResult.snapshots.length - 1] || null;
   const model = buildEcuSurveyUiModel(current, historyResult);
-  panel.classList.toggle("hidden", !model.visible);
-  if (!model.visible) return;
-
+  panel.classList.toggle("hidden", !model.visible); if (!model.visible) return;
   const badge = document.getElementById("ecuSurveyRepeatabilityBadge");
-  if (badge) {
-    badge.className = `survey-badge ${model.repeatability.code}`;
-    badge.textContent = model.repeatability.label;
-  }
-  renderMeta(model);
-  renderNodes(model);
-  renderHistory(model);
+  if (badge) { badge.className = `survey-badge ${model.repeatability.code}`; badge.textContent = model.repeatability.label; }
+  renderMeta(model); renderIdentity(model); renderNodes(model); renderHistory(model);
 }
 
 export function installEcuSurveyUi({ loadHistory } = {}) {
   if (typeof document === "undefined" || typeof loadHistory !== "function") return false;
   const mount = () => render(null, loadHistory());
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount, { once: true });
-  else queueMicrotask(mount);
-  document.addEventListener(EVENT_NAME, event => {
-    const detail = event?.detail || {};
-    render(detail.snapshot || null, detail.historyResult || loadHistory());
-  });
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount, { once: true }); else queueMicrotask(mount);
+  document.addEventListener(EVENT_NAME, event => { const detail = event?.detail || {}; render(detail.snapshot || null, detail.historyResult || loadHistory()); });
   return true;
 }
 
