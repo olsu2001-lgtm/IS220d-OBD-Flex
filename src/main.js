@@ -57,6 +57,8 @@ import {
   formatAdapterCapabilitySummary
 } from "./adapter-profile.js";
 import { AdaptivePollScheduler } from "./poll-scheduler.js";
+import { ecuSurveySnapshotFromDiagnosticRun } from "./ecu-survey-diagnostic.js";
+import { buildEcuSurveyTextReport } from "./ecu-survey-report.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -1647,8 +1649,10 @@ function diagnosticHasValid(run, command, requestHeader = "") {
 
 function finishFullDiagnosticUi(run) {
   run.summary = summarizeFullDiagnostic(run);
+  run.ecuSurvey = ecuSurveySnapshotFromDiagnosticRun(run);
   state.adapterCapabilities = run.summary.adapterCapabilities;
-  state.fullDiagnosticReport = buildFullDiagnosticReport(run);
+  const baseReport = buildFullDiagnosticReport(run);
+  state.fullDiagnosticReport = `${baseReport}\n\n${buildEcuSurveyTextReport(run.ecuSurvey)}`;
   const summary = run.summary;
   const status = $("#diagnosticSummary");
   if (status) {
@@ -1760,10 +1764,6 @@ async function runGekoDiagnostic() {
   setKeepAwake(true);
 
   try {
-    await runFullDiagnosticSteps("Adapteri", [
-      ...VLINKER_CAPABILITY_PROBES
-    ]);
-
     let workingProbe = await executeFullDiagnosticStep({
       phase: "Nykytila ennen nollausta",
       ...diagnosticModeStep("0100", 0x00, "Kokeile nykyisiä ELM- ja protokolla-asetuksia", "", 12000),
@@ -1775,6 +1775,10 @@ async function runGekoDiagnostic() {
     } else {
       workingProbe = null;
     }
+
+    await runFullDiagnosticSteps("Adapteri", [
+      ...VLINKER_CAPABILITY_PROBES
+    ]);
 
     if (!workingProbe) {
       await runFullDiagnosticSteps("Hidas klooniturvallinen alustus", [
