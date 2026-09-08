@@ -25,7 +25,13 @@ test("laaja ELM-raportti muodostaa ECU Survey -snapshotin jo kerätyistä diagno
   assert.match(source, /import \{ ecuSurveySnapshotFromDiagnosticRun \} from "\.\/ecu-survey-diagnostic\.js";/);
   assert.match(source, /import \{ buildEcuSurveyTextReport \} from "\.\/ecu-survey-report\.js";/);
   assert.match(source, /run\.ecuSurvey = ecuSurveySnapshotFromDiagnosticRun\(run\);/);
-  assert.match(source, /buildEcuSurveyTextReport\(run\.ecuSurvey\)/);
+});
+
+test("valmis ECU Survey -snapshot tallennetaan kompaktiin paikallishistoriaan ja toistettavuus liitetään raporttiin", () => {
+  assert.match(source, /import \{ recordEcuSurveySnapshot \} from "\.\/ecu-survey-history\.js";/);
+  assert.match(source, /const surveyHistory = recordEcuSurveySnapshot\(run\.ecuSurvey\);/);
+  assert.match(source, /run\.ecuSurveyHistory = \{/);
+  assert.match(source, /buildEcuSurveyTextReport\(run\.ecuSurvey, surveyHistory\)/);
 });
 
 test("runtime-integraatio ei lisää erillistä survey-lähetysloopia main.js:ään", () => {
