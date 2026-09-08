@@ -40,21 +40,32 @@ function chronologicalValue(snapshot) {
   return 0;
 }
 
+function resolveStorage(storage) {
+  if (storage !== undefined) return storage;
+  try {
+    return globalThis.localStorage || null;
+  } catch {
+    return null;
+  }
+}
+
 export function normalizeEcuSurveyHistory(value, limit = ECU_SURVEY_HISTORY_LIMIT) {
   const max = Math.max(1, Math.trunc(Number(limit) || ECU_SURVEY_HISTORY_LIMIT));
   const snapshots = Array.isArray(value) ? value : [];
-  const valid = [];
-  const seen = new Set();
+  const byIdentity = new Map();
+  let anonymous = 0;
   for (const candidate of snapshots) {
     try {
       const compact = compactEcuSurveySnapshot(candidate);
-      const identity = compact.runId || `${chronologicalValue(compact)}:${valid.length}`;
-      if (seen.has(identity)) continue;
-      seen.add(identity);
-      valid.push(compact);
+      const identity = compact.runId || `anonymous:${chronologicalValue(compact)}:${anonymous++}`;
+      byIdentity.set(identity, compact);
     } catch {}
   }
-  return Object.freeze(valid.sort((a, b) => chronologicalValue(a) - chronologicalValue(b)).slice(-max));
+  return Object.freeze(
+    [...byIdentity.values()]
+      .sort((a, b) => chronologicalValue(a) - chronologicalValue(b))
+      .slice(-max)
+  );
 }
 
 function parseStoredHistory(storage) {
@@ -68,23 +79,24 @@ function parseStoredHistory(storage) {
   }
 }
 
-export function loadEcuSurveyHistory(storage = globalThis.localStorage) {
+export function loadEcuSurveyHistory(storage = undefined) {
   try {
-    return parseStoredHistory(storage);
+    return parseStoredHistory(resolveStorage(storage));
   } catch {
     return Object.freeze([]);
   }
 }
 
-export function recordEcuSurveySnapshot(snapshot, storage = globalThis.localStorage) {
+export function recordEcuSurveySnapshot(snapshot, storage = undefined) {
   const compact = compactEcuSurveySnapshot(snapshot);
-  const previous = loadEcuSurveyHistory(storage);
+  const targetStorage = resolveStorage(storage);
+  const previous = loadEcuSurveyHistory(targetStorage);
   const snapshots = normalizeEcuSurveyHistory([...previous, compact]);
   let persisted = false;
   let error = "";
   try {
-    if (!storage?.setItem) throw new Error("localStorage unavailable");
-    storage.setItem(ECU_SURVEY_HISTORY_KEY, JSON.stringify(snapshots));
+    if (!targetStorage?.setItem) throw new Error("localStorage unavailable");
+    targetStorage.setItem(ECU_SURVEY_HISTORY_KEY, JSON.stringify(snapshots));
     persisted = true;
   } catch (caught) {
     error = caught?.message || String(caught);
@@ -97,9 +109,11 @@ export function recordEcuSurveySnapshot(snapshot, storage = globalThis.localStor
   });
 }
 
-export function clearEcuSurveyHistory(storage = globalThis.localStorage) {
+export function clearEcuSurveyHistory(storage = undefined) {
   try {
-    storage?.removeItem?.(ECU_SURVEY_HISTORY_KEY);
+    const targetStorage = resolveStorage(storage);
+    if (!targetStorage?.removeItem) return false;
+    targetStorage.removeItem(ECU_SURVEY_HISTORY_KEY);
     return true;
   } catch {
     return false;
