@@ -1,6 +1,6 @@
 # ECU Survey foundation
 
-Status: **wired into the existing wide ELM diagnostic report; no separate survey transmit path or UI button yet**.
+Status: **wired into the existing wide ELM diagnostic report with compact local repeatability history; no separate survey transmit path or topology UI yet**.
 
 This module implements the first reusable part of the historical 0.7.0 ECU Survey roadmap while preserving the current IS220d-only read-only contract.
 
@@ -8,7 +8,7 @@ This module implements the first reusable part of the historical 0.7.0 ECU Surve
 
 The August development study identified topology discovery as the next major step before expanding functions or data coverage. It also required equipment-aware interpretation: an optional ECU that is not installed must not automatically be reported as faulty.
 
-`src/ecu-survey.js` turns that requirement into deterministic code. `src/ecu-survey-diagnostic.js` converts the wide diagnostic's already collected `ECU-osoitehaku` results into the survey model, and `src/ecu-survey-report.js` appends a human-readable survey section to the same exported report.
+`src/ecu-survey.js` turns that requirement into deterministic code. `src/ecu-survey-diagnostic.js` converts the wide diagnostic's already collected `ECU-osoitehaku` results into the survey model, `src/ecu-survey-history.js` keeps a compact local history, and `src/ecu-survey-report.js` appends a human-readable survey section to the same exported report.
 
 ## Current survey boundary
 
@@ -34,13 +34,15 @@ At report-finalization time:
 3. only request headers present in the validated survey plan are accepted;
 4. raw response headers are extracted without guessing an identity;
 5. the results are converted to an ECU Survey snapshot;
-6. the text snapshot is appended to the existing full diagnostic report.
+6. a compact snapshot is appended to local history;
+7. the last three topologies are compared;
+8. the text snapshot and repeatability result are appended to the existing full diagnostic report.
 
 This integration therefore adds **zero new vehicle requests** to a diagnostic run.
 
 ## Connection preflight order
 
-The wide diagnostic now follows the Drive 0.5.1 connection principle more closely:
+The wide diagnostic follows the Drive 0.5.1 connection principle:
 
 1. try `0100` with the adapter's current ELM/protocol state first;
 2. run optional adapter/vLinker capability probes;
@@ -101,6 +103,28 @@ The survey modules do not open Bluetooth, change ELM settings or send a command.
 
 Observations outside the profile's `7E0`–`7E7` plan are rejected rather than silently added to topology.
 
+## Local history
+
+`src/ecu-survey-history.js` stores at most the latest 10 survey snapshots under a versioned localStorage key.
+
+The stored form is intentionally compact. It keeps only data needed to compare topology:
+
+- run/profile identifiers and timestamps;
+- request headers;
+- observed response headers;
+- known ECU ID when one already exists in the profile;
+- expectation/result state;
+- response/attempt counts.
+
+It deliberately removes:
+
+- raw CAN/ELM responses;
+- last-error text;
+- adapter identity and address;
+- full diagnostic metadata.
+
+Invalid or unreadable history fails to an empty history. A localStorage write failure is reported in the survey report but does not fail the diagnostic run.
+
 ## Repeatability gate
 
 `evaluateEcuSurveyRepeatability()` implements the study's topology-repeatability principle.
@@ -111,18 +135,23 @@ Default gate:
 - the last 3 responding-topology signatures must be identical;
 - only then is `stable: true` returned.
 
+The report presents repeatability as:
+
+- `collecting` before three runs exist;
+- `stable` when the latest three topologies are identical;
+- `changed` when at least three runs exist but their latest topologies differ.
+
 The signature contains request header, observed response header(s) and a profile-defined ECU ID when one exists. Unknown responders remain `unmapped`.
 
 Stable topology is evidence of repeatability, **not proof of ECU identity**.
 
 ## Next integration step
 
-The next useful runtime step is persistent survey history rather than more traffic:
+The next useful runtime step is a compact topology UI rather than more traffic:
 
-1. store completed ECU Survey snapshots locally;
-2. compare the last three runs automatically with `evaluateEcuSurveyRepeatability()`;
-3. expose a compact topology section in the UI;
-4. compare repeated snapshots against Techstream Health Check before adding any new ECU identity to the profile;
-5. add equipment expectations only when the specific vehicle configuration supports them.
+1. show the latest survey topology and the `collecting/stable/changed` state on the connection/diagnostic screen;
+2. allow the user to inspect the last survey runs without exposing unnecessary raw data;
+3. compare repeated snapshots against Techstream Health Check before adding any new ECU identity to the profile;
+4. add equipment expectations only when the specific vehicle configuration supports them.
 
 Future integration must not widen `TOYOTA_READ_DATA_ALLOWED_COMMANDS` or the production IS220d `21xx` profile without separate evidence and review.
