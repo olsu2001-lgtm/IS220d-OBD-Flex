@@ -7,7 +7,8 @@ This directory separates the **active development contract** from historical Dri
 1. [`../AGENTS.md`](../AGENTS.md) — AI/development contract and current project identity.
 2. [`SAFETY.md`](SAFETY.md) — current fail-closed, read-only safety model.
 3. [`PROTOCOL.md`](PROTOCOL.md) — current verified IS220d production protocol profile and Toyota allowlist.
-4. Executable source and regression tests — the final source of truth for shipped behavior.
+4. [`ECU_SURVEY.md`](ECU_SURVEY.md) — current read-only ECU Survey policy/data-model foundation and integration boundary.
+5. Executable source and regression tests — the final source of truth for shipped behavior.
 
 Historical documents never expand the active command allowlist by themselves.
 
