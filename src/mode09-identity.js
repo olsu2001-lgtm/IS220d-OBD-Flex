@@ -145,7 +145,8 @@ function decodeField(definition, parsed) {
   return text;
 }
 
-function fieldStatus(value, expected, parserObserved) {
+function fieldStatus(value, expected, parserObserved, validResponse) {
+  if (validResponse && !parserObserved) return "parse-error";
   if (!parserObserved) return value ? "observed" : "not-observed";
   if (!value) return "parse-error";
   if (!expected) return "observed";
@@ -166,7 +167,8 @@ export function extractMode09IdentityFromDiagnosticRun(
   for (const definition of FIELD_DEFINITIONS) {
     const result = latestResultForCommand(run?.results, definition.command);
     const raw = String(result?.raw || result?.cleaned || "");
-    const parsed = result?.validResponse === true ? extractMode09Body(raw, definition.pid) : null;
+    const validResponse = result?.validResponse === true;
+    const parsed = validResponse ? extractMode09Body(raw, definition.pid) : null;
     const value = decodeField(definition, parsed);
     const expected = definition.expectedKey ? String(evidence?.[definition.expectedKey] || "") : "";
     fields[definition.id] = Object.freeze({
@@ -176,20 +178,19 @@ export function extractMode09IdentityFromDiagnosticRun(
       responseHeader: String(parsed?.header || ""),
       value: value || "",
       expected,
-      status: fieldStatus(value, expected, Boolean(parsed)),
-      validResponse: result?.validResponse === true,
+      status: fieldStatus(value, expected, Boolean(parsed), validResponse),
+      validResponse,
       error: String(result?.error || "")
     });
   }
 
   const expectedFields = [fields.vin, fields.calibrationId, fields.calibrationVerificationNumber];
-  const observedExpected = expectedFields.filter(field => ["match", "mismatch"].includes(field.status));
   const anyObserved = Object.values(fields).some(field => field.status !== "not-observed");
   const overall = expectedFields.some(field => field.status === "mismatch")
     ? "mismatch"
     : expectedFields.every(field => field.status === "match")
       ? "match"
-      : anyObserved || observedExpected.length
+      : anyObserved
         ? "partial"
         : "not-observed";
 
