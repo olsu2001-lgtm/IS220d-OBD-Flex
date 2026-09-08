@@ -19,6 +19,36 @@ function compactNode(node) {
   };
 }
 
+function compactIdentityField(field) {
+  if (!field || typeof field !== "object") return null;
+  return Object.freeze({
+    id: String(field.id || ""),
+    label: String(field.label || ""),
+    value: String(field.value || ""),
+    expected: String(field.expected || ""),
+    status: String(field.status || "not-observed"),
+    responseHeader: String(field.responseHeader || ""),
+    writable: false
+  });
+}
+
+function compactIdentity(identity) {
+  if (!identity || typeof identity !== "object") return null;
+  const fields = {};
+  for (const [key, field] of Object.entries(identity.fields || {})) {
+    const compact = compactIdentityField(field);
+    if (compact) fields[key] = compact;
+  }
+  return Object.freeze({
+    schemaVersion: Number(identity.schemaVersion || 1),
+    source: String(identity.source || ""),
+    evidenceSource: String(identity.evidenceSource || ""),
+    overall: String(identity.overall || "not-observed"),
+    writable: false,
+    fields: Object.freeze(fields)
+  });
+}
+
 export function compactEcuSurveySnapshot(snapshot) {
   if (!snapshot || snapshot.mode !== "read-only" || !Array.isArray(snapshot.nodes)) {
     throw new Error("Valid read-only ECU Survey snapshot is required");
@@ -31,7 +61,8 @@ export function compactEcuSurveySnapshot(snapshot) {
     runId: String(snapshot.runId || ""),
     startedAt: Number.isFinite(snapshot.startedAt) ? Number(snapshot.startedAt) : null,
     endedAt: Number.isFinite(snapshot.endedAt) ? Number(snapshot.endedAt) : null,
-    nodes: Object.freeze(snapshot.nodes.map(compactNode))
+    nodes: Object.freeze(snapshot.nodes.map(compactNode)),
+    identity: compactIdentity(snapshot.identity)
   });
 }
 

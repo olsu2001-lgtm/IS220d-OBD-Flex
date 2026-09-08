@@ -9,6 +9,26 @@ function repeatabilityLabel(repeatability) {
   return "changed";
 }
 
+function appendIdentity(lines, identity) {
+  if (!identity || typeof identity !== "object") return;
+  lines.push("", "Mode 09 vehicle identity:");
+  lines.push(`- Overall: ${clean(identity.overall) || "not-observed"}`);
+  lines.push(`- Source: ${clean(identity.source) || "unknown"}`);
+  lines.push(`- Evidence source: ${clean(identity.evidenceSource) || "unknown"}`);
+  for (const field of Object.values(identity.fields || {})) {
+    const observed = clean(field?.value) || "-";
+    const expected = clean(field?.expected);
+    const suffix = [
+      `field=${clean(field?.id || field?.label)}`,
+      `status=${clean(field?.status) || "not-observed"}`,
+      `value=${observed}`
+    ];
+    if (expected) suffix.push(`expected=${expected}`);
+    if (field?.responseHeader) suffix.push(`response=${clean(field.responseHeader)}`);
+    lines.push(`- ${suffix.join(" | ")}`);
+  }
+}
+
 export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
   if (!snapshot || snapshot.mode !== "read-only" || !Array.isArray(snapshot.nodes)) {
     throw new Error("Valid read-only ECU Survey snapshot is required");
@@ -43,6 +63,7 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
     if (historyResult.error) lines.push(`History warning: ${clean(historyResult.error)}`);
   }
 
+  appendIdentity(lines, snapshot.identity);
   lines.push("", "Nodes:");
 
   for (const node of snapshot.nodes) {
@@ -67,6 +88,7 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
     "",
     "Interpretation boundary:",
     "- A stable response topology is repeatability evidence, not proof of ECU identity.",
+    "- Mode 09 match/mismatch compares observed read-only identity data to repository vehicle evidence; mismatch is an evidence flag, not an ECU fault verdict.",
     "- Unmapped responders stay unidentified until independent vehicle/Techstream evidence exists.",
     "- Expected-no-response is an inspection flag, not an automatic ECU fault verdict.",
     "- This section is derived from the existing read-only diagnostic results and sends no additional vehicle command."
