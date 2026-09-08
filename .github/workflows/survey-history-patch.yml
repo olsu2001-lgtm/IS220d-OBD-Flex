@@ -1,0 +1,45 @@
+name: Temporary survey history patch
+
+on:
+  push:
+    branches: [feat/ecu-survey-history]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-main:
+    if: ${{ !contains(github.event.head_commit.message, 'apply survey history wiring') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/ecu-survey-history
+      - name: Apply exact runtime edits
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/main.js")
+          source = path.read_text(encoding="utf-8")
+
+          old_import = 'import { buildEcuSurveyTextReport } from "./ecu-survey-report.js";\n'
+          new_import = old_import + 'import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";\n'
+          assert source.count(old_import) == 1, "survey report import anchor changed"
+          source = source.replace(old_import, new_import, 1)
+
+          old_finish = '''function finishFullDiagnosticUi(run) {\n  run.summary = summarizeFullDiagnostic(run);\n  run.ecuSurvey = ecuSurveySnapshotFromDiagnosticRun(run);\n  state.adapterCapabilities = run.summary.adapterCapabilities;\n  const baseReport = buildFullDiagnosticReport(run);\n  state.fullDiagnosticReport = `${baseReport}\\n\\n${buildEcuSurveyTextReport(run.ecuSurvey)}`;\n  const summary = run.summary;\n'''
+          new_finish = '''function finishFullDiagnosticUi(run) {\n  run.summary = summarizeFullDiagnostic(run);\n  run.ecuSurvey = ecuSurveySnapshotFromDiagnosticRun(run);\n  const surveyHistory = recordEcuSurveySnapshot(run.ecuSurvey);\n  run.ecuSurveyHistory = {\n    persisted: surveyHistory.persisted,\n    error: surveyHistory.error,\n    storedRuns: surveyHistory.snapshots.length,\n    repeatability: surveyHistory.repeatability\n  };\n  state.adapterCapabilities = run.summary.adapterCapabilities;\n  const baseReport = buildFullDiagnosticReport(run);\n  state.fullDiagnosticReport = `${baseReport}\\n\\n${buildEcuSurveyTextReport(run.ecuSurvey, surveyHistory)}`;\n  const summary = run.summary;\n'''
+          assert source.count(old_finish) == 1, "finishFullDiagnosticUi anchor changed"
+          source = source.replace(old_finish, new_finish, 1)
+
+          path.write_text(source, encoding="utf-8")
+          PY
+          git diff --check
+      - name: Commit survey history wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main.js
+          git commit -m "feat: apply survey history wiring"
+          git push origin HEAD:feat/ecu-survey-history
