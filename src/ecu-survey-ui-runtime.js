@@ -12,10 +12,10 @@ const styles = `
 .survey-badge.collecting{border-color:#67542d;background:#2d2616;color:var(--yellow)}
 .survey-badge.stable{border-color:#286246;background:#10271d;color:var(--green)}
 .survey-badge.changed{border-color:#6c3036;background:#2c171a;color:#ffb4b4}
-.ecu-survey-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:10px}
+.ecu-survey-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:10px}
 .ecu-survey-meta>div{padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 .ecu-survey-meta span{display:block;color:var(--muted);font-size:9px;font-weight:750;text-transform:uppercase}
-.ecu-survey-meta strong{display:block;margin-top:4px;font-size:12px}
+.ecu-survey-meta strong{display:block;margin-top:4px;overflow:hidden;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
 .ecu-identity{margin:0 0 11px;padding:10px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
 .ecu-identity-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .ecu-identity-header strong{font-size:11px}.identity-overall{font-size:9px;font-weight:850}.identity-overall.match{color:var(--green)}.identity-overall.mismatch{color:#ffb4b4}.identity-overall.partial{color:var(--yellow)}.identity-overall.not-observed{color:var(--muted)}
@@ -26,7 +26,7 @@ const styles = `
 .ecu-survey-node.responding{border-color:#286246}.ecu-survey-node.unmapped{border-color:#67542d}.ecu-survey-node.attention{border-color:#6c3036}.ecu-survey-node.muted{opacity:.62}
 .ecu-survey-address{color:var(--blue);font:800 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.ecu-survey-node-main{min-width:0}.ecu-survey-node-main strong{display:block;overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.ecu-survey-node-main small{display:block;margin-top:2px;color:var(--muted);font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.ecu-survey-node-state{color:var(--muted);font-size:9px;font-weight:800;text-align:right}.ecu-survey-node.responding .ecu-survey-node-state{color:var(--green)}.ecu-survey-node.unmapped .ecu-survey-node-state{color:var(--yellow)}.ecu-survey-node.attention .ecu-survey-node-state{color:#ffb4b4}
 .ecu-survey-history{margin-top:10px;border-top:1px solid var(--line);padding-top:9px}.ecu-survey-history summary{cursor:pointer;color:#cbd5df;font-size:11px;font-weight:750}.ecu-survey-history-list{display:grid;gap:6px;margin-top:8px}.ecu-survey-history-row{display:grid;grid-template-columns:1fr auto;gap:8px;padding:8px 9px;border-radius:9px;background:var(--surface);font-size:10px}.ecu-survey-history-row span{color:var(--muted)}.ecu-survey-history-row code{grid-column:1/-1;overflow:hidden;color:#75879b;font-size:8px;text-overflow:ellipsis;white-space:nowrap}.ecu-survey-boundary{margin:10px 1px 0;color:var(--muted);font-size:10px;line-height:1.4}
-@media(max-width:420px){.ecu-survey-meta{grid-template-columns:1fr 1fr}.ecu-survey-meta>div:last-child{grid-column:1/-1}.ecu-identity-row{grid-template-columns:82px minmax(0,1fr)}.identity-state{grid-column:2}.ecu-survey-node{grid-template-columns:48px minmax(0,1fr)}.ecu-survey-node-state{grid-column:2;text-align:left}}
+@media(max-width:420px){.ecu-survey-meta{grid-template-columns:1fr 1fr}.ecu-identity-row{grid-template-columns:82px minmax(0,1fr)}.identity-state{grid-column:2}.ecu-survey-node{grid-template-columns:48px minmax(0,1fr)}.ecu-survey-node-state{grid-column:2;text-align:left}}
 `;
 
 function appendText(element, text) { element.textContent = String(text ?? ""); return element; }
@@ -78,7 +78,12 @@ function formatTime(timestamp) {
 function renderMeta(model) {
   const root = document.getElementById("ecuSurveyMeta"); if (!root) return;
   root.replaceChildren();
-  for (const [label, value] of [["Vastaavat", `${model.respondingCount}/${model.plannedCount}`], ["Historia", `${model.compatibleHistoryRuns}/${model.totalHistoryRuns}`], ["Viimeisin", formatTime(model.timestamp)]]) {
+  for (const [label, value] of [
+    ["Vastaavat", `${model.respondingCount}/${model.plannedCount}`],
+    ["Historia", `${model.compatibleHistoryRuns}/${model.totalHistoryRuns}`],
+    ["Build", model.buildSha || "–"],
+    ["Viimeisin", formatTime(model.timestamp)]
+  ]) {
     const item = create("div"); item.append(create("span", "", label), create("strong", "", value)); root.append(item);
   }
 }
@@ -118,8 +123,9 @@ function renderHistory(model) {
   if (!model.history.length) { root.append(create("div", "empty-state", "Ei tallennettuja survey-ajoja.")); return; }
   for (const item of model.history) {
     const identitySuffix = item.identityOverall && item.identityOverall !== "not-observed" ? ` · ID ${item.identityOverall}` : "";
+    const buildSuffix = item.buildSha ? ` · ${item.buildSha}` : "";
     const row = create("div", "ecu-survey-history-row");
-    row.append(create("span", "", `${formatTime(item.timestamp)}${item.compatible ? " · yhteensopiva" : " · eri profiili"}${identitySuffix}`), create("strong", "", `${item.respondingCount}/${item.plannedCount}`), create("code", "", item.topologySignature));
+    row.append(create("span", "", `${formatTime(item.timestamp)}${item.compatible ? " · yhteensopiva" : " · eri profiili"}${identitySuffix}${buildSuffix}`), create("strong", "", `${item.respondingCount}/${item.plannedCount}`), create("code", "", item.topologySignature));
     root.append(row);
   }
 }
