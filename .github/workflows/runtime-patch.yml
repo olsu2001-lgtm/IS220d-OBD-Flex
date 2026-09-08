@@ -1,0 +1,52 @@
+name: Temporary runtime patch
+
+on:
+  push:
+    branches: [feat/ecu-survey-runtime]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-main:
+    if: ${{ !contains(github.event.head_commit.message, 'apply runtime wiring') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/ecu-survey-runtime
+      - name: Apply exact runtime edits
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/main.js")
+          source = path.read_text(encoding="utf-8")
+
+          old_import = 'import { AdaptivePollScheduler } from "./poll-scheduler.js";\n'
+          new_import = '''import { AdaptivePollScheduler } from "./poll-scheduler.js";\nimport { ecuSurveySnapshotFromDiagnosticRun } from "./ecu-survey-diagnostic.js";\nimport { buildEcuSurveyTextReport } from "./ecu-survey-report.js";\n'''
+          assert source.count(old_import) == 1, "poll-scheduler import anchor changed"
+          source = source.replace(old_import, new_import, 1)
+
+          old_finish = '''function finishFullDiagnosticUi(run) {\n  run.summary = summarizeFullDiagnostic(run);\n  state.adapterCapabilities = run.summary.adapterCapabilities;\n  state.fullDiagnosticReport = buildFullDiagnosticReport(run);\n  const summary = run.summary;\n'''
+          new_finish = '''function finishFullDiagnosticUi(run) {\n  run.summary = summarizeFullDiagnostic(run);\n  run.ecuSurvey = ecuSurveySnapshotFromDiagnosticRun(run);\n  state.adapterCapabilities = run.summary.adapterCapabilities;\n  const baseReport = buildFullDiagnosticReport(run);\n  state.fullDiagnosticReport = `${baseReport}\\n\\n${buildEcuSurveyTextReport(run.ecuSurvey)}`;\n  const summary = run.summary;\n'''
+          assert source.count(old_finish) == 1, "finishFullDiagnosticUi anchor changed"
+          source = source.replace(old_finish, new_finish, 1)
+
+          capability = '''    await runFullDiagnosticSteps("Adapteri", [\n      ...VLINKER_CAPABILITY_PROBES\n    ]);\n\n'''
+          probe_start = '''    let workingProbe = await executeFullDiagnosticStep({\n      phase: "Nykytila ennen nollausta",\n      ...diagnosticModeStep("0100", 0x00, "Kokeile nykyisiä ELM- ja protokolla-asetuksia", "", 12000),\n      connectionStrategy: "current"\n    });\n    if (workingProbe.validResponse) {\n      state.diagnosticRun.connectionStrategy = "current";\n      state.diagnosticRun.searchStoppedOnFirstResponse = true;\n    } else {\n      workingProbe = null;\n    }\n\n'''
+          expected = '  try {\n' + capability + probe_start + '    if (!workingProbe) {'
+          replacement = '  try {\n' + probe_start + capability + '    if (!workingProbe) {'
+          assert source.count(expected) == 1, "diagnostic preflight anchor changed"
+          source = source.replace(expected, replacement, 1)
+
+          path.write_text(source, encoding="utf-8")
+          PY
+          git diff --check
+      - name: Commit runtime wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main.js
+          git commit -m "feat: apply runtime wiring"
+          git push origin HEAD:feat/ecu-survey-runtime
