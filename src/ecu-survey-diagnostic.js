@@ -3,6 +3,7 @@ import {
   buildEcuSurveyPlan,
   evaluateEcuSurvey
 } from "./ecu-survey.js";
+import { extractMode09IdentityFromDiagnosticRun } from "./mode09-identity.js";
 
 const normalizeHex = value => String(value || "").replace(/\s+/g, "").toUpperCase();
 
@@ -59,7 +60,7 @@ export function ecuSurveySnapshotFromDiagnosticRun(
   if (!run || !Array.isArray(run.results)) throw new Error("Diagnostic run with results is required");
   const observations = ecuSurveyObservationsFromDiagnosticResults(run.results, profile);
   const meta = run.meta || {};
-  return evaluateEcuSurvey({
+  const survey = evaluateEcuSurvey({
     profile,
     observations,
     expectations,
@@ -74,5 +75,10 @@ export function ecuSurveySnapshotFromDiagnosticRun(
       identity: meta.adapter || "",
       protocol: meta.protocol || ""
     }
+  });
+
+  return Object.freeze({
+    ...survey,
+    identity: extractMode09IdentityFromDiagnosticRun(run)
   });
 }
