@@ -2,12 +2,20 @@ import { ecuSurveyTopologySignature } from "./ecu-survey.js";
 
 const clean = value => String(value ?? "").replace(/[\r\n\t]+/g, " ").trim();
 
-export function buildEcuSurveyTextReport(snapshot) {
+function repeatabilityLabel(repeatability) {
+  if (!repeatability) return "not evaluated";
+  if (repeatability.stable) return "stable";
+  if (Number(repeatability.observedRuns || 0) < Number(repeatability.requiredRuns || 3)) return "collecting";
+  return "changed";
+}
+
+export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
   if (!snapshot || snapshot.mode !== "read-only" || !Array.isArray(snapshot.nodes)) {
     throw new Error("Valid read-only ECU Survey snapshot is required");
   }
 
   const summary = snapshot.summary || {};
+  const repeatability = historyResult?.repeatability || null;
   const lines = [
     "ECU SURVEY",
     `Schema: ${snapshot.schemaVersion}`,
@@ -21,10 +29,19 @@ export function buildEcuSurveyTextReport(snapshot) {
     `Unexpected responses: ${Number(summary.unexpectedResponses || 0)}`,
     `Unmapped responses: ${Number(summary.unmappedResponses || 0)}`,
     `Attention count: ${Number(summary.attentionCount || 0)}`,
-    `Topology signature: ${ecuSurveyTopologySignature(snapshot) || "none"}`,
-    "",
-    "Nodes:"
+    `Topology signature: ${ecuSurveyTopologySignature(snapshot) || "none"}`
   ];
+
+  if (historyResult) {
+    lines.push(
+      `History persisted: ${historyResult.persisted ? "yes" : "no"}`,
+      `History runs: ${Number(historyResult.snapshots?.length || 0)}`,
+      `Repeatability: ${repeatabilityLabel(repeatability)}${repeatability ? ` (${Number(repeatability.observedRuns || 0)}/${Number(repeatability.requiredRuns || 3)} runs)` : ""}`
+    );
+    if (historyResult.error) lines.push(`History warning: ${clean(historyResult.error)}`);
+  }
+
+  lines.push("", "Nodes:");
 
   for (const node of snapshot.nodes) {
     const observed = (node.observedResponseHeaders || []).join(",") || "-";
