@@ -1,6 +1,6 @@
 # ECU Survey foundation
 
-Status: **policy/data-model foundation, not yet wired to the Android transport or UI**.
+Status: **wired into the existing wide ELM diagnostic report; no separate survey transmit path or UI button yet**.
 
 This module implements the first reusable part of the historical 0.7.0 ECU Survey roadmap while preserving the current IS220d-only read-only contract.
 
@@ -8,7 +8,7 @@ This module implements the first reusable part of the historical 0.7.0 ECU Surve
 
 The August development study identified topology discovery as the next major step before expanding functions or data coverage. It also required equipment-aware interpretation: an optional ECU that is not installed must not automatically be reported as faulty.
 
-`src/ecu-survey.js` turns that requirement into deterministic code.
+`src/ecu-survey.js` turns that requirement into deterministic code. `src/ecu-survey-diagnostic.js` converts the wide diagnostic's already collected `ECU-osoitehaku` results into the survey model, and `src/ecu-survey-report.js` appends a human-readable survey section to the same exported report.
 
 ## Current survey boundary
 
@@ -22,6 +22,31 @@ The executable survey plan is derived only from `IS220D_DIAGNOSTIC_PROFILE.ecuSu
 The survey policy has a hard allowlist containing only `0100`. Changing `safeProbe` to another command makes plan creation fail before transport integration.
 
 No Toyota `21xx` command, service/coding operation, Active Test, DTC clearing or ECU write is introduced by this module.
+
+## Runtime integration
+
+The wide **vLinker / ELM + Toyota** diagnostic already performs the direct-header `7E0`–`7E7` `0100` address scan. ECU Survey reuses those exact results instead of sending another scan.
+
+At report-finalization time:
+
+1. only results from phase `ECU-osoitehaku` are considered;
+2. only command `0100` is accepted;
+3. only request headers present in the validated survey plan are accepted;
+4. raw response headers are extracted without guessing an identity;
+5. the results are converted to an ECU Survey snapshot;
+6. the text snapshot is appended to the existing full diagnostic report.
+
+This integration therefore adds **zero new vehicle requests** to a diagnostic run.
+
+## Connection preflight order
+
+The wide diagnostic now follows the Drive 0.5.1 connection principle more closely:
+
+1. try `0100` with the adapter's current ELM/protocol state first;
+2. run optional adapter/vLinker capability probes;
+3. only if the current-state `0100` did not work, continue to the existing clone-safe reset/fallback sequence beginning with `ATZ` and then `ATSP0`, `ATTP6` and `ATSP6` paths.
+
+This prevents optional capability probing from delaying the first ECU connectivity check. Capability probes remain read-only adapter identity/status commands.
 
 ## Known versus unknown ECUs
 
@@ -72,7 +97,7 @@ The evaluator consumes already collected read-only observations. Example shape:
 }
 ```
 
-The module itself does not open Bluetooth, change ELM settings or send a command.
+The survey modules do not open Bluetooth, change ELM settings or send a command.
 
 Observations outside the profile's `7E0`–`7E7` plan are rejected rather than silently added to topology.
 
@@ -92,12 +117,12 @@ Stable topology is evidence of repeatability, **not proof of ECU identity**.
 
 ## Next integration step
 
-The next runtime step should reuse the existing direct-header `0100` diagnostic path rather than create another transport implementation:
+The next useful runtime step is persistent survey history rather than more traffic:
 
-1. run the connection preflight with current adapter settings first;
-2. execute the validated survey plan through the existing queued ELM command path;
-3. convert each result into an ECU Survey observation;
-4. preserve complete raw responses in the exported report;
-5. compare repeated snapshots and Techstream Health Check before assigning new ECU identities.
+1. store completed ECU Survey snapshots locally;
+2. compare the last three runs automatically with `evaluateEcuSurveyRepeatability()`;
+3. expose a compact topology section in the UI;
+4. compare repeated snapshots against Techstream Health Check before adding any new ECU identity to the profile;
+5. add equipment expectations only when the specific vehicle configuration supports them.
 
-Transport integration must not widen `TOYOTA_READ_DATA_ALLOWED_COMMANDS` or the production IS220d `21xx` profile.
+Future integration must not widen `TOYOTA_READ_DATA_ALLOWED_COMMANDS` or the production IS220d `21xx` profile without separate evidence and review.
