@@ -22,17 +22,19 @@ The goal is to keep **source, evidence and reproducible documentation** in Git w
 
 ## Current IS220d line
 
-### 0.6.5 source archive
+The archive includes source snapshots and test evidence from the late 0.6.x line. Git is now authoritative, but these hashes provide provenance for the material that preceded the repository import.
 
-The August development-study baseline referenced the preserved 0.6.5 project ZIP:
+### Source archive registry
 
-`IS220d_OBD-Flex-0.6.5-project.zip`
+| Version | Project archive | SHA-256 | Recorded test state |
+|---|---|---|---|
+| 0.6.5 | `IS220d_OBD-Flex-0.6.5-project.zip` | `1c645296326b666d0db01a772993fa465105b866b7d70659c17b00bfed87d5aa` | development-study baseline |
+| 0.6.6 | `IS220d_OBD-Flex-0.6.6-project.zip` | `a0636152684d28e66a0a2a0b6aa3136dd27deaa660155acfe1939119d4c8d631` | 79/79 tests; vLinker Ready |
+| 0.6.7 | `IS220d_OBD-Flex-0.6.7-project.zip` | `bd9ba0fdee4975be4b1ef5b14d5f9c54af151d91a444b61e123375c90a37d0dd` | 91/91 tests; validated profile/replay |
+| 0.6.8 | `IS220d_OBD-Flex-0.6.8-project.zip` | `48670c419d40d2c7ba835b6908bba69868be47a3d6d1b247dbb0ac6a0d837148` | 101/101 tests; adaptive live polling |
+| 0.6.9 | `IS220d_OBD-Flex-0.6.9-project.zip` | `df34b9bfbbe8c88b1a15434529b438a213fdff994955542e5d7f6bb4bc2ac473` | 102/102 tests; DPNR inspection |
 
-SHA-256:
-
-`1c645296326b666d0db01a772993fa465105b866b7d70659c17b00bfed87d5aa`
-
-This is useful lineage evidence but is superseded as source by the current Git repository.
+The 0.6.6 report records that the physical vLinker MC+ had not yet arrived, so Classic/BLE vehicle validation was still open. The 0.6.7 and 0.6.8 reports likewise distinguish successful software/APK verification from later physical IS220d + vLinker verification. This distinction is retained in the current evidence policy.
 
 ### 0.6.9 Git baseline
 
@@ -41,8 +43,10 @@ The current Git baseline is `IS220d OBD Flex 0.6.9` / versionCode 609.
 The preserved 0.6.9 report records:
 
 - 102/102 automated tests passed;
+- project ZIP SHA-256: `df34b9bfbbe8c88b1a15434529b438a213fdff994955542e5d7f6bb4bc2ac473`;
 - release APK SHA-256: `db15d1a644c588185b0d097155c166da57b9cc3a379a8891a8a1b504c0060a1b`;
-- debug APK SHA-256: `a61b8f8458afd3dd0a1b2afbf063d9f79c561171dd7ac5aa8aa874822783667e`.
+- debug APK SHA-256: `a61b8f8458afd3dd0a1b2afbf063d9f79c561171dd7ac5aa8aa874822783667e`;
+- test-report SHA-256: `bd70ec43a1e2190522c6ada64722fefdac6850efb288b207c8dbdafad508a5e3`.
 
 Generated APKs remain excluded by `.gitignore`.
 
@@ -110,7 +114,7 @@ The current Git summary intentionally omits full Bluetooth addresses and other u
 
 The project contains Techstream 12.20.024 archive parts and historical research derived from its EU data definitions.
 
-Git handling:
+The August development study inventoried the Techstream material as a multi-region database set and used EU Data/PIDGroup definitions and help files for research. Git handling remains:
 
 - do not import the Techstream distribution itself;
 - do not import proprietary database dumps;
@@ -120,7 +124,7 @@ Git handling:
 
 ## Lexus repair manual archive
 
-The project also retains the Lexus IS250/220D repair-manual ISO/RAR material in project storage.
+The development study inventoried the Lexus IS250/220D repair-manual archive as 26,893 files, including HTML, PNG and PDF material. Duplicate RAR and ISO copies were reported identical in that study.
 
 Git handling:
 
@@ -142,7 +146,7 @@ They remain in Drive because:
 
 ## Parts and vehicle-maintenance data
 
-Project-level parts/BOM spreadsheets and maintenance records are valuable to the wider Lexus project but are not application source inputs for Flex. They therefore remain outside this Git repository unless a future feature explicitly defines a versioned, non-sensitive data interface to them.
+Project-level parts/BOM spreadsheets and maintenance records are valuable to the wider Lexus project but are not application source inputs for Flex. The August development study also explicitly treated parts lists as reference material without diagnostic impact. They therefore remain outside this Git repository unless a future feature explicitly defines a versioned, non-sensitive data interface to them.
 
 ## Future import checklist
 
