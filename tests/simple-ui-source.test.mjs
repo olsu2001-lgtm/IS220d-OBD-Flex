@@ -16,11 +16,21 @@ test("simple mode keeps everyday actions visible and developer tools behind adva
   assert.match(source, /nav-terminal/);
 });
 
-test("new installs default to the known IS220d CAN6 protocol without overriding an existing choice", () => {
-  assert.match(source, /if \(!stored\)/);
+test("normal mode migrates once to the known IS220d CAN6 protocol and preserves later advanced choice", () => {
+  assert.match(source, /PROTOCOL_OVERRIDE_KEY/);
+  assert.match(source, /if \(!advancedOverride\)/);
   assert.match(source, /select\.value = "can6"/);
   assert.match(source, /setItem\(PROTOCOL_KEY, "can6"\)/);
+  assert.match(source, /setItem\(PROTOCOL_OVERRIDE_KEY, "true"\)/);
+  assert.match(source, /event\?\.isTrusted === false/);
   assert.match(source, /IS220d käyttää CAN 11 bit \/ 500 kbit\/s/);
+});
+
+test("simple mode shows bounded Classic wait status instead of a silent pause", () => {
+  assert.match(source, /is220d:classic-transport-status/);
+  assert.match(source, /Adapteri vastaa/);
+  assert.match(source, /aikaraja/);
+  assert.match(source, /Sovellus pysyy käytettävissä/);
 });
 
 test("simple UI is presentation-only and does not implement vehicle communication", () => {
