@@ -1,4 +1,5 @@
 import { buildEcuSurveyUiModel } from "./ecu-survey-ui.js";
+import { buildFieldValidationTextReport } from "./field-validation.js";
 
 const STYLE_ID = "ecu-survey-ui-style";
 const PANEL_ID = "ecuSurveyTopologyCard";
@@ -21,6 +22,12 @@ const styles = `
 .ecu-identity-header strong{font-size:11px}.identity-overall{font-size:9px;font-weight:850}.identity-overall.match{color:var(--green)}.identity-overall.mismatch{color:#ffb4b4}.identity-overall.partial{color:var(--yellow)}.identity-overall.not-observed{color:var(--muted)}
 .ecu-identity-fields{display:grid;gap:6px}.ecu-identity-row{display:grid;grid-template-columns:100px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:10px}.ecu-identity-row span:first-child{color:var(--muted)}.ecu-identity-row code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#d7e1eb}.identity-state{font-size:9px;font-weight:850}.identity-state.match{color:var(--green)}.identity-state.mismatch{color:#ffb4b4}.identity-state.observed{color:var(--blue)}.identity-state.parse-error{color:var(--yellow)}.identity-state.not-observed{color:var(--muted)}
 .ecu-identity-expected{grid-column:2/-1;color:var(--muted);font-size:8px}
+.field-validation{margin:0 0 11px;padding:10px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+.field-validation-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.field-validation-header strong{font-size:11px}
+.field-validation-badge{font-size:9px;font-weight:850}.field-validation-badge.collecting{color:var(--yellow)}.field-validation-badge.ready{color:var(--green)}.field-validation-badge.attention{color:#ffb4b4}
+.field-validation-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.field-validation-meta code,.field-validation-meta span{padding:4px 6px;border-radius:7px;background:#0a0e13;color:var(--muted);font-size:9px}
+.field-validation-checks{display:grid;gap:5px}.field-validation-check{display:grid;grid-template-columns:52px minmax(0,1fr);gap:7px;align-items:start;font-size:9px}.field-validation-check b{font-size:8px}.field-validation-check.pass b{color:var(--green)}.field-validation-check.pending b{color:var(--yellow)}.field-validation-check span{color:#d7e1eb}.field-validation-check small{grid-column:2;color:var(--muted);font-size:8px}
+.field-validation-external{margin:8px 0 0;color:var(--muted);font-size:9px;line-height:1.35}.field-validation-copy{width:100%;min-height:34px;margin-top:9px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:#0a0e13;color:#d7e1eb;font-size:10px;font-weight:800}
 .ecu-survey-nodes{display:grid;gap:6px}
 .ecu-survey-node{display:grid;grid-template-columns:56px minmax(0,1fr) auto;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 .ecu-survey-node.responding{border-color:#286246}.ecu-survey-node.unmapped{border-color:#67542d}.ecu-survey-node.attention{border-color:#6c3036}.ecu-survey-node.muted{opacity:.62}
@@ -59,12 +66,13 @@ function ensurePanel() {
 
   const meta = create("div", "ecu-survey-meta"); meta.id = "ecuSurveyMeta";
   const identity = create("div", "ecu-identity hidden"); identity.id = "ecuSurveyIdentity";
+  const validation = create("div", "field-validation hidden"); validation.id = "ecuSurveyFieldValidation";
   const nodes = create("div", "ecu-survey-nodes"); nodes.id = "ecuSurveyNodes";
   const details = create("details", "ecu-survey-history");
   const historyList = create("div", "ecu-survey-history-list"); historyList.id = "ecuSurveyHistoryList";
   details.append(create("summary", "", "Viimeiset survey-ajot"), historyList);
 
-  panel.append(header, meta, identity, nodes, details, create("p", "ecu-survey-boundary", "Vakaa topologia tarkoittaa kolmea samanlaista yhteensopivaa survey-ajoa. Mode 09 -poikkeama on evidenssihavainto, ei itsessään ECU-vika."));
+  panel.append(header, meta, identity, validation, nodes, details, create("p", "ecu-survey-boundary", "Vakaa topologia tarkoittaa kolmea samanlaista yhteensopivaa survey-ajoa. Mode 09 -poikkeama on evidenssihavainto, ei itsessään ECU-vika."));
   summary.insertAdjacentElement("afterend", panel);
   return panel;
 }
@@ -105,6 +113,46 @@ function renderIdentity(model) {
   root.append(header, fields);
 }
 
+function renderFieldValidation(model, session) {
+  const root = document.getElementById("ecuSurveyFieldValidation"); if (!root) return;
+  root.replaceChildren();
+  root.classList.toggle("hidden", !model.fieldValidation?.visible);
+  if (!model.fieldValidation?.visible) return;
+
+  const header = create("div", "field-validation-header");
+  header.append(
+    create("strong", "", "Kenttävalidointi · 0.7.0-portti"),
+    create("span", `field-validation-badge ${model.fieldValidation.code}`, model.fieldValidation.label)
+  );
+  const meta = create("div", "field-validation-meta");
+  meta.append(
+    create("code", "", `build ${model.fieldValidation.buildSha || "–"}`),
+    create("span", "", `moottori ${model.fieldValidation.engineState || "–"}`)
+  );
+  const checks = create("div", "field-validation-checks");
+  for (const item of model.fieldValidation.checks) {
+    const row = create("div", `field-validation-check ${item.pass ? "pass" : "pending"}`);
+    row.append(create("b", "", item.pass ? "PASS" : "PUUTTUU"), create("span", "", item.label), create("small", "", item.detail));
+    checks.append(row);
+  }
+  root.append(header, meta, checks);
+  if (model.fieldValidation.pendingExternal.length) {
+    root.append(create("p", "field-validation-external", `Ulkoinen evidenssi vielä: ${model.fieldValidation.pendingExternal.join(", ")}.`));
+  }
+  const copy = create("button", "field-validation-copy", "Kopioi validointiyhteenveto");
+  copy.type = "button";
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(buildFieldValidationTextReport(session));
+      copy.textContent = "Validointiyhteenveto kopioitu";
+    } catch {
+      copy.textContent = "Kopiointi epäonnistui";
+    }
+    setTimeout(() => { copy.textContent = "Kopioi validointiyhteenveto"; }, 1800);
+  });
+  root.append(copy);
+}
+
 function renderNodes(model) {
   const root = document.getElementById("ecuSurveyNodes"); if (!root) return;
   root.replaceChildren();
@@ -138,7 +186,11 @@ function render(snapshot, historyResult) {
   panel.classList.toggle("hidden", !model.visible); if (!model.visible) return;
   const badge = document.getElementById("ecuSurveyRepeatabilityBadge");
   if (badge) { badge.className = `survey-badge ${model.repeatability.code}`; badge.textContent = model.repeatability.label; }
-  renderMeta(model); renderIdentity(model); renderNodes(model); renderHistory(model);
+  renderMeta(model);
+  renderIdentity(model);
+  renderFieldValidation(model, historyResult?.fieldValidation || null);
+  renderNodes(model);
+  renderHistory(model);
 }
 
 export function installEcuSurveyUi({ loadHistory } = {}) {
