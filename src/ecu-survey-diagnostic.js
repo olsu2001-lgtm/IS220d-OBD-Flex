@@ -4,6 +4,7 @@ import {
   evaluateEcuSurvey
 } from "./ecu-survey.js";
 import { extractMode09IdentityFromDiagnosticRun } from "./mode09-identity.js";
+import { extractFieldValidationEvidenceFromDiagnosticRun } from "./field-validation.js";
 
 const normalizeHex = value => String(value || "").replace(/\s+/g, "").toUpperCase();
 
@@ -88,6 +89,7 @@ export function ecuSurveySnapshotFromDiagnosticRun(
   return Object.freeze({
     ...survey,
     buildSha: runtimeBuildSha(),
-    identity: extractMode09IdentityFromDiagnosticRun(run)
+    identity: extractMode09IdentityFromDiagnosticRun(run),
+    validation: extractFieldValidationEvidenceFromDiagnosticRun(run)
   });
 }

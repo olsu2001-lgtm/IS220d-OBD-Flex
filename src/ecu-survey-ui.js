@@ -73,6 +73,37 @@ function identityModel(identity) {
   });
 }
 
+function fieldValidationState(session) {
+  if (!session || typeof session !== "object") return Object.freeze({ visible: false });
+  let code = "collecting";
+  let label = `Kenttäajoja ${Number(session.observedRuns || 0)}/${Number(session.requiredRuns || 3)}`;
+  if (session.status === "ready-for-techstream") {
+    code = "ready";
+    label = "Valmis Techstream-vertailuun";
+  } else if (session.status === "needs-attention") {
+    code = "attention";
+    label = "Tarkista validointiehdot";
+  }
+  return Object.freeze({
+    visible: true,
+    code,
+    label,
+    readyForTechstream: session.readyForTechstream === true,
+    observedRuns: Number(session.observedRuns || 0),
+    requiredRuns: Number(session.requiredRuns || 3),
+    buildSha: String(session.buildSha || ""),
+    engineState: String(session.engineState || ""),
+    topologySignature: String(session.topologySignature || ""),
+    checks: Object.freeze((session.checks || []).map(item => Object.freeze({
+      code: String(item?.code || ""),
+      label: String(item?.label || ""),
+      pass: item?.pass === true,
+      detail: String(item?.detail || "")
+    }))),
+    pendingExternal: Object.freeze([...(session.pendingExternal || [])].map(String))
+  });
+}
+
 function snapshotTimestamp(snapshot) {
   if (Number.isFinite(snapshot?.endedAt)) return Number(snapshot.endedAt);
   if (Number.isFinite(snapshot?.startedAt)) return Number(snapshot.startedAt);
@@ -137,6 +168,7 @@ export function buildEcuSurveyUiModel(snapshot, historyResult = null) {
     compatibleHistoryRuns: comparableSnapshots.length,
     topologySignature: ecuSurveyTopologySignature(snapshot) || "none",
     identity: identityModel(snapshot.identity),
+    fieldValidation: fieldValidationState(historyResult?.fieldValidation),
     nodes: Object.freeze(nodes),
     history: Object.freeze(history)
   });

@@ -1,4 +1,5 @@
 import { evaluateEcuSurveyRepeatability } from "./ecu-survey.js";
+import { evaluateFieldValidationSession } from "./field-validation.js";
 import { installEcuSurveyUi, notifyEcuSurveyUi } from "./ecu-survey-ui-runtime.js";
 
 export const ECU_SURVEY_HISTORY_KEY = "is220d-obd:ecu-survey-history:v1";
@@ -49,6 +50,41 @@ function compactIdentity(identity) {
   });
 }
 
+function compactValidationToyota(row) {
+  if (!row || typeof row !== "object") return null;
+  return Object.freeze({
+    command: String(row.command || ""),
+    identifier: Number(row.identifier || 0),
+    attempted: row.attempted === true,
+    positive: row.positive === true,
+    status: String(row.status || "not-attempted"),
+    queryForm: String(row.queryForm || ""),
+    responseHeaders: Object.freeze([...(row.responseHeaders || [])].map(String).sort()),
+    attempts: Number(row.attempts || 0),
+    writable: false
+  });
+}
+
+function compactValidation(validation) {
+  if (!validation || typeof validation !== "object") return null;
+  return Object.freeze({
+    schemaVersion: Number(validation.schemaVersion || 1),
+    source: String(validation.source || ""),
+    engineState: String(validation.engineState || "auto"),
+    connectionStrategy: String(validation.connectionStrategy || ""),
+    currentSettingsProbeObserved: validation.currentSettingsProbeObserved === true,
+    currentSettingsProbePassed: validation.currentSettingsProbePassed === true,
+    restorationProbeObserved: validation.restorationProbeObserved === true,
+    restorationPassed: validation.restorationPassed === true,
+    cancelled: validation.cancelled === true,
+    internalFailure: validation.internalFailure === true,
+    toyota: Object.freeze((validation.toyota || []).map(compactValidationToyota).filter(Boolean)),
+    toyotaAttemptedCount: Number(validation.toyotaAttemptedCount || 0),
+    toyotaPositiveCount: Number(validation.toyotaPositiveCount || 0),
+    writable: false
+  });
+}
+
 export function compactEcuSurveySnapshot(snapshot) {
   if (!snapshot || snapshot.mode !== "read-only" || !Array.isArray(snapshot.nodes)) {
     throw new Error("Valid read-only ECU Survey snapshot is required");
@@ -63,7 +99,8 @@ export function compactEcuSurveySnapshot(snapshot) {
     startedAt: Number.isFinite(snapshot.startedAt) ? Number(snapshot.startedAt) : null,
     endedAt: Number.isFinite(snapshot.endedAt) ? Number(snapshot.endedAt) : null,
     nodes: Object.freeze(snapshot.nodes.map(compactNode)),
-    identity: compactIdentity(snapshot.identity)
+    identity: compactIdentity(snapshot.identity),
+    validation: compactValidation(snapshot.validation)
   });
 }
 
@@ -137,7 +174,8 @@ export function summarizeEcuSurveyHistory(storage = undefined) {
     snapshots,
     latestSnapshot,
     comparableSnapshots,
-    repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3)
+    repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3),
+    fieldValidation: evaluateFieldValidationSession(snapshots)
   });
 }
 
@@ -161,7 +199,8 @@ export function recordEcuSurveySnapshot(snapshot, storage = undefined) {
     error,
     snapshots,
     comparableSnapshots,
-    repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3)
+    repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3),
+    fieldValidation: evaluateFieldValidationSession(snapshots)
   });
   notifyEcuSurveyUi(snapshot, result);
   return result;

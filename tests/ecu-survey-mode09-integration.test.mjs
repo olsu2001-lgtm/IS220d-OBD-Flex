@@ -36,8 +36,10 @@ test("compact survey history preserves decoded identity evidence but no Mode 09 
   assert.equal(compact.identity.overall, "match");
   assert.equal(compact.identity.fields.vin.value, "JTHBB262302028787");
   assert.equal(compact.identity.fields.vin.status, "match");
+  assert.deepEqual(compact.validation.toyota.map(row => row.command), ["217E", "217F", "212C"]);
+  assert.equal(compact.validation.toyota.every(row => !("raw" in row) && !("error" in row)), true);
   const json = JSON.stringify(compact);
-  assert.doesNotMatch(json, /10 14 49 02|secret raw|"error"|"command"/i);
+  assert.doesNotMatch(json, /10 14 49 02|secret raw|"error"|"raw"|"latestRaw"/i);
 });
 
 test("survey text report includes Mode 09 evidence match without adding raw payload", () => {
@@ -53,7 +55,8 @@ test("survey text report includes Mode 09 evidence match without adding raw payl
 
 test("survey UI model exposes identity evidence statuses as evidence, not fault language", () => {
   const snapshot = ecuSurveySnapshotFromDiagnosticRun(identityDiagnosticRun());
-  const model = buildEcuSurveyUiModel(snapshot, { snapshots: [compactEcuSurveySnapshot(snapshot)], comparableSnapshots: [compactEcuSurveySnapshot(snapshot)], repeatability: { stable: false, observedRuns: 1, requiredRuns: 3 } });
+  const compact = compactEcuSurveySnapshot(snapshot);
+  const model = buildEcuSurveyUiModel(snapshot, { snapshots: [compact], comparableSnapshots: [compact], repeatability: { stable: false, observedRuns: 1, requiredRuns: 3 } });
   assert.equal(model.identity.visible, true);
   assert.equal(model.identity.overallCode, "match");
   assert.equal(model.identity.fields.find(field => field.id === "vin").stateLabel, "Täsmää");

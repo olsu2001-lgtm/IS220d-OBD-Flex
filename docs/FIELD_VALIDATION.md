@@ -170,6 +170,46 @@ For the existing vehicle-verified Toyota paths, retain:
 
 The purpose is to verify that current decoded values change plausibly with operating conditions and that suspicious values remain traceable to their raw response. Exact-equal DPNR temperatures or the known suspicious 750 °C pair remain evidence flags, not automatic sensor-fault declarations.
 
+## Automatic three-run field-validation gate
+
+The app now derives a compact validation record from each completed wide diagnostic and stores it beside the existing ECU Survey history. This adds no vehicle request; it only summarizes results that the wide diagnostic already produced.
+
+For each stored run the validation record retains:
+
+- declared engine state (`running`, `stopped` or `auto`);
+- connection strategy selected by the existing diagnostic;
+- whether the initial current-settings `0100` result was recorded and whether it passed;
+- whether the final restoration `0100` was recorded and whether it passed;
+- cancellation/internal-error state;
+- for `217E`, `217F` and `212C`: attempted/not-attempted, positive/non-positive state, successful query form when available, response CAN header(s) and attempt count.
+
+The compact history deliberately does **not** duplicate raw CAN/ELM responses or error text. Those remain in the separately saved full diagnostic reports.
+
+The **Kenttävalidointi · 0.7.0-portti** panel evaluates the latest run against previous history. A clean three-run group requires the same:
+
+- survey schema/profile/safe probe;
+- embedded Build SHA;
+- declared engine state.
+
+The automatic internal gate passes only when all of these are true:
+
+1. three matching validation runs exist;
+2. the Build SHA is present and identical;
+3. engine state is explicitly declared as running or stopped and is identical;
+4. the current-settings `0100` step exists in every run;
+5. all three topology signatures are identical;
+6. `7E0 → 7E8` is observed in every run;
+7. Mode 09 VIN/CALID/CVN identity status is `match` in every run;
+8. `217E`, `217F` and `212C` were all attempted in every run;
+9. final restoration `0100` succeeds in every run;
+10. none of the three runs is cancelled or contains an internal diagnostic-engine failure.
+
+A positive manufacturer response is **not** required for all three Toyota identifiers to pass this gate; the requirement is that the existing production paths were actually exercised and their detailed result remains available in the corresponding full report.
+
+When all internal checks pass, the panel reports **Valmis Techstream-vertailuun**. This is not a 0.7.0 release decision. Techstream Health Check/system inventory remains independent external evidence and is shown as pending until reviewed separately.
+
+The panel can copy a compact field-validation summary. The same summary is also appended to the full ECU Survey text report.
+
 ## Minimum evidence before calling the ECU Survey line vehicle-validated
 
 The 0.7.0 ECU Survey line should not be promoted solely because unit tests and APK builds are green.
