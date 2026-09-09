@@ -4,6 +4,8 @@
 
 
 # instance fields
+.field private asyncObdBridge:Lcom/nicron/webview/AsyncObdBridge;
+
 .field private bleObdBridge:Lcom/nicron/webview/BleObdBridge;
 
 .field private filePathCallback:Landroid/webkit/ValueCallback;
@@ -200,6 +202,22 @@
     iget-object v2, p0, Lcom/nicron/webview/MainActivity;->webView:Landroid/webkit/WebView;
 
     const-string v3, "obd"
+
+    invoke-virtual {v2, v0, v3}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
+
+    new-instance v0, Lcom/nicron/webview/AsyncObdBridge;
+
+    iget-object v2, p0, Lcom/nicron/webview/MainActivity;->obdBridge:Lcom/nicron/webview/ObdBridge;
+
+    iget-object v3, p0, Lcom/nicron/webview/MainActivity;->webView:Landroid/webkit/WebView;
+
+    invoke-direct {v0, v2, v3}, Lcom/nicron/webview/AsyncObdBridge;-><init>(Lcom/nicron/webview/ObdBridge;Landroid/webkit/WebView;)V
+
+    iput-object v0, p0, Lcom/nicron/webview/MainActivity;->asyncObdBridge:Lcom/nicron/webview/AsyncObdBridge;
+
+    iget-object v2, p0, Lcom/nicron/webview/MainActivity;->webView:Landroid/webkit/WebView;
+
+    const-string v3, "obdAsync"
 
     invoke-virtual {v2, v0, v3}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
 
