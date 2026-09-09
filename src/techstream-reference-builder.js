@@ -43,10 +43,12 @@ export function parseGuidedTechstreamSystems(text) {
 export function parseGuidedTechstreamMappings(text) {
   return nonEmptyLines(text).map((line, index) => {
     const parts = splitPipeLine(line);
-    if (parts.length < 4 || parts.length > 5) {
-      throw new Error(`Mapping-rivi ${index + 1}: käytä muotoa request | response | järjestelmä | candidate/verified | evidenssiperuste`);
+    if (parts.length !== 4 && parts.length !== 5) {
+      throw new Error(`Mapping-rivi ${index + 1}: käytä muotoa request | response | järjestelmä | evidenssiperuste tai lisää ennen perustetta candidate/verified`);
     }
-    const [requestHeader = "", responseHeader = "", systemName = "", rawLevel = "", evidenceNote = ""] = parts;
+    const [requestHeader = "", responseHeader = "", systemName = ""] = parts;
+    const rawLevel = parts.length === 5 ? parts[3] : "candidate";
+    const evidenceNote = parts.length === 5 ? parts[4] : parts[3];
     if (!requestHeader || !responseHeader || !systemName) throw new Error(`Mapping-riviltä ${index + 1} puuttuu osoite tai järjestelmänimi`);
     const evidenceLevel = clean(rawLevel).toLowerCase() || "candidate";
     if (!evidenceNote) throw new Error(`Mapping-riviltä ${index + 1} puuttuu evidenssiperuste`);
@@ -106,7 +108,7 @@ export function techstreamReferenceToGuidedDraft(reference) {
 
 export function buildGuidedTechstreamExamples() {
   return Object.freeze({
-    systems: "Engine system | | Health Checkissä näkyvä järjestelmänimi\nABS/VSC/TRC | C0215, U0073 | Esimerkkimuoto — käytä vain oman raportin koodeja",
-    mappings: "7E0 | 7E8 | Engine system | candidate | Lisää tähän riippumaton peruste tälle CAN-mappaukselle"
+    systems: "<Health Checkin järjestelmänimi> | <DTC:t pilkulla> | <valinnainen huomio>",
+    mappings: "7E0 | 7E8 | <sama järjestelmänimi> | candidate | <riippumaton evidenssiperuste>"
   });
 }
