@@ -274,7 +274,7 @@
 
     const-string v1, "relative_path"
 
-    const-string v2, "Download/IS220d OBD"
+    const-string v2, "Download/Lexus OBD"
 
     invoke-virtual {v0, v1, v2}, Landroid/content/ContentValues;->put(Ljava/lang/String;Ljava/lang/String;)V
 
@@ -343,7 +343,7 @@
     :base_ok
     new-instance v1, Ljava/io/File;
 
-    const-string v2, "IS220d OBD"
+    const-string v2, "Lexus OBD"
 
     invoke-direct {v1, v0, v2}, Ljava/io/File;-><init>(Ljava/io/File;Ljava/lang/String;)V
 

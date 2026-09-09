@@ -6,9 +6,12 @@ import {
   QuicklynksClient,
   PID_DEFINITIONS,
   PID_BY_ID,
+  decodePidResponse,
   parseDtcResponse,
   parseMilStatus,
+  decodeToyotaReadDataResponse,
   cleanElmResponse,
+  hexLines,
   hasModePidResponse,
   isSafeTerminalCommand,
   sessionToCsv,
@@ -20,8 +23,7 @@ import {
   createQuicklynksResearchState,
   QUICKLYNKS_RESEARCH_PROBES,
   FULL_DIAGNOSTIC_ENGINE_HEADERS,
-  TOYOTA_READ_DATA_PROBES,
-  TOYOTA_READ_DATA_ALLOWED_COMMANDS,
+  IS220D_INJECTOR_SCREENING_PROBES,
   evaluateFullDiagnosticStep,
   summarizeFullDiagnostic,
   buildFullDiagnosticReport,
@@ -38,6 +40,12 @@ import {
   buildQuicklynksWideDiagnosticReport,
   buildQuicklynksWideDiagnosticAnalysisPrompt,
   classifyDiagnosticResponse,
+  VEHICLE_KEYS,
+  getVehicleProfile,
+  getVehicleReadDataProbes,
+  isProfileReadOnlyCommand,
+  metricSupportsVehicle,
+  vehicleDisplayName,
   delay
 } from "./core.js";
 import {
@@ -57,13 +65,40 @@ import {
   formatAdapterCapabilitySummary
 } from "./adapter-profile.js";
 import { AdaptivePollScheduler } from "./poll-scheduler.js";
-import { ecuSurveySnapshotFromDiagnosticRun } from "./ecu-survey-diagnostic.js";
-import { buildEcuSurveyTextReport } from "./ecu-survey-report.js";
-import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";
+import {
+  CT_PURCHASE_THRESHOLDS,
+  createCtPurchaseInspection,
+  createCtPurchaseSample,
+  parseCtReadiness,
+  decodeCtPurchasePid,
+  analyzeCtPurchaseInspection,
+  buildCtPurchaseInspectionReport,
+  buildCtPurchaseInspectionAnalysisPrompt
+} from "./ct-purchase-test.js";
+import {
+  NativePowerGpsSource,
+  buildPowerTestAnalysisPrompt,
+  buildPowerTestReport,
+  cancelPowerTestRun,
+  comparePowerTestRuns,
+  createPowerTestRun,
+  ingestPowerTestSample,
+  powerTestToCsv,
+  vehiclePowerDefaults
+} from "./power-test.js";
+import {
+  INJECTOR_TEST_COMMANDS,
+  INJECTOR_TEST_LIMITS,
+  analyzeInjectorTest,
+  buildInjectorTestReport,
+  buildInjectorTestAnalysisPrompt
+} from "./injector-test.js";
+import { createThemeController } from "./themes.js";
+import { classifyConnectedVehicle, parseObdVin } from "./vehicle-detection.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const APP_VERSION = "0.6.9";
+const APP_VERSION = "0.7.8";
 const DPNR_MONITOR_METRIC_IDS = Object.freeze([
   "dpnrDifferentialPressure",
   "dpnrInletTemperature",
@@ -73,9 +108,15 @@ const DPNR_MONITOR_METRIC_IDS = Object.freeze([
   "dpnrRegenerationActive"
 ]);
 
+const savedVehicleSelection = localStorage.getItem("lexusVehicleProfile");
+const initialVehicleSelection = [VEHICLE_KEYS.IS220D, VEHICLE_KEYS.CT200H, VEHICLE_KEYS.AUTO].includes(savedVehicleSelection)
+  ? savedVehicleSelection
+  : VEHICLE_KEYS.AUTO;
+
 const nativeTransport = new NativeElmTransport(globalThis.obd);
 const bleTransport = new NativeBleElmTransport(globalThis.bleObd);
 const fakeTransport = new FakeElmTransport();
+const powerGpsSource = new NativePowerGpsSource(globalThis.powerGps);
 
 const state = {
   client: null,
@@ -123,8 +164,89 @@ const state = {
   diagnosticKind: "",
   obdPlusTraceRunning: false,
   obdPlusTraceAnalysis: null,
-  obdPlusTraceReport: ""
+  obdPlusTraceReport: "",
+  ctPurchaseInspection: null,
+  ctPurchaseAnalysis: null,
+  ctPurchaseReport: "",
+  ctPurchaseRoadActive: false,
+  ctPurchaseSampleTimer: null,
+  ctPurchaseLastBlockUpdatedAt: 0,
+  ctPurchaseRoadSegmentStartedAt: 0,
+  injectorTestRun: null,
+  injectorTestAnalysis: null,
+  injectorTestReport: "",
+  injectorTestRunning: false,
+  injectorTestAbortRequested: false,
+  powerTestRun: null,
+  powerTestReport: "",
+  powerTestRuns: [],
+  powerLastGpsSample: null,
+  powerLiveStartedByTest: false,
+  powerGpsSourceInfo: null,
+  vehicleSelection: initialVehicleSelection,
+  vehicleKey: initialVehicleSelection,
+  vehicleDetection: {
+    status: initialVehicleSelection === VEHICLE_KEYS.AUTO ? "idle" : "manual",
+    message: initialVehicleSelection === VEHICLE_KEYS.AUTO ? "Auto tunnistetaan jokaisella yhteyskerralla" : "Käyttäjän varavalinta; auto tunnistetaan silti yhdistettäessä",
+    modelCode: "",
+    engineCode: "",
+    vin: "",
+    confidence: "unknown",
+    evidence: []
+  }
 };
+
+let themeController;
+
+function redrawThemeSensitiveContent() {
+  if ($("#liveChart")) updateLiveChart();
+  if ($("#powerChart")) renderPowerChart();
+  if ($("#savedChart") && state.selectedSession) drawSavedChart();
+}
+
+function renderThemeSelection(snapshot = themeController?.getSnapshot()) {
+  if (!snapshot) return;
+  const select = $("#themeSelect");
+  if (select) select.value = snapshot.preference;
+  const summary = $("#themeSummaryValue");
+  if (summary) summary.textContent = snapshot.label;
+  const description = $("#themeDescription");
+  if (description) description.textContent = snapshot.description;
+  const resolved = $("#themeResolvedState");
+  if (resolved) {
+    resolved.textContent = snapshot.followsSystem
+      ? `Käytössä ${snapshot.resolvedLabel} · Androidin asetuksen mukaan`
+      : `Käytössä ${snapshot.resolvedLabel}`;
+  }
+}
+
+function handleThemeChange(snapshot) {
+  renderThemeSelection(snapshot);
+  globalThis.requestAnimationFrame?.(redrawThemeSensitiveContent);
+}
+
+function activeVehicleProfile() {
+  return getVehicleProfile(state.vehicleKey);
+}
+
+function activeVehicleName() {
+  return activeVehicleProfile()?.vehicle?.displayName || "Yleinen EOBD / tunnistamaton Lexus";
+}
+
+function activeVehicleDescription() {
+  const profile = activeVehicleProfile();
+  if (!profile) return "Ajoneuvo tunnistamatta";
+  if (state.vehicleKey === VEHICLE_KEYS.CT200H) return `${profile.vehicle.engine} · ${profile.vehicle.powertrain}`;
+  return `${profile.vehicle.engine} · 2,2 D-CAT`;
+}
+
+function activeMetricDefinitions() {
+  return PID_DEFINITIONS.filter(definition => metricSupportsVehicle(definition, state.vehicleKey));
+}
+
+function isCt200h() {
+  return state.vehicleKey === VEHICLE_KEYS.CT200H;
+}
 
 function declaredEngineRunning(selectId) {
   const value = $(`#${selectId}`)?.value || "auto";
@@ -165,6 +287,233 @@ function setRecordingButtonState(active) {
   }
 }
 
+function applyVehicleProfileUi() {
+  const profile = activeVehicleProfile();
+  const vehicleName = activeVehicleName();
+  const description = activeVehicleDescription();
+  const isCt = isCt200h();
+  const selectionLabel = state.vehicleDetection.status === "detected" && profile
+    ? `${vehicleName} · tunnistettu automaattisesti`
+    : profile && state.vehicleDetection.status === "manual-fallback"
+      ? `${vehicleName} · käsin valittu varaprofiili`
+      : vehicleName;
+
+  if ($("#vehicleSelect")) $("#vehicleSelect").value = state.vehicleSelection;
+  if ($("#vehicleIdentity")) $("#vehicleIdentity").textContent = selectionLabel;
+  if ($("#powertrainIdentity")) $("#powertrainIdentity").textContent = description;
+  if ($("#vehicleDetection")) {
+    $("#vehicleDetection").textContent = state.vehicleDetection.message || "";
+    const warningStatuses = new Set(["error", "unknown", "conflict", "manual-fallback", "unsupported"]);
+    $("#vehicleDetection").className = `inline-message ${warningStatuses.has(state.vehicleDetection.status) ? "warning" : ""}`.trim();
+    $("#vehicleDetection").classList.toggle("hidden", !state.vehicleDetection.message);
+  }
+  if ($("#appEyebrow")) $("#appEyebrow").textContent = isCt ? "LEXUS ZWA10 · HYBRIDI + EOBD" : state.vehicleKey === VEHICLE_KEYS.IS220D ? "LEXUS XE20 · 2AD-FHV + EOBD" : "LEXUS · EOBD";
+  if ($("#liveEyebrow")) $("#liveEyebrow").textContent = isCt ? "MODE 01 + CT HYBRID 21 · VAIN LUKU" : "MODE 01 + TECHSTREAM 21 · VAIN LUKU";
+  if ($("#driveBannerLabel")) $("#driveBannerLabel").textContent = isCt ? "HV-AKUN TILA" : "DPNR / DPF -POLTON TILA";
+  if ($("#hybridDtcGroup")) $("#hybridDtcGroup").classList.toggle("hidden", !isCt);
+  if (!isCt) {
+    if ($("#page-ct-test")?.classList.contains("active")) goToPage("connection");
+    if (state.ctPurchaseRoadActive && state.ctPurchaseRoadSegmentStartedAt && state.ctPurchaseInspection) {
+      state.ctPurchaseInspection.roadSegments.push({ startedAt: state.ctPurchaseRoadSegmentStartedAt, endedAt: Date.now() });
+    }
+    state.ctPurchaseRoadActive = false;
+    state.ctPurchaseRoadSegmentStartedAt = 0;
+    clearInterval(state.ctPurchaseSampleTimer);
+    state.ctPurchaseSampleTimer = null;
+  }
+  const isIs220d = state.vehicleKey === VEHICLE_KEYS.IS220D;
+  if (!isIs220d && $("#page-injector-test")?.classList.contains("active")) goToPage("connection");
+  if (!isIs220d && $("#page-dpnr")?.classList.contains("active")) goToPage("connection");
+  if ($("#clearDtcButton")) {
+    $("#clearDtcButton").textContent = isCt ? "CT-hybridikoodien poisto ei käytössä" : "Poista vikakoodit…";
+    $("#clearDtcButton").disabled = isCt;
+  }
+  if ($("#dtcClearHint")) $("#dtcClearHint").textContent = isCt
+    ? "Flex 0.7.8 lukee CT:n moottori- ja hybridikoodit, mutta ei lähetä hybridiohjaimelle eikä väärän ECU-otsakkeen kautta mitään poistokomentoa."
+    : "Poisto nollaa myös freeze frame -tietoja ja päästövalmiusmonitoreita.";
+  if ($("#diagnosticProfileHint")) {
+    $("#diagnosticProfileHint").innerHTML = isCt
+      ? "Testi tarkistaa CAN-yhteyden ja CT 200h:n hybridiohjaimen osoitteen <code>7E2/7EA</code>. Se lukee mallitunnisteen <code>21C1</code>, varaustilan <code>2101</code>, 14 lohkojännitettä <code>2181</code>, lämpötilat <code>2187</code>, sisäiset vastukset <code>2195</code> ja akun virran <code>2198</code>. Vain luku: ei Active Test-, poisto-, kirjoitus- tai pakkolatauskomentoja."
+      : "Testi tarkistaa CAN-yhteyden sekä IS220d:n varmennetut Toyota-lukupyynnöt <code>217E</code>, <code>217F</code> ja <code>212C</code>. Vain luku: ei Active Test-, poisto-, kirjoitus- tai regenerointikomentoja.";
+  }
+  if ($("#injectorProfileState")) {
+    $("#injectorProfileState").textContent = isIs220d
+      ? "IS220d / 2AD-FHV -profiili aktiivinen · testi käyttää vain lukevia 010C/0105/2193/2196/219C-kyselyitä."
+      : "Valitse ja tunnista Lexus IS220d ennen suutintestiä.";
+    $("#injectorProfileState").className = `inline-message ${isIs220d ? "" : "warning"}`.trim();
+  }
+  if ($("#terminalProfileWarning")) {
+    $("#terminalProfileWarning").textContent = isCt
+      ? "Vain AT-komennot, lukevat OBD-moodit ja CT-profiilin vain lukevat 21C1/2101/2181/2187/2195/2198/13B0-komennot sallitaan. Mode 04 toimii vain Vikakoodit-näkymän vahvistuksesta."
+      : "Vain AT-komennot, lukevat OBD-moodit 01, 02, 03, 07, 09 ja 0A sekä IS220d-profiilin 217E/217F/212C/2193/2196/219C/21AF-lukukomennot sallitaan. Mode 04 toimii vain Vikakoodit-näkymän vahvistuksesta.";
+  }
+  $$("[data-vehicle-only]").forEach(element => {
+    element.classList.toggle("hidden", element.dataset.vehicleOnly !== state.vehicleKey);
+  });
+  applyPowerVehicleDefaults();
+  state.client?.setVehicleKey?.(state.vehicleKey);
+}
+
+function emptyVehicleDetection(status, message) {
+  return {
+    status,
+    message,
+    modelCode: "",
+    engineCode: "",
+    vin: "",
+    confidence: "unknown",
+    evidence: []
+  };
+}
+
+function selectVehicleProfile(selection, { detected = false, detection = null, message = "" } = {}) {
+  const normalized = [VEHICLE_KEYS.IS220D, VEHICLE_KEYS.CT200H, VEHICLE_KEYS.AUTO].includes(selection)
+    ? selection
+    : VEHICLE_KEYS.AUTO;
+  if (!detected) {
+    state.vehicleSelection = normalized;
+    state.vehicleKey = normalized;
+    state.vehicleDetection = emptyVehicleDetection(
+      normalized === VEHICLE_KEYS.AUTO ? "idle" : "manual",
+      normalized === VEHICLE_KEYS.AUTO
+        ? "Auto tunnistetaan turvallisilla vain luku -kyselyillä yhdistettäessä"
+        : "Ajoneuvoprofiili on varavalinta; auto tunnistetaan silti yhdistettäessä"
+    );
+    localStorage.setItem("lexusVehicleProfile", normalized);
+  } else {
+    state.vehicleKey = normalized;
+    state.vehicleDetection = {
+      status: detection?.status || (getVehicleProfile(normalized) ? "detected" : "error"),
+      message: message || detection?.message || (getVehicleProfile(normalized) ? `${vehicleDisplayName(normalized)} tunnistettu` : "Ajoneuvoa ei voitu tunnistaa"),
+      modelCode: detection?.modelCode || "",
+      engineCode: detection?.engineCode || "",
+      vin: detection?.vin || "",
+      confidence: detection?.confidence || "unknown",
+      evidence: [...(detection?.evidence || [])]
+    };
+  }
+  resetLiveMeasurements();
+  applyVehicleProfileUi();
+  renderMetrics();
+  updateDriveValues();
+}
+
+function applyVehicleDetectionFallback(detection, reason = "") {
+  const manualProfile = getVehicleProfile(state.vehicleSelection);
+  state.vehicleKey = manualProfile ? state.vehicleSelection : VEHICLE_KEYS.AUTO;
+  const fallback = manualProfile
+    ? ` Käytetään käsin valittua varaprofiilia ${vehicleDisplayName(state.vehicleSelection)}.`
+    : " Yleinen EOBD toimii; katkaise yhteys ja valitse profiili käsin ennen Toyota-livearvoja.";
+  state.vehicleDetection = {
+    status: manualProfile ? "manual-fallback" : detection?.status || "unknown",
+    message: `${reason || detection?.message || "Autoa ei voitu tunnistaa."}${fallback}`.trim(),
+    modelCode: detection?.modelCode || "",
+    engineCode: detection?.engineCode || "",
+    vin: detection?.vin || "",
+    confidence: detection?.confidence || "unknown",
+    evidence: [...(detection?.evidence || [])]
+  };
+  state.client?.setVehicleKey?.(state.vehicleKey);
+  resetLiveMeasurements();
+  applyVehicleProfileUi();
+  renderMetrics();
+  updateDriveValues();
+}
+
+function applyUnavailableVehicleDetection(reason, status = "unknown") {
+  applyVehicleDetectionFallback({
+    status,
+    message: reason,
+    modelCode: "",
+    engineCode: "",
+    vin: "",
+    confidence: "unknown",
+    evidence: []
+  }, reason);
+}
+
+async function detectVehicleProfile({ userInitiated = false } = {}) {
+  if (state.quicklynks) {
+    applyUnavailableVehicleDetection(
+      "Quicklynks FFF6 -binääripolulta ei ole varmennettu turvallista VIN- tai Toyota-mallitunnisteen lukua.",
+      "unsupported"
+    );
+    return null;
+  }
+  if (!(state.client instanceof Elm327Client)) return null;
+  if (!state.ecuConnected) {
+    applyUnavailableVehicleDetection("Moottori-ECU ei vastannut, joten autoa ei voitu tunnistaa.");
+    return null;
+  }
+  if (state.liveActive || state.recording || state.diagnosticRunning || state.injectorTestRunning || powerRunActive()) {
+    if (userInitiated) toast("Pysäytä live-luku, tallennus, testi tai diagnostiikka ennen uutta tunnistusta");
+    return null;
+  }
+
+  state.vehicleDetection = emptyVehicleDetection("testing", "Tunnistetaan Lexus VIN- ja mallikohtaisilla vain luku -kyselyillä…");
+  applyVehicleProfileUi();
+  updateConnectionButtons();
+
+  let vin = "";
+  let ctIdentity = null;
+  const isProbeResults = [];
+
+  try {
+    const vinRaw = await state.client.readVehicleIdentification({ timeoutMs: 9000 });
+    vin = parseObdVin(vinRaw);
+    if (!vin) appendTerminal(`${formatClock(Date.now())}  ! VIN-vastauksesta ei löytynyt kelvollista 17-merkkistä tunnistetta`);
+  } catch (error) {
+    appendTerminal(`${formatClock(Date.now())}  ! VIN-tunnistus: ${error.message}`);
+  }
+
+  const ctProbe = getVehicleReadDataProbes(VEHICLE_KEYS.CT200H).find(probe => probe.command === "21C1");
+  try {
+    const transaction = await state.client.runReadOnlyEcuTransaction({
+      requestHeader: ctProbe.requestHeader,
+      setupCommands: ["ATSP6", "ATCAF1", "ATCFC1", "ATAL", "ATH0", "ATS0"],
+      requests: [{ command: ctProbe.command, service: ctProbe.service, timeoutMs: 6500 }],
+      continueOnReadError: true,
+      label: "Lexus CT 200h · ZWA10-tunnistus",
+      profileKey: VEHICLE_KEYS.CT200H
+    });
+    const raw = transaction.responses[0]?.raw || "";
+    ctIdentity = decodeToyotaReadDataResponse(raw, ctProbe.identifier, VEHICLE_KEYS.CT200H);
+  } catch (error) {
+    appendTerminal(`${formatClock(Date.now())}  ! CT-tunnistus: ${error.message}`);
+  }
+
+  const isProbes = getVehicleReadDataProbes(VEHICLE_KEYS.IS220D);
+  try {
+    const transaction = await state.client.runReadOnlyEcuTransaction({
+      requestHeader: isProbes[0].requestHeader,
+      setupCommands: ["ATSP6", "ATCAF1", "ATCFC1", "ATAL", "ATH0", "ATS0"],
+      requests: isProbes.map(probe => ({ command: probe.command, service: probe.service, timeoutMs: 6500 })),
+      continueOnReadError: true,
+      label: "Lexus IS220d · 2AD-FHV-tunnistus",
+      profileKey: VEHICLE_KEYS.IS220D
+    });
+    for (const probe of isProbes) {
+      const response = transaction.responses.find(candidate => candidate.command === probe.command);
+      isProbeResults.push(decodeToyotaReadDataResponse(response?.raw || "", probe.identifier, VEHICLE_KEYS.IS220D));
+    }
+  } catch (error) {
+    appendTerminal(`${formatClock(Date.now())}  ! IS220d-tunnistus: ${error.message}`);
+  }
+
+  const detection = classifyConnectedVehicle({ vin, ctIdentity, isProbeResults });
+  if (detection.vehicleKey) {
+    selectVehicleProfile(detection.vehicleKey, { detected: true, detection });
+    appendTerminal(`${formatClock(Date.now())}  ✓ ${detection.message}`);
+    if (userInitiated) toast(`${vehicleDisplayName(detection.vehicleKey)} tunnistettu uudelleen`);
+  } else {
+    applyVehicleDetectionFallback(detection);
+    appendTerminal(`${formatClock(Date.now())}  ! ${detection.message}`);
+    if (userInitiated) toast("Autoa ei voitu tunnistaa varmasti");
+  }
+  updateConnectionButtons();
+  return detection;
+}
+
 function logTraffic(entry) {
   const time = new Date(entry.timestamp).toLocaleTimeString("fi-FI", { hour12: false });
   if (entry.binary) {
@@ -200,14 +549,18 @@ function buildElmDiagnosticsReport() {
   if (state.fullDiagnosticReport) return state.fullDiagnosticReport;
   const stage = id => state.connectionStages[id] || { status: "idle", message: "Ei tietoa" };
   return [
-    `IS220d OBD Flex ${APP_VERSION} · vLinker/ELM327-diagnostiikka`,
+    `Lexus OBD Flex ${APP_VERSION} · vLinker/ELM327-diagnostiikka`,
+    `Ajoneuvoprofiili: ${activeVehicleName()}`,
+    `Ajoneuvotunnistus: ${state.vehicleDetection.status} · ${state.vehicleDetection.message || "ei tietoa"}`,
+    `VIN: ${state.vehicleDetection.vin || "ei luettu"}`,
+    `Tunnistusvarmuus: ${state.vehicleDetection.confidence || "unknown"}`,
     `Aika: ${new Date(state.elmDiagnosticStartedAt || Date.now()).toLocaleString("fi-FI")}`,
     `Laite: ${state.elmDiagnosticDevice || "ei valittu"}`,
     `Valittu protokolla: ${$("#protocolSelect")?.selectedOptions[0]?.textContent || "ei tietoa"}`,
     `Bluetooth: ${stage("bluetooth").status} · ${stage("bluetooth").message}`,
     `ELM327: ${stage("elm").status} · ${stage("elm").message}`,
     `Moottori-ECU: ${stage("ecu").status} · ${stage("ecu").message}`,
-    `Toyota 21 7E / 21 7F / 21 2C: ${state.toyotaProbeStatus}`,
+    `Toyota-profiililuvut: ${state.toyotaProbeStatus}`,
     "",
     "Raakaliikenne:",
     ...(state.elmDiagnosticLines.length ? state.elmDiagnosticLines : ["Ei liikennettä."])
@@ -286,10 +639,16 @@ function showConnectionError(message = "") {
 }
 
 function updateConnectionButtons() {
-  $("#connectButton").disabled = state.connected || state.connecting || state.reconnecting;
-  $("#disconnectButton").disabled = !state.connected && !state.connecting && !state.reconnecting;
-  $("#deviceSelect").disabled = state.connected || state.connecting || state.reconnecting;
-  $("#protocolSelect").disabled = state.connected || state.connecting || state.reconnecting;
+  const injectorBusy = state.injectorTestRunning;
+  $("#connectButton").disabled = state.connected || state.connecting || state.reconnecting || injectorBusy;
+  $("#disconnectButton").disabled = injectorBusy || (!state.connected && !state.connecting && !state.reconnecting);
+  $("#deviceSelect").disabled = state.connected || state.connecting || state.reconnecting || injectorBusy;
+  $("#protocolSelect").disabled = state.connected || state.connecting || state.reconnecting || injectorBusy;
+  $("#vehicleSelect").disabled = state.connected || state.connecting || state.reconnecting || injectorBusy;
+  $("#detectVehicleButton").disabled = !state.connected || state.connecting || state.reconnecting || state.quicklynks ||
+    !(state.client instanceof Elm327Client) || state.vehicleDetection.status === "testing" || injectorBusy;
+  if ($("#startInjectorTest")) $("#startInjectorTest").disabled = injectorBusy || !state.connected || state.quicklynks ||
+    !(state.client instanceof Elm327Client) || state.vehicleKey !== VEHICLE_KEYS.IS220D;
 }
 
 function yesNo(value) {
@@ -302,7 +661,8 @@ function buildBleDiagnosticsReport(devices, diagnostics, scanAttempted, scanErro
   const bleDevices = devices.filter(device => device.transport === "ble" && !device.knownFallback);
   const directFallbacks = devices.filter(device => device.transport === "ble" && device.knownFallback);
   const lines = [
-    `IS220d OBD Flex ${APP_VERSION} · BLE-diagnostiikka`,
+    `Lexus OBD Flex ${APP_VERSION} · BLE-diagnostiikka`,
+    `Ajoneuvoprofiili: ${activeVehicleName()}`,
     `Aika: ${new Date().toLocaleString("fi-FI")}`,
     `Android API: ${diagnostics.sdk ?? "ei tietoa"}`,
     `Bluetooth käytettävissä: ${yesNo(diagnostics.bluetoothAvailable)}`,
@@ -556,7 +916,7 @@ async function connect() {
         setConnectionStage("elm", "not-applicable", "Quicklynks-binääriprotokolla");
         setConnectionStage("ecu", "connected", "Quicklynks-mittarikanava käytettävissä");
       } else {
-        state.client = new Elm327Client(state.transport, logTraffic, handleElmState);
+        state.client = new Elm327Client(state.transport, logTraffic, handleElmState, { vehicleKey: state.vehicleKey });
         info = await state.client.initializeConnected(transportInfo, protocol);
       }
       appendBleDiagnostic(`GATT valmis · profiili ${info.transportProfile || "tuntematon"}`);
@@ -565,7 +925,7 @@ async function connect() {
       if (info.notificationEnabled) appendBleDiagnostic(`Notification/CCCD käytössä · arvo ${info.cccdValue || "0100"}`);
       if (Number.isFinite(info.payloadSize)) appendBleDiagnostic(`BLE-hyötykuorma ${info.payloadSize} tavua · kirjoitustapa ${info.writeType === 1 ? "ilman vastausta" : "vastauksella"}`);
     } else {
-      state.client = new Elm327Client(state.transport, logTraffic, handleElmState);
+      state.client = new Elm327Client(state.transport, logTraffic, handleElmState, { vehicleKey: state.vehicleKey });
       info = await state.client.connect(address, protocol);
     }
     state.transportInfo = info;
@@ -576,7 +936,9 @@ async function connect() {
       simulated
     });
     state.connected = true;
+    state.client?.setVehicleKey?.(state.vehicleKey);
     state.ecuConnected = state.quicklynks || Boolean(info.ecuConnected);
+    await detectVehicleProfile();
     state.supportedPids = info.supportedPids instanceof Set && info.supportedPids.size ? new Set(info.supportedPids) : null;
     resetLiveMeasurements();
     $("#adapterIdentity").textContent = info.adapter || "ELM327";
@@ -587,7 +949,7 @@ async function connect() {
     $("#quicklynksRaw").textContent = "Odottaa ensimmäistä kehystä";
     if (state.ecuConnected) {
       setConnectionStatus("online", simulated ? "Simulaattori" : state.quicklynks ? "Quicklynks yhdistetty" : "ECU yhdistetty");
-      toast(simulated ? "Simulaattori yhdistetty" : state.quicklynks ? "Quicklynks FFF6 yhdistetty" : "ELM327 ja moottori-ECU yhdistetty");
+      toast(simulated ? "Simulaattori yhdistetty" : state.quicklynks ? "Quicklynks FFF6 yhdistetty" : `ELM327 ja ${activeVehicleName()} yhdistetty`);
     } else {
       setConnectionStatus("connecting", "ELM yhdistetty · ECU ei vastaa");
       showConnectionError(`Bluetooth ja ELM327 toimivat, mutta moottori-ECU ei vastannut: ${info.ecuError || "0100-vastaus puuttui"}. Kopioi ELM/ECU-loki tai aja GEKO-testi.`);
@@ -626,7 +988,9 @@ async function disconnect(options = {}) {
     state.reconnectToken += 1;
   }
   state.diagnosticAbortRequested = true;
+  state.injectorTestAbortRequested = true;
   state.connecting = false;
+  if (state.ctPurchaseRoadActive) await stopCtPurchaseRoadTest({ stopLiveRead: false });
   await stopLive();
   if (state.recording) await stopRecording("Yhteys katkaistiin");
   try { await state.client?.disconnect(); } catch {}
@@ -639,6 +1003,14 @@ async function disconnect(options = {}) {
   state.quicklynks = false;
   state.adapterCapabilities = null;
   state.transportInfo = null;
+  state.vehicleKey = state.vehicleSelection;
+  state.vehicleDetection = emptyVehicleDetection(
+    state.vehicleSelection === VEHICLE_KEYS.AUTO ? "idle" : "manual",
+    state.vehicleSelection === VEHICLE_KEYS.AUTO
+      ? "Auto tunnistetaan uudelleen seuraavalla yhteydellä"
+      : "Käsin valittu varaprofiili; auto tunnistetaan uudelleen seuraavalla yhteydellä"
+  );
+  applyVehicleProfileUi();
   resetLiveMeasurements();
   $("#adapterIdentity").textContent = "–";
   $("#protocolIdentity").textContent = "–";
@@ -658,7 +1030,7 @@ async function disconnect(options = {}) {
 }
 
 function scheduleManagedReconnect(reason) {
-  if (state.reconnecting || state.diagnosticRunning || state.transport === fakeTransport || !state.transport) return;
+  if (state.reconnecting || state.diagnosticRunning || state.injectorTestRunning || state.transport === fakeTransport || !state.transport) return;
   const transportType = selectedDeviceTransport();
   const token = ++state.reconnectToken;
   state.reconnecting = true;
@@ -715,6 +1087,7 @@ function requireConnection(requireEcu = true) {
 }
 
 async function readDtc() {
+  if (state.injectorTestRunning) return toast("Viimeistele suutintesti ennen vikakoodien lukua");
   if (!requireConnection()) return;
   if (state.client?.binaryQuicklynks) {
     setNotice("dtcNotice", "Quicklynksin binääriprotokollasta on varmennettu mittarikehys, mutta ei vikakoodikomentoa. Vikakoodikyselyä ei lähetetty.", "warning");
@@ -736,7 +1109,21 @@ async function readDtc() {
     renderDtcList("storedDtc", storedRaw ? parseDtcResponse(storedRaw, 0x43) : []);
     renderDtcList("pendingDtc", pendingRaw ? parseDtcResponse(pendingRaw, 0x47) : []);
     renderDtcList("permanentDtc", permanentRaw ? parseDtcResponse(permanentRaw, 0x4a) : []);
-    setNotice("dtcNotice", "Luettu. Selitteet ovat yleisiä EOBD-kuvauksia, eivät varma Lexus-kohtainen vianmääritys.", "");
+    let hybridNote = "";
+    if (isCt200h()) {
+      try {
+        const hybrid = await state.client.readVehicleSpecificDtcs();
+        const hybridCodes = hybrid.groups.flatMap(group => group.codes.map(code => ({ ...code, source: group.label })));
+        renderDtcList("hybridDtc", hybridCodes);
+        hybridNote = hybrid.notes.length
+          ? ` Hybridiohjain luettiin osittain: ${hybrid.notes.join(" · ")}`
+          : ` Hybridiohjain 7E2/7EA luettu (${hybridCodes.length} koodia).`;
+      } catch (error) {
+        renderDtcList("hybridDtc", []);
+        hybridNote = ` Hybridiohjaimen luku epäonnistui: ${error.message}`;
+      }
+    }
+    setNotice("dtcNotice", `Luettu. Selitteet ovat yleisiä kuvauksia; tarkista Lexus-korjausohje ja CT:n INF-lisäkoodi ennen korjauspäätöstä.${hybridNote}`, hybridNote.includes("epäonnistui") ? "warning" : "");
   } catch (error) {
     setNotice("dtcNotice", error.message, "error");
   } finally {
@@ -761,13 +1148,669 @@ function renderDtcList(id, codes) {
   for (const item of codes) {
     const card = document.createElement("div");
     card.className = "dtc-item";
-    card.innerHTML = `<div class="dtc-code">${escapeHtml(item.code)}</div><div><strong>${escapeHtml(item.description)}</strong><p>Tarkista oireet ja mittausdata ennen osien vaihtamista.</p></div>`;
+    card.innerHTML = `<div class="dtc-code">${escapeHtml(item.code)}</div><div><strong>${escapeHtml(item.description)}</strong><p>${item.source ? `${escapeHtml(item.source)} · ` : ""}Tarkista oireet ja mittausdata ennen osien vaihtamista.</p></div>`;
     root.append(card);
   }
 }
 
-async function clearDtc() {
+function ctCandidateFromForm() {
+  return {
+    modelYear: $("#ctModelYear")?.value?.trim() || "",
+    odometerKm: $("#ctOdometer")?.value?.replace(/\D/g, "") || "",
+    vinOrRegistration: $("#ctVinRegistration")?.value?.trim().toUpperCase() || "",
+    note: $("#ctCandidateNote")?.value?.trim() || ""
+  };
+}
+
+function ctManualFromForm() {
+  return {
+    coldStart: $("#ctColdStart")?.value || "not_checked",
+    warningLamps: $("#ctWarningLamps")?.value || "not_checked",
+    brakePump: $("#ctBrakePump")?.value || "not_checked",
+    serviceHistory: $("#ctServiceHistory")?.value || "not_checked"
+  };
+}
+
+function rawHasPositiveService(raw, responseService) {
+  const prefix = Number(responseService).toString(16).padStart(2, "0").toUpperCase();
+  return hexLines(cleanElmResponse(raw)).some(line => line.includes(prefix));
+}
+
+async function readCtInspectionCommand(command, timeoutMs = 5000) {
+  try {
+    return { command, raw: await state.client.command(command, timeoutMs), error: "" };
+  } catch (error) {
+    return { command, raw: error.raw || error.partialRaw || "", error: error.message || String(error) };
+  }
+}
+
+function ctSnapshotValuesFromResponses(probes, responses) {
+  const values = {};
+  const decoded = {};
+  for (const [index, probe] of probes.entries()) {
+    const response = responses[index];
+    const packet = response && !response.error
+      ? decodeToyotaReadDataResponse(response.raw, probe.identifier, VEHICLE_KEYS.CT200H)
+      : null;
+    decoded[probe.command] = packet;
+    if (!packet?.complete) continue;
+    for (const definition of PID_DEFINITIONS) {
+      if (definition.vehicleKey !== VEHICLE_KEYS.CT200H || definition.toyotaCommand !== probe.command || !definition.toyotaValueKey) continue;
+      const value = packet.values?.[definition.toyotaValueKey];
+      if (Number.isFinite(Number(value))) values[definition.id] = Number(value);
+    }
+  }
+  return { values, decoded };
+}
+
+async function runCtPurchasePreflight() {
+  if (!isCt200h()) return toast("Valitse ajoneuvoksi Lexus CT 200h");
   if (!requireConnection()) return;
+  if (state.quicklynks || state.client?.binaryQuicklynks) return toast("CT-ostotarkastus vaatii vLinker MC+:n tai muun ASCII-ELM327:n");
+  if (state.diagnosticRunning) return toast("Odota laajan diagnostiikan päättymistä");
+  if (state.ctPurchaseRoadActive) await stopCtPurchaseRoadTest();
+  if (state.liveActive) await stopLive();
+
+  const button = $("#ctRunPreflight");
+  button.disabled = true;
+  button.textContent = "Luetaan…";
+  $("#ctToggleRoadTest").disabled = true;
+  $("#ctFinalizeTest").disabled = true;
+  setNotice("ctPreflightResult", "Aloitetaan vain lukevat EOBD-, hybridi- ja kattavuuskyselyt…");
+  try {
+    const inspection = createCtPurchaseInspection({
+      appVersion: APP_VERSION,
+      candidate: ctCandidateFromForm(),
+      manual: ctManualFromForm(),
+      adapter: {
+        identity: state.client.adapterIdentity || $("#adapterIdentity")?.textContent || "",
+        protocol: state.client.protocolIdentity || $("#protocolIdentity")?.textContent || "",
+        transport: $("#transportIdentity")?.textContent || ""
+      }
+    });
+    state.ctPurchaseInspection = inspection;
+    state.ctPurchaseAnalysis = null;
+    state.ctPurchaseReport = "";
+    state.ctPurchaseLastBlockUpdatedAt = 0;
+    state.ctPurchaseRoadSegmentStartedAt = 0;
+    $("#ctReportActions").classList.add("hidden");
+    $("#ctReportPreview").classList.add("hidden");
+    $("#ctFinalSummary").classList.add("hidden");
+    $("#ctTestStatusBadge").className = "ct-test-badge neutral";
+    $("#ctTestStatusBadge").textContent = "TESTI KÄYNNISSÄ";
+
+    await state.client.command("ATSH7E0", 4500);
+    const standardCommands = ["0101", "0105", "0106", "0107", "010C", "012C", "012D", "0130", "0131", "0142", "014D", "014E", "03", "07", "0A"];
+    const standardEvents = {};
+    for (const [index, command] of standardCommands.entries()) {
+      setNotice("ctPreflightResult", `EOBD-luku ${index + 1}/${standardCommands.length}: ${command}`);
+      standardEvents[command] = await readCtInspectionCommand(command, 6000);
+    }
+
+    setNotice("ctPreflightResult", "Luetaan CT 200h:n ZWA10-tunniste ja HV-akun kaikki viisi mittausryhmää…");
+    const probes = getVehicleReadDataProbes(VEHICLE_KEYS.CT200H);
+    const hybridTransaction = await state.client.runReadOnlyEcuTransaction({
+      requestHeader: "7E2",
+      responseHeader: "7EA",
+      setupCommands: ["ATSP6", "ATCAF1", "ATCFC1", "ATAL", "ATH0", "ATS0"],
+      requests: probes.map(probe => ({ command: probe.command, service: probe.service, timeoutMs: 7500 })),
+      continueOnReadError: true,
+      label: "CT 200h ostotarkastus · hybridin esitarkastus",
+      profileKey: VEHICLE_KEYS.CT200H
+    });
+    const snapshot = ctSnapshotValuesFromResponses(probes, hybridTransaction.responses);
+    const identificationPacket = snapshot.decoded["21C1"];
+
+    setNotice("ctPreflightResult", "Luetaan hybridiohjaimen koodit ja kokeillaan jarru-ECU:n vain lukevaa kattavuuskyselyä…");
+    const vehicleDtcs = await state.client.readVehicleSpecificDtcs({ includeResearchCandidates: true });
+    const readiness = parseCtReadiness(standardEvents["0101"].raw);
+    const standardPids = {
+      coolantC: decodeCtPurchasePid(standardEvents["0105"].raw, 0x05),
+      shortFuelTrimPercent: decodeCtPurchasePid(standardEvents["0106"].raw, 0x06),
+      longFuelTrimPercent: decodeCtPurchasePid(standardEvents["0107"].raw, 0x07),
+      rpm: decodeCtPurchasePid(standardEvents["010C"].raw, 0x0c),
+      commandedEgrPercent: decodeCtPurchasePid(standardEvents["012C"].raw, 0x2c),
+      egrErrorPercent: decodeCtPurchasePid(standardEvents["012D"].raw, 0x2d),
+      warmupsSinceClear: decodeCtPurchasePid(standardEvents["0130"].raw, 0x30),
+      distanceClearKm: decodeCtPurchasePid(standardEvents["0131"].raw, 0x31),
+      controlModuleVoltageV: decodeCtPurchasePid(standardEvents["0142"].raw, 0x42),
+      minutesMilOn: decodeCtPurchasePid(standardEvents["014D"].raw, 0x4d),
+      minutesSinceClear: decodeCtPurchasePid(standardEvents["014E"].raw, 0x4e)
+    };
+    const standardDtcs = {
+      stored: parseDtcResponse(standardEvents["03"].raw, 0x43),
+      pending: parseDtcResponse(standardEvents["07"].raw, 0x47),
+      permanent: parseDtcResponse(standardEvents["0A"].raw, 0x4a)
+    };
+    const standardDtcValid = rawHasPositiveService(standardEvents["03"].raw, 0x43) &&
+      rawHasPositiveService(standardEvents["07"].raw, 0x47) &&
+      rawHasPositiveService(standardEvents["0A"].raw, 0x4a);
+    inspection.preflight = {
+      completedAt: Date.now(),
+      identification: {
+        confirmed: identificationPacket?.complete === true && identificationPacket?.values?.zwa10Confirmed === true,
+        modelCode: identificationPacket?.values?.modelCode || "",
+        engineCode: identificationPacket?.values?.engineCode || "",
+        raw: hybridTransaction.responses[0]?.raw || "",
+        error: hybridTransaction.responses[0]?.error || ""
+      },
+      readiness,
+      standardPids,
+      standardDtcs,
+      standardDtcValid,
+      hybridSnapshot: snapshot.values,
+      vehicleDtcs,
+      raw: {
+        standard: Object.fromEntries(Object.entries(standardEvents).map(([command, event]) => [command, { raw: event.raw, error: event.error }])),
+        hybrid: Object.fromEntries(hybridTransaction.responses.map(response => [response.command, { raw: response.raw, error: response.error, transactionId: response.transactionId }])),
+        vehicleDtcs: {
+          groups: vehicleDtcs.groups.map(group => ({ id: group.id, requestHeader: group.requestHeader, responseHeader: group.responseHeader, raw: group.raw, validResponse: group.validResponse })),
+          notes: [...vehicleDtcs.notes],
+          transactionIds: [...vehicleDtcs.transactionIds]
+        }
+      }
+    };
+    const hybridGroups = vehicleDtcs.groups.filter(group => group.id.startsWith("hybrid."));
+    const brakeGroup = vehicleDtcs.groups.find(group => group.id.startsWith("brake."));
+    const allCodes = [...Object.values(standardDtcs).flat(), ...vehicleDtcs.groups.flatMap(group => group.codes)];
+    const preflightOkay = inspection.preflight.identification.confirmed && standardDtcValid && hybridGroups.length === 2;
+    const readinessText = readiness ? `${readiness.incompleteCount}/${readiness.supportedCount} monitoria kesken` : "readiness ei vastannut";
+    setNotice(
+      "ctPreflightResult",
+      `Esitarkastus valmis · ${inspection.preflight.identification.confirmed ? "ZWA10 vahvistettu" : "ZWA10 ei vahvistunut"} · ${allCodes.length} tulkittua koodia · ${readinessText} · jarru-ECU ${brakeGroup ? "vastasi" : "ei varmistunut (Techstream tarvitaan)"}.`,
+      preflightOkay ? (brakeGroup ? "" : "warning") : "warning"
+    );
+    $("#ctToggleRoadTest").disabled = false;
+    $("#ctFinalizeTest").disabled = false;
+    renderCtPurchaseProgress();
+  } catch (error) {
+    setNotice("ctPreflightResult", `Esitarkastus keskeytyi: ${error.message}`, "error");
+    $("#ctTestStatusBadge").className = "ct-test-badge incomplete";
+    $("#ctTestStatusBadge").textContent = "ESITARKASTUS KESKEN";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Aja CT-esitarkastus uudelleen";
+  }
+}
+
+async function runCtPurchasePostflight(inspection) {
+  if (!state.connected || !state.client || state.quicklynks || !isCt200h()) {
+    return {
+      completedAt: Date.now(),
+      standardDtcValid: false,
+      standardDtcs: { stored: [], pending: [], permanent: [] },
+      readiness: null,
+      vehicleDtcs: { groups: [], notes: ["Yhteys puuttui koeajon jälkeisestä uusintaluvusta"], transactionIds: [] },
+      raw: { error: "Yhteys puuttui koeajon jälkeisestä uusintaluvusta" }
+    };
+  }
+  await state.client.command("ATSH7E0", 4500);
+  const events = {};
+  for (const command of ["0101", "03", "07", "0A"]) events[command] = await readCtInspectionCommand(command, 6500);
+  const vehicleDtcs = await state.client.readVehicleSpecificDtcs({ includeResearchCandidates: true });
+  return {
+    completedAt: Date.now(),
+    readiness: parseCtReadiness(events["0101"].raw),
+    standardDtcs: {
+      stored: parseDtcResponse(events["03"].raw, 0x43),
+      pending: parseDtcResponse(events["07"].raw, 0x47),
+      permanent: parseDtcResponse(events["0A"].raw, 0x4a)
+    },
+    standardDtcValid: rawHasPositiveService(events["03"].raw, 0x43) &&
+      rawHasPositiveService(events["07"].raw, 0x47) &&
+      rawHasPositiveService(events["0A"].raw, 0x4a),
+    vehicleDtcs,
+    raw: {
+      standard: Object.fromEntries(Object.entries(events).map(([command, event]) => [command, { raw: event.raw, error: event.error }])),
+      vehicleDtcs: {
+        groups: vehicleDtcs.groups.map(group => ({ id: group.id, requestHeader: group.requestHeader, responseHeader: group.responseHeader, raw: group.raw, validResponse: group.validResponse })),
+        notes: [...vehicleDtcs.notes],
+        transactionIds: [...vehicleDtcs.transactionIds]
+      }
+    }
+  };
+}
+
+function currentCtRoadDurationMs(inspection = state.ctPurchaseInspection) {
+  const completed = (inspection?.roadSegments || []).reduce((total, segment) =>
+    total + Math.max(0, Number(segment.endedAt || segment.startedAt) - Number(segment.startedAt || 0)), 0
+  );
+  return completed + (state.ctPurchaseRoadActive && state.ctPurchaseRoadSegmentStartedAt
+    ? Math.max(0, Date.now() - state.ctPurchaseRoadSegmentStartedAt)
+    : 0);
+}
+
+function captureCtPurchaseSample() {
+  const inspection = state.ctPurchaseInspection;
+  if (!state.ctPurchaseRoadActive || !inspection || !state.liveActive) return;
+  const blockUpdatedAt = Number(state.updatedAt.ctHvBlockVoltage01 || 0);
+  if (!blockUpdatedAt || blockUpdatedAt <= state.ctPurchaseLastBlockUpdatedAt) {
+    renderCtPurchaseProgress();
+    return;
+  }
+  state.ctPurchaseLastBlockUpdatedAt = blockUpdatedAt;
+  const timestamp = Date.now();
+  const valueAgesMs = Object.fromEntries(Object.entries(state.updatedAt)
+    .filter(([, updatedAt]) => Number.isFinite(updatedAt))
+    .map(([id, updatedAt]) => [id, Math.max(0, timestamp - updatedAt)]));
+  const sample = createCtPurchaseSample({
+    timestamp,
+    values: { ...state.values },
+    valueAgesMs,
+    raw: {
+      blockVoltages: state.rawValues.ctHvBlockVoltage01 || "",
+      currentAndLimits: state.rawValues.ctHvCurrent || "",
+      temperatures: state.rawValues.ctHvTemperature1 || "",
+      resistance: state.rawValues.ctHvResistanceDelta || ""
+    }
+  });
+  if (sample.phase === "invalid") {
+    if (inspection.rawEvents.length < 30) inspection.rawEvents.push({ timestamp, type: "rejected-sample", reason: sample.rejectedBecause });
+    return;
+  }
+  inspection.samples.push(sample);
+  renderCtPurchaseProgress();
+}
+
+function renderCtPurchaseProgress() {
+  const inspection = state.ctPurchaseInspection;
+  const counts = { baseline: 0, discharge: 0, charge: 0 };
+  for (const sample of inspection?.samples || []) if (sample.phase in counts) counts[sample.phase] += 1;
+  $("#ctBaselineSamples").textContent = `${counts.baseline} / ${CT_PURCHASE_THRESHOLDS.minimumSamples.baseline}`;
+  $("#ctDischargeSamples").textContent = `${counts.discharge} / ${CT_PURCHASE_THRESHOLDS.minimumSamples.discharge}`;
+  $("#ctChargeSamples").textContent = `${counts.charge} / ${CT_PURCHASE_THRESHOLDS.minimumSamples.charge}`;
+  const durationMs = currentCtRoadDurationMs(inspection);
+  $("#ctRoadDuration").textContent = `${formatElapsed(durationMs)} / 10:00`;
+  if (!inspection?.preflight) return setNotice("ctRoadTestHint", "Aja esitarkastus ensin.");
+  if (state.ctPurchaseRoadActive) {
+    const latest = inspection.samples.at(-1);
+    const phase = latest?.phase === "baseline" ? "paikallaan" : latest?.phase === "discharge" ? "purku" : latest?.phase === "charge" ? "regenerointi" : "siirtymä";
+    setNotice("ctRoadTestHint", `Näytteenotto käynnissä · viimeisin vaihe ${phase} · ${inspection.samples.length} hyväksyttyä näytettä.`, "warning");
+  } else {
+    const complete = counts.baseline >= 3 && counts.discharge >= 5 && counts.charge >= 5;
+    setNotice("ctRoadTestHint", complete ? "Kaikki kolme mittausvaihetta on katettu. Voit muodostaa raportin." : "Näytteenotto pysäytetty. Puuttuvat vaiheet näkyvät laskureissa.", complete ? "" : "warning");
+  }
+}
+
+async function toggleCtPurchaseRoadTest() {
+  if (state.ctPurchaseRoadActive) return stopCtPurchaseRoadTest();
+  if (!state.ctPurchaseInspection?.preflight) return toast("Aja CT-esitarkastus ensin");
+  if (!isCt200h() || state.quicklynks || !requireConnection()) return;
+  if (state.liveActive) await stopLive();
+  resetLiveMeasurements();
+  renderMetrics();
+  state.ctPurchaseRoadActive = true;
+  state.ctPurchaseRoadSegmentStartedAt = Date.now();
+  state.ctPurchaseLastBlockUpdatedAt = 0;
+  $("#ctToggleRoadTest").textContent = "Pysäytä näytteenotto";
+  $("#ctToggleRoadTest").className = "danger full";
+  state.ctPurchaseSampleTimer = setInterval(captureCtPurchaseSample, 300);
+  renderCtPurchaseProgress();
+  startLive();
+  await setKeepAwake(true);
+}
+
+async function stopCtPurchaseRoadTest({ stopLiveRead = true } = {}) {
+  if (state.ctPurchaseRoadActive && state.ctPurchaseRoadSegmentStartedAt && state.ctPurchaseInspection) {
+    state.ctPurchaseInspection.roadSegments.push({
+      startedAt: state.ctPurchaseRoadSegmentStartedAt,
+      endedAt: Date.now()
+    });
+  }
+  state.ctPurchaseRoadActive = false;
+  state.ctPurchaseRoadSegmentStartedAt = 0;
+  clearInterval(state.ctPurchaseSampleTimer);
+  state.ctPurchaseSampleTimer = null;
+  $("#ctToggleRoadTest").textContent = "Jatka automaattista näytteenottoa";
+  $("#ctToggleRoadTest").className = "primary full";
+  if (stopLiveRead && state.liveActive) await stopLive();
+  await setKeepAwake(false);
+  renderCtPurchaseProgress();
+}
+
+async function finalizeCtPurchaseTest() {
+  const inspection = state.ctPurchaseInspection;
+  if (!inspection?.preflight) return toast("Aja CT-esitarkastus ensin");
+  if (state.ctPurchaseRoadActive) await stopCtPurchaseRoadTest();
+  const button = $("#ctFinalizeTest");
+  button.disabled = true;
+  button.textContent = "Luetaan loppukoodit…";
+  setNotice("ctFinalSummary", "Luetaan moottorin ja hybridiohjaimen vikakoodit uudelleen koeajon jälkeen…");
+  try {
+    inspection.candidate = ctCandidateFromForm();
+    inspection.manual = ctManualFromForm();
+    inspection.postflight = await runCtPurchasePostflight(inspection);
+  } catch (error) {
+    inspection.postflight = {
+      completedAt: Date.now(),
+      standardDtcValid: false,
+      standardDtcs: { stored: [], pending: [], permanent: [] },
+      readiness: null,
+      vehicleDtcs: { groups: [], notes: [error.message], transactionIds: [] },
+      raw: { error: error.message }
+    };
+  } finally {
+    inspection.endedAt = Date.now();
+    state.ctPurchaseAnalysis = analyzeCtPurchaseInspection(inspection);
+    state.ctPurchaseReport = buildCtPurchaseInspectionReport(inspection, state.ctPurchaseAnalysis);
+    const analysis = state.ctPurchaseAnalysis;
+    const actionFindings = analysis.findings.filter(finding => ["stop", "attention"].includes(finding.severity));
+    $("#ctTestStatusBadge").className = `ct-test-badge ${analysis.status}`;
+    $("#ctTestStatusBadge").textContent = analysis.statusText;
+    setNotice(
+      "ctFinalSummary",
+      `${analysis.statusText}. Kattavuudesta puuttuu ${analysis.missingCoverage.length} kohtaa; stop/huomio-havaintoja ${actionFindings.length}. Tämä tulos ei ole HV-akun kapasiteetti- tai SOH-arvio.`,
+      analysis.status === "stop" ? "error" : analysis.status === "ready" ? "" : "warning"
+    );
+    $("#ctReportActions").classList.remove("hidden");
+    $("#ctReportPreview").textContent = state.ctPurchaseReport;
+    $("#ctReportPreview").classList.remove("hidden");
+    button.disabled = false;
+    button.textContent = "Muodosta raportti ja lue loppukoodit uudelleen";
+  }
+}
+
+function ctPurchaseReportFilename() {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `Lexus_CT200h_ostotarkastus_Flex-${APP_VERSION}_${timestamp}.txt`;
+}
+
+async function copyCtPurchaseReport() {
+  if (!state.ctPurchaseReport) return toast("Muodosta raportti ensin");
+  try {
+    await navigator.clipboard.writeText(state.ctPurchaseReport);
+    toast("CT-ostotarkastusraportti kopioitu");
+  } catch {
+    toast("Raportin kopiointi ei onnistunut");
+  }
+}
+
+async function saveOrShareCtPurchaseReport(share = false) {
+  if (!state.ctPurchaseReport || !state.ctPurchaseInspection || !state.ctPurchaseAnalysis) return toast("Muodosta raportti ensin");
+  const filename = ctPurchaseReportFilename();
+  const prompt = buildCtPurchaseInspectionAnalysisPrompt(state.ctPurchaseInspection, state.ctPurchaseAnalysis);
+  const title = "Lexus OBD Flex · CT 200h ostotarkastus";
+  try {
+    if (nativeTransport.available() && globalThis.obd?.exportCsv) {
+      const uri = await nativeTransport.exportCsv(filename, state.ctPurchaseReport, "text/plain");
+      if (!(uri?.startsWith("content:"))) throw new Error("Android ei palauttanut tiedoston osoitetta");
+      if (share) {
+        await nativeTransport.shareCsv(uri, prompt, title, "text/plain");
+        toast("Valitse ChatGPT jakovalikosta");
+      } else {
+        toast("Raportti tallennettu Lataukset/Lexus OBD -kansioon");
+      }
+      return;
+    }
+    const file = new File([state.ctPurchaseReport], filename, { type: "text/plain;charset=utf-8" });
+    if (share && navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+      await navigator.share({ title, text: prompt, files: [file] });
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(file);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    if (share) await navigator.clipboard?.writeText(prompt);
+    toast(share ? "Raportti tallennettu ja analyysipyyntö kopioitu" : "Raportti tallennettu");
+  } catch (error) {
+    if (error?.name !== "AbortError") toast(`Raporttitoiminto epäonnistui: ${error.message}`);
+  }
+}
+
+const INJECTOR_TEST_TARGET_MS = 45000;
+const INJECTOR_TEST_SAMPLE_INTERVAL_MS = 2500;
+const INJECTOR_TEST_MAX_SAMPLES = 18;
+
+async function injectorCommand(command, timeoutMs = 5500) {
+  try {
+    return { raw: await state.client.command(command, timeoutMs), error: "" };
+  } catch (error) {
+    return {
+      raw: error?.raw || error?.partialRaw || "",
+      error: error?.message || String(error)
+    };
+  }
+}
+
+function renderInjectorSample(sample = null) {
+  const feedback = sample?.values?.feedbackMm3 || [];
+  for (let index = 0; index < 4; index++) {
+    const element = $(`#injectorLive${index + 1}`);
+    const value = feedback[index];
+    element.textContent = Number.isFinite(value) ? value.toFixed(2) : "–";
+    element.classList.toggle("attention", Number.isFinite(value) && Math.abs(value) > INJECTOR_TEST_LIMITS.typicalAbsoluteMm3);
+    element.classList.toggle("abnormal", Number.isFinite(value) && Math.abs(value) > INJECTOR_TEST_LIMITS.serviceAbsoluteMm3);
+  }
+  $("#injectorConditionsLive").textContent = sample
+    ? `RPM ${Number.isFinite(sample.values.rpm) ? sample.values.rpm.toFixed(0) : "–"} · jäähdytysneste ${Number.isFinite(sample.values.coolantC) ? `${sample.values.coolantC.toFixed(0)} °C` : "–"} · rail ${Number.isFinite(sample.values.railPressureMpa) ? `${sample.values.railPressureMpa.toFixed(0)} MPa` : "–"}`
+    : "RPM – · jäähdytysneste – · rail –";
+}
+
+function renderInjectorProgress(message = "") {
+  const run = state.injectorTestRun;
+  const elapsedMs = run ? Math.max(0, Number(run.endedAt || Date.now()) - Number(run.startedAt || Date.now())) : 0;
+  const percent = run?.endedAt ? 100 : Math.min(99, Math.round(elapsedMs / INJECTOR_TEST_TARGET_MS * 100));
+  const valid = (run?.samples || []).filter(sample => sample?.values?.feedbackMm3?.length === 4 && sample.values.feedbackMm3.every(Number.isFinite)).length;
+  $("#injectorProgressBar").style.width = `${percent}%`;
+  $("#injectorProgressText").textContent = message || (run ? `${formatElapsed(elapsedMs)} / 00:45` : "Ei ajettu");
+  $("#injectorSampleCount").textContent = `${valid} kelvollista näytettä`;
+}
+
+function finishInjectorTestUi() {
+  const run = state.injectorTestRun;
+  if (!run) return;
+  state.injectorTestAnalysis = analyzeInjectorTest(run);
+  state.injectorTestReport = buildInjectorTestReport(run, state.injectorTestAnalysis);
+  const analysis = state.injectorTestAnalysis;
+  const badgeClass = ({ normal: "ready", attention: "attention", abnormal: "stop", incomplete: "incomplete" })[analysis.status] || "neutral";
+  $("#injectorStatusBadge").className = `ct-test-badge ${badgeClass}`;
+  $("#injectorStatusBadge").textContent = analysis.statusText;
+  const headline = analysis.findings.slice(0, 3).join(" ");
+  setNotice("injectorFinalSummary", `${analysis.statusText}. ${headline}`, analysis.status === "abnormal" ? "error" : analysis.status === "normal" ? "" : "warning");
+  $("#injectorReportActions").classList.remove("hidden");
+  $("#injectorReportDetails").classList.remove("hidden");
+  $("#injectorReportPreview").textContent = state.injectorTestReport;
+  renderInjectorProgress(run.cancelled ? "Keskeytetty hallitusti · raportti valmis" : "Valmis · tekoälyraportti muodostettu");
+}
+
+async function restoreAfterInjectorTest() {
+  if (!state.connected || !state.client) return;
+  for (const command of INJECTOR_TEST_COMMANDS.restore) {
+    try { await state.client.command(command, 4500); } catch {}
+  }
+  try {
+    const raw = await state.client.command("0100", 7000);
+    state.ecuConnected = hasModePidResponse(raw, 0x41, 0x00);
+    state.client.ecuConnected = state.ecuConnected;
+  } catch {}
+}
+
+async function runInjectorTest() {
+  if (!requireConnection()) return;
+  if (state.vehicleKey !== VEHICLE_KEYS.IS220D) {
+    setNotice("injectorTestNotice", "Valitse ja tunnista Lexus IS220d ennen testiä.", "warning");
+    return;
+  }
+  if (state.quicklynks || !(state.client instanceof Elm327Client)) {
+    setNotice("injectorTestNotice", "Suutintesti vaatii vLinker- tai muun ASCII-ELM327-adapterin. Quicklynksin binääripolku ei voi lähettää Toyota 219C -lukupyyntöä.", "warning");
+    return;
+  }
+  if (!$("#injectorConditionsConfirmed").checked) {
+    setNotice("injectorTestNotice", "Vahvista turvalliset mittausolosuhteet ja lisälaitteiden poiskytkentä.", "warning");
+    return;
+  }
+  if (state.injectorTestRunning) return;
+  if (state.diagnosticRunning || state.recording || state.ctPurchaseRoadActive || powerRunActive()) {
+    setNotice("injectorTestNotice", "Lopeta muu testi, tallennus tai diagnostiikka ennen suutintestiä.", "warning");
+    return;
+  }
+  if (!INJECTOR_TEST_COMMANDS.read.every(command => isSafeTerminalCommand(command))) {
+    setNotice("injectorTestNotice", "Sisäinen turvallisuussallintalista esti suutintestin lukukomennon.", "error");
+    return;
+  }
+  if (state.liveActive) await stopLive();
+
+  state.injectorTestRunning = true;
+  state.injectorTestAbortRequested = false;
+  state.injectorTestAnalysis = null;
+  state.injectorTestReport = "";
+  const device = selectedDiagnosticDeviceMeta();
+  state.injectorTestRun = {
+    schemaVersion: 1,
+    startedAt: Date.now(),
+    endedAt: null,
+    cancelled: false,
+    samples: [],
+    setup: [],
+    meta: {
+      appVersion: APP_VERSION,
+      reportId: createDiagnosticReportId("INJECTOR", Date.now()),
+      vehicle: activeVehicleName(),
+      vehicleKey: state.vehicleKey,
+      odometer: $("#injectorOdometer").value.trim(),
+      note: $("#injectorNote").value.trim(),
+      userAgent: navigator.userAgent,
+      ...device
+    }
+  };
+  $("#startInjectorTest").disabled = true;
+  $("#startInjectorTest").textContent = "Mittaus käynnissä…";
+  $("#cancelInjectorTest").disabled = false;
+  $("#injectorReportActions").classList.add("hidden");
+  $("#injectorReportDetails").classList.add("hidden");
+  $("#injectorStatusBadge").className = "ct-test-badge attention";
+  $("#injectorStatusBadge").textContent = "MITATAAN";
+  renderInjectorSample();
+  renderInjectorProgress("Valmistellaan vain lukevaa CAN-yhteyttä…");
+  setNotice("injectorTestNotice", "Pidä moottori vakaalla tyhjäkäynnillä. Älä koske kaasuun mittauksen aikana.");
+  updateConnectionButtons();
+  setKeepAwake(true);
+
+  try {
+    for (const command of INJECTOR_TEST_COMMANDS.setup) {
+      if (state.injectorTestAbortRequested) break;
+      const result = await injectorCommand(command, 5500);
+      state.injectorTestRun.setup.push({ command, raw: result.raw, error: result.error, timestamp: Date.now() });
+      if (result.error && ["ATSP6", "ATSH7E0"].includes(command)) throw new Error(`${command} epäonnistui: ${result.error}`);
+    }
+    const measurementStartedAt = Date.now();
+    while (!state.injectorTestAbortRequested && state.injectorTestRun.samples.length < INJECTOR_TEST_MAX_SAMPLES) {
+      const sequence = state.injectorTestRun.samples.length + 1;
+      const roundStartedAt = Date.now();
+      const rpmResult = await injectorCommand("010C");
+      const coolantResult = await injectorCommand("0105");
+      const fuelTemperatureResult = await injectorCommand("2193");
+      const railResult = await injectorCommand("2196");
+      const feedbackResult = await injectorCommand("219C", 7000);
+      const fuelTemperature = decodeToyotaReadDataResponse(fuelTemperatureResult.raw, 0x93, VEHICLE_KEYS.IS220D);
+      const railPressure = decodeToyotaReadDataResponse(railResult.raw, 0x96, VEHICLE_KEYS.IS220D);
+      const feedback = decodeToyotaReadDataResponse(feedbackResult.raw, 0x9c, VEHICLE_KEYS.IS220D);
+      const sample = {
+        sequence,
+        timestamp: Date.now(),
+        elapsedMs: Date.now() - state.injectorTestRun.startedAt,
+        values: {
+          rpm: decodePidResponse("rpm", rpmResult.raw),
+          coolantC: decodePidResponse("coolant", coolantResult.raw),
+          fuelTemperatureC: fuelTemperature?.complete ? fuelTemperature.values.fuelTemperatureC : null,
+          railPressureMpa: railPressure?.complete ? railPressure.values.railPressureMpa : null,
+          feedbackMm3: feedback?.complete ? [1, 2, 3, 4].map(index => feedback.values[`injectionFeedback${index}Mm3`]) : []
+        },
+        raw: {
+          rpm: rpmResult.raw,
+          coolant: coolantResult.raw,
+          fuelTemperature: fuelTemperatureResult.raw,
+          railPressure: railResult.raw,
+          feedback: feedbackResult.raw
+        },
+        errors: Object.fromEntries([
+          ["010C", rpmResult.error], ["0105", coolantResult.error], ["2193", fuelTemperatureResult.error],
+          ["2196", railResult.error], ["219C", feedbackResult.error]
+        ].filter(([, error]) => error))
+      };
+      state.injectorTestRun.samples.push(sample);
+      renderInjectorSample(sample);
+      renderInjectorProgress();
+      if (Date.now() - measurementStartedAt >= INJECTOR_TEST_TARGET_MS && state.injectorTestRun.samples.length >= INJECTOR_TEST_LIMITS.minimumValidSamples) break;
+      const remainingDelay = INJECTOR_TEST_SAMPLE_INTERVAL_MS - (Date.now() - roundStartedAt);
+      if (remainingDelay > 0) await delay(remainingDelay);
+    }
+  } catch (error) {
+    state.injectorTestRun.internalError = error?.message || String(error);
+    setNotice("injectorTestNotice", `Testi keskeytyi: ${state.injectorTestRun.internalError}. Jo saaduista tiedoista muodostetaan raportti.`, "error");
+  } finally {
+    state.injectorTestRun.cancelled = state.injectorTestAbortRequested;
+    state.injectorTestRun.endedAt = Date.now();
+    await restoreAfterInjectorTest();
+    finishInjectorTestUi();
+    state.injectorTestRunning = false;
+    state.injectorTestAbortRequested = false;
+    $("#startInjectorTest").disabled = false;
+    $("#startInjectorTest").textContent = "Aloita uusi 45 s testi";
+    $("#cancelInjectorTest").disabled = true;
+    updateConnectionButtons();
+    setKeepAwake(false);
+  }
+}
+
+function injectorTestFilename() {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `Lexus_IS220d_suutintesti_Flex-${APP_VERSION}_${timestamp}.txt`;
+}
+
+async function copyInjectorTestReport() {
+  if (!state.injectorTestReport) return toast("Aja suutintesti ensin");
+  try {
+    await navigator.clipboard.writeText(state.injectorTestReport);
+    toast("Suutintestiraportti kopioitu");
+  } catch {
+    toast("Raportin kopiointi ei onnistunut");
+  }
+}
+
+async function saveOrShareInjectorTestReport(share = false) {
+  if (!state.injectorTestReport || !state.injectorTestRun || !state.injectorTestAnalysis) return toast("Aja suutintesti ensin");
+  const filename = injectorTestFilename();
+  const prompt = buildInjectorTestAnalysisPrompt(state.injectorTestRun, state.injectorTestAnalysis);
+  const title = "Lexus OBD Flex · IS220d suutintesti";
+  try {
+    if (nativeTransport.available() && globalThis.obd?.exportCsv) {
+      const uri = await nativeTransport.exportCsv(filename, state.injectorTestReport, "text/plain");
+      if (!(uri?.startsWith("content:"))) throw new Error("Android ei palauttanut tiedoston osoitetta");
+      if (share) {
+        await nativeTransport.shareCsv(uri, prompt, title, "text/plain");
+        toast("Valitse tekoälysovellus jakovalikosta");
+      } else {
+        toast("Raportti tallennettu Lataukset/Lexus OBD -kansioon");
+      }
+      return;
+    }
+    const file = new File([state.injectorTestReport], filename, { type: "text/plain;charset=utf-8" });
+    if (share && navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+      await navigator.share({ title, text: prompt, files: [file] });
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(file);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    if (share) await navigator.clipboard?.writeText(prompt);
+    toast(share ? "Raportti tallennettu ja analyysipyyntö kopioitu" : "Raportti tallennettu");
+  } catch (error) {
+    if (error?.name !== "AbortError") toast(`Raporttitoiminto epäonnistui: ${error.message}`);
+  }
+}
+
+async function clearDtc() {
+  if (state.injectorTestRunning) return toast("Viimeistele suutintesti ennen vikakoodien poistoa");
+  if (!requireConnection()) return;
+  if (isCt200h()) {
+    setNotice("dtcNotice", "CT 200h -profiili on tässä julkaisussa tarkoituksella vain luku: vikakoodien poistokomentoa ei lähetetty.", "warning");
+    return;
+  }
   if (state.client?.binaryQuicklynks) {
     setNotice("dtcNotice", "Vikakoodien poistoa ei lähetetty Quicklynksin varmentamattomalla binäärikomennolla.", "warning");
     return;
@@ -798,7 +1841,7 @@ function renderMetrics() {
   const currentChart = chartSelect.value || "rpm";
   grid.innerHTML = "";
   chartSelect.innerHTML = "";
-  for (const def of PID_DEFINITIONS) {
+  for (const def of activeMetricDefinitions()) {
     const known = state.supportedPids instanceof Set;
     const supported = !known || state.supportedPids.has(def.pid) || state.supportedPids.has(def.id);
     if (known && def.standardAdvanced && !supported) continue;
@@ -838,7 +1881,7 @@ function renderDpnrMonitor() {
     const def = PID_BY_ID[id];
     const value = state.values[id];
     const updatedAt = state.updatedAt[id];
-    const raw = id.startsWith("dpnr") ? (id.includes("Temperature") ? dpnrRaw("217F") : dpnrRaw("217E")) : "–";
+    const raw = id.includes("Temperature") ? dpnrRaw("217F") : dpnrRaw("217E");
     const card = document.createElement("div");
     card.className = "dpnr-metric";
     card.innerHTML = `<span>${escapeHtml(def.name)}</span><strong>${Number.isFinite(value) ? formatValue(def, value) : "–"}</strong><small>${escapeHtml(def.unit)}</small><em>${updatedAt ? `${Math.max(0, Date.now() - updatedAt)} ms vanha` : "odottaa"}<br>${escapeHtml(raw)}</em>`;
@@ -912,28 +1955,39 @@ function applyMetricResult(def, result, cycleRaw) {
 }
 
 function updateDerivedMetrics(cycleRaw) {
+  const publish = (id, value, measuredAt, raw, source) => {
+    if (!Number.isFinite(value) || !Number.isFinite(measuredAt)) return;
+    const def = PID_BY_ID[id];
+    const previousUpdatedAt = state.updatedAt[id];
+    state.values[id] = value;
+    state.updatedAt[id] = measuredAt;
+    state.rawValues[id] = raw;
+    state.valueSources[id] = source;
+    cycleRaw[id] = raw;
+    const history = state.histories[id];
+    if (!Number.isFinite(previousUpdatedAt) || measuredAt > previousUpdatedAt || !history.length) {
+      history.push({ time: measuredAt, value });
+      if (history.length > 180) history.splice(0, history.length - 180);
+    }
+    updateMetricCard(def);
+    if ($("#liveChartMetric").value === id) updateLiveChart();
+  };
+
   const map = state.values.map;
   const barometricPressure = state.values.barometricPressure;
   const mapAt = state.updatedAt.map;
   const barometricAt = state.updatedAt.barometricPressure;
-  if (![map, barometricPressure, mapAt, barometricAt].every(Number.isFinite)) return;
-
-  const def = PID_BY_ID.boostPressure;
-  const measuredAt = Math.min(mapAt, barometricAt);
-  const previousUpdatedAt = state.updatedAt.boostPressure;
-  const value = map - barometricPressure;
-  state.values.boostPressure = value;
-  state.updatedAt.boostPressure = measuredAt;
-  state.rawValues.boostPressure = "derived:map-barometricPressure";
-  state.valueSources.boostPressure = "Johdettu MAP − ilmanpaine";
-  cycleRaw.boostPressure = state.rawValues.boostPressure;
-  const history = state.histories.boostPressure;
-  if (!Number.isFinite(previousUpdatedAt) || measuredAt > previousUpdatedAt || !history.length) {
-    history.push({ time: measuredAt, value });
-    if (history.length > 180) history.splice(0, history.length - 180);
+  if ([map, barometricPressure, mapAt, barometricAt].every(Number.isFinite)) {
+    publish("boostPressure", map - barometricPressure, Math.min(mapAt, barometricAt), "derived:map-barometricPressure", "Johdettu MAP − ilmanpaine");
   }
-  updateMetricCard(def);
-  if ($("#liveChartMetric").value === def.id) updateLiveChart();
+
+  const packVoltage = state.values.ctHvPackVoltage;
+  const batteryCurrent = state.values.ctHvCurrent;
+  const packVoltageAt = state.updatedAt.ctHvPackVoltage;
+  const batteryCurrentAt = state.updatedAt.ctHvCurrent;
+  if (isCt200h() && [packVoltage, batteryCurrent, packVoltageAt, batteryCurrentAt].every(Number.isFinite)) {
+    publish("ctHvPackPower", packVoltage * batteryCurrent / 1000, Math.min(packVoltageAt, batteryCurrentAt), "derived:ctHvPackVoltage*ctHvCurrent", "Johdettu lohkojännitteiden summasta × akkuvirrasta");
+  }
 }
 
 function isConnectionLossError(error) {
@@ -966,6 +2020,7 @@ function renderPollHealth() {
 }
 
 async function startLive() {
+  if (state.injectorTestRunning) return toast("Viimeistele suutintesti ennen live-lukua");
   if (!requireConnection() || state.liveActive) return;
   const liveClient = state.client;
   state.liveActive = true;
@@ -975,7 +2030,7 @@ async function startLive() {
   try {
     const supportedPids = await liveClient.readSupportedPids();
     state.supportedPids = supportedPids;
-    const readable = PID_DEFINITIONS.filter(def =>
+    const readable = activeMetricDefinitions().filter(def =>
       !def.derived && (supportedPids.has(def.pid) || supportedPids.has(def.id))
     );
     const toyotaLiveCount = readable.filter(def => def.toyotaCommand).length;
@@ -983,9 +2038,9 @@ async function startLive() {
     setNotice(
       "supportNotice",
       liveClient.binaryQuicklynks
-        ? `${readable.length} varmennettua arvoa luetaan Quicklynksin pääkehyksestä sekä 2 s / 15 s Mode 01 -ryhmistä. Standardoidut diesel-PIDit kokeillaan yksi kerrallaan; lyhyt vastaus tulkitaan payload-only-muodossa ja mittari näytetään vasta hyväksytyn 41-vastauksen jälkeen. Toyota 21 -kyselyitä ei lähetetä Quicklynksille.`
+        ? `${readable.length} varmennettua standardiarvoa luetaan Quicklynksin pääkehyksestä sekä Mode 01 -ryhmistä. Toyota 21 -kyselyitä ei lähetetä Quicklynksin suljetulle binäärikanavalle, joten ${isCt200h() ? "CT:n hybridimittarit vaativat vLinker MC+:n tai muun ASCII-ELM327:n" : "IS220d:n valmistajakohtaiset arvot eivät ole tällä kuljetuksella käytettävissä"}.`
         : toyotaLiveCount
-          ? `${readable.length} arvoa on tuettu. Näistä ${toyotaLiveCount} on vLinker MC+:lla tässä yhteydessä varmennettuja Toyota Read Data -arvoja komennoista 217E, 217F ja 212C. Lähdekohtainen prioriteettipollaus lukee saman vastauksen vain kerran ja jakaa sen kaikille ryhmän mittareille.`
+          ? `${readable.length} arvoa on tuettu. Näistä ${toyotaLiveCount} on tässä yhteydessä rakenteellisesti varmennettuja ${isCt200h() ? "CT 200h -hybridimittareita osoitteesta 7E2/7EA" : "IS220d Toyota Read Data -arvoja komennoista 217E, 217F ja 212C"}. Lähdekohtainen prioriteettipollaus lukee saman vastauksen vain kerran ja jakaa sen kaikille ryhmän mittareille.`
           : `${readable.length} tämän näkymän standardoitua PID-arvoa on tuettu. Lähdekohtainen prioriteettipollaus painottaa nopeasti muuttuvia arvoja ja harventaa lämpötila-, jännite- ja tilatietoja.`,
       ""
     );
@@ -1126,17 +2181,27 @@ function updateLiveChart() {
 function updateDriveValues() {
   $("#driveRpm").textContent = Number.isFinite(state.values.rpm) ? Math.round(state.values.rpm) : "–";
   $("#driveSpeed").textContent = Number.isFinite(state.values.speed) ? Math.round(state.values.speed) : "–";
-  const baseItems = new Set(["coolant", "load", "adapterVoltage", "voltage", "quicklynksField80", "maf", "map", "boostPressure", "railPressure"]);
-  const items = [
-    "coolant", "load", "adapterVoltage", "voltage", "quicklynksField80", "maf", "map",
-    "boostPressure", "boostPressureTarget", "boostPressureActual", "railPressure", "railPressureTarget",
-    "railPressureActual", "toyotaRailPressure", "egrPositionTarget", "egrPositionActual",
-    "dpnrDifferentialPressure", "dpnrSulfurRegenerationState", "dpnrPmRegenerationState",
-    "dpnrInletTemperature", "dpnrOutletTemperature", "injectionFeedback1", "injectionFeedback2",
-    "injectionFeedback3", "injectionFeedback4", "toyotaFuelTemperature", "toyotaInjectionTiming",
-    "dpfRegenerationActive", "dpfDifferentialPressure", "dpfInletTemperature", "dpfOutletTemperature",
-    "dieselLambdaB1S1"
-  ].filter(id => baseItems.has(id) || Number.isFinite(state.values[id]));
+  const baseItems = new Set(isCt200h()
+    ? ["ctHvSoc", "ctHvCurrent", "ctHvPackPower", "ctHvPackVoltage", "ctHvBlockDelta", "ctHvTemperatureMax"]
+    : ["coolant", "load", "adapterVoltage", "voltage", "quicklynksField80", "maf", "map", "boostPressure", "railPressure"]);
+  const candidates = isCt200h()
+    ? [
+        "ctHvSoc", "ctHvCurrent", "ctHvPackPower", "ctHvPackVoltage", "ctHvBlockMin", "ctHvBlockMax",
+        "ctHvBlockDelta", "ctHvBlockMinIndex", "ctHvBlockMaxIndex", "ctHvTemperature1", "ctHvTemperature2",
+        "ctHvTemperature3", "ctHvTemperatureMax", "ctHvTemperatureDelta", "ctHvResistanceMax", "ctHvResistanceDelta",
+        "ctHvChargeLimit", "ctHvDischargeLimit", "ctHvDeltaSoc", "voltage", "coolant"
+      ]
+    : [
+        "coolant", "load", "adapterVoltage", "voltage", "quicklynksField80", "maf", "map",
+        "boostPressure", "boostPressureTarget", "boostPressureActual", "railPressure", "railPressureTarget",
+        "railPressureActual", "toyotaRailPressure", "egrPositionTarget", "egrPositionActual",
+        "dpnrDifferentialPressure", "dpnrSulfurRegenerationState", "dpnrPmRegenerationState",
+        "dpnrInletTemperature", "dpnrOutletTemperature", "injectionFeedback1", "injectionFeedback2",
+        "injectionFeedback3", "injectionFeedback4", "toyotaFuelTemperature", "toyotaInjectionTiming",
+        "dpfRegenerationActive", "dpfDifferentialPressure", "dpfInletTemperature", "dpfOutletTemperature",
+        "dieselLambdaB1S1"
+      ];
+  const items = candidates.filter(id => baseItems.has(id) || Number.isFinite(state.values[id]));
   $("#driveSecondary").innerHTML = items.map(id => {
     const def = PID_BY_ID[id];
     const value = state.values[id];
@@ -1144,6 +2209,22 @@ function updateDriveValues() {
   }).join("");
   const banner = $("#dpfRegenBanner");
   const regenState = $("#dpfRegenState");
+  if (isCt200h()) {
+    const soc = state.values.ctHvSoc;
+    const delta = state.values.ctHvBlockDelta;
+    const maxTemp = state.values.ctHvTemperatureMax;
+    const available = [soc, delta, maxTemp].some(Number.isFinite);
+    const attention = Number.isFinite(delta) && delta >= 0.5 || Number.isFinite(maxTemp) && maxTemp >= 55;
+    banner.className = `dpf-banner ${available ? (attention ? "active" : "inactive") : "unavailable"}`;
+    regenState.textContent = available
+      ? [
+          Number.isFinite(soc) ? `SOC ${soc.toFixed(1).replace(".", ",")} %` : "",
+          Number.isFinite(delta) ? `lohkoero ${delta.toFixed(3).replace(".", ",")} V` : "",
+          Number.isFinite(maxTemp) ? `Tmax ${maxTemp.toFixed(1).replace(".", ",")} °C` : ""
+        ].filter(Boolean).join(" · ")
+      : "Ei hyväksyttyä CT-hybridivastausta";
+    return;
+  }
   const manufacturerRegeneration = state.values.dpnrRegenerationActive;
   const standardRegeneration = state.values.dpfRegenerationActive;
   const regeneration = Number.isFinite(manufacturerRegeneration) ? manufacturerRegeneration : standardRegeneration;
@@ -1160,6 +2241,7 @@ function updateDriveValues() {
 }
 
 async function startRecording() {
+  if (state.injectorTestRunning) return toast("Viimeistele suutintesti ennen koeajotallennusta");
   if (!requireConnection()) return;
   if (state.recording) { await stopRecording(); return; }
   const now = Date.now();
@@ -1169,7 +2251,9 @@ async function startRecording() {
     appVersion: APP_VERSION,
     startedAt: now,
     endedAt: null,
-    vehicle: "Lexus IS220d 2008 · 2AD-FHV",
+    vehicle: activeVehicleName(),
+    vehicleKey: state.vehicleKey,
+    vehicleProfileVersion: activeVehicleProfile()?.profileVersion || "generic-eobd",
     adapter: state.client.adapterIdentity,
     protocol: state.client.protocolIdentity,
     samples: [],
@@ -1184,7 +2268,7 @@ async function startRecording() {
   $("#recordingState").textContent = "Käynnissä";
   updateRecordingStatus();
   state.recordingTimer = setInterval(updateRecordingStatus, 1000);
-  await setKeepAwake($("#keepAwake").checked || $("#dpnrKeepAwake").checked);
+  await setKeepAwake($("#keepAwake").checked || $("#dpnrKeepAwake")?.checked);
   if (!state.liveActive) startLive();
   toast("Koeajoloki käynnistyi");
 }
@@ -1382,15 +2466,16 @@ async function exportSelectedSession() {
   const session = state.selectedSession;
   if (!session) return;
   session.note = $("#sessionNote")?.value.trim() || session.note || "";
-  session.schemaVersion = 3;
+  session.schemaVersion = Math.max(5, Number(session.schemaVersion) || 0);
   session.appVersion ||= APP_VERSION;
   await SessionStore.save(session);
   const csv = sessionToCsv(session);
-  const filename = `IS220d_OBD_${new Date(session.startedAt).toISOString().replace(/[:.]/g, "-")}.csv`;
+  const vehiclePrefix = /CT\s*200h|ZWA10/i.test(session.vehicle || "") ? "Lexus_CT200h_OBD" : "Lexus_IS220d_OBD";
+  const filename = `${vehiclePrefix}_${new Date(session.startedAt).toISOString().replace(/[:.]/g, "-")}.csv`;
   try {
     if (nativeTransport.available() && globalThis.obd?.exportCsv) {
       const result = await nativeTransport.exportCsv(filename, csv);
-      toast(result?.startsWith("content:") ? "CSV tallennettu Lataukset/IS220d OBD -kansioon" : "CSV tallennettu");
+      toast(result?.startsWith("content:") ? "CSV tallennettu Lataukset/Lexus OBD -kansioon" : "CSV tallennettu");
     } else {
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const link = document.createElement("a");
@@ -1406,21 +2491,22 @@ async function shareSelectedSessionForAi() {
   const session = state.selectedSession;
   if (!session) return;
   session.note = $("#sessionNote")?.value.trim() || "";
-  session.schemaVersion = 3;
+  session.schemaVersion = Math.max(5, Number(session.schemaVersion) || 0);
   session.appVersion ||= APP_VERSION;
   await SessionStore.save(session);
 
   const hasResearch = Boolean(session.quicklynksResearch?.events?.length);
   const csv = hasResearch ? sessionToQuicklynksResearchCsv(session) : sessionToCsv(session);
   const prompt = hasResearch ? buildQuicklynksResearchAiPrompt(session) : buildAiAnalysisPrompt(session);
-  const prefix = hasResearch ? "IS220d_OBD_AI_PID" : "IS220d_OBD_AI";
+  const modelPrefix = /CT\s*200h|ZWA10/i.test(session.vehicle || "") ? "Lexus_CT200h" : "Lexus_IS220d";
+  const prefix = hasResearch ? `${modelPrefix}_OBD_AI_PID` : `${modelPrefix}_OBD_AI`;
   const filename = `${prefix}_${new Date(session.startedAt).toISOString().replace(/[:.]/g, "-")}.csv`;
 
   try {
     if (nativeTransport.available() && globalThis.obd?.exportCsv && globalThis.obd?.shareCsv) {
       const uri = await nativeTransport.exportCsv(filename, csv);
       if (!uri?.startsWith("content:")) throw new Error("Android ei palauttanut jaettavaa tiedosto-osoitetta");
-      await nativeTransport.shareCsv(uri, prompt, "Lexus IS220d koeajodatan analyysi", "text/csv");
+      await nativeTransport.shareCsv(uri, prompt, `${session.vehicle || "Lexus"} koeajodatan analyysi`, "text/csv");
       toast("Valitse tekoälysovellus jakovalikosta");
       return;
     }
@@ -1428,7 +2514,7 @@ async function shareSelectedSessionForAi() {
     const file = new File([csv], filename, { type: "text/csv;charset=utf-8" });
     if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
       await navigator.share({
-        title: "Lexus IS220d koeajodatan analyysi",
+        title: `${session.vehicle || "Lexus"} koeajodatan analyysi`,
         text: prompt,
         files: [file]
       });
@@ -1567,7 +2653,7 @@ async function executeFullDiagnosticStep(step, options = {}) {
 
 function toyotaDiagnosticStep(probe, queryForm, timeoutMs = 12000) {
   const command = queryForm === "raw-single-frame" ? probe.rawCommand : probe.command;
-  if (!TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes(command)) {
+  if (!isProfileReadOnlyCommand(command, probe.vehicleKey || state.vehicleKey)) {
     throw new Error(`Sisäinen turvallisuussallintalista esti Toyota-komennon ${command}`);
   }
   return {
@@ -1582,6 +2668,7 @@ function toyotaDiagnosticStep(probe, queryForm, timeoutMs = 12000) {
     profileProbeId: probe.id,
     evidence: probe.evidence,
     decoder: probe.decoder,
+    vehicleKey: probe.vehicleKey || state.vehicleKey,
     connectionStrategy: `toyota-${queryForm}`,
     queryForm,
     timeoutMs
@@ -1650,24 +2737,16 @@ function diagnosticHasValid(run, command, requestHeader = "") {
 
 function finishFullDiagnosticUi(run) {
   run.summary = summarizeFullDiagnostic(run);
-  run.ecuSurvey = ecuSurveySnapshotFromDiagnosticRun(run);
-  const surveyHistory = recordEcuSurveySnapshot(run.ecuSurvey);
-  run.ecuSurveyHistory = {
-    persisted: surveyHistory.persisted,
-    error: surveyHistory.error,
-    storedRuns: surveyHistory.snapshots.length,
-    repeatability: surveyHistory.repeatability
-  };
   state.adapterCapabilities = run.summary.adapterCapabilities;
-  const baseReport = buildFullDiagnosticReport(run);
-  state.fullDiagnosticReport = `${baseReport}\n\n${buildEcuSurveyTextReport(run.ecuSurvey, surveyHistory)}`;
+  state.fullDiagnosticReport = buildFullDiagnosticReport(run);
   const summary = run.summary;
   const status = $("#diagnosticSummary");
+  const diagnosticProbeCount = summary.toyotaProbeSummaries.length;
   if (status) {
     status.textContent = summary.toyotaResponseCount
-      ? `Toyota Read Data toimii: ${summary.toyotaResponseCount}/${TOYOTA_READ_DATA_PROBES.length} varmennettua vastausta. Raportissa ovat raakadata, käytetty kyselymuoto ja puretut DPNR/EGR-arvot.`
+      ? `Toyota Read Data toimii: ${summary.toyotaResponseCount}/${diagnosticProbeCount} rakenteellisesti varmennettua vastausta. Raportissa ovat raakadata, kyselymuoto ja puretut ajoneuvokohtaiset arvot.`
       : summary.validObdResponseCount
-        ? `Tavallista ECU-dataa löytyi, mutta Toyota 217E/217F/212C ei vastannut. Raportti erottaa normaalin, suodatetun ja raa'an kyselyprofiilin.`
+        ? `Tavallista ECU-dataa löytyi, mutta valitun ${activeVehicleName()} -profiilin Toyota-lukupyynnöt eivät vastanneet.`
         : `ELM-taso ${summary.adapterResponded ? "vastasi" : "ei vastannut"}, mutta kelvollista ECU- tai Toyota-vastausta ei löytynyt. Raportti sisältää kaikki vaihtoehtoiset testit.`;
     status.className = `inline-message ${summary.toyotaResponseCount || summary.validObdResponseCount ? "" : "warning"}`.trim();
   }
@@ -1726,11 +2805,21 @@ async function runGekoDiagnostic() {
     return;
   }
   if (state.diagnosticRunning) return;
+  if (state.injectorTestRunning) {
+    setNotice("gekoTestResult", "Keskeytä tai viimeistele suutintesti ennen laajaa diagnostiikkaa.", "warning");
+    return;
+  }
   if (state.recording) {
     setNotice("gekoTestResult", "Lopeta koeajotallennus ennen laajaa diagnostiikkaa.", "warning");
     return;
   }
   if (state.liveActive) await stopLive();
+
+  const diagnosticVehicleKey = state.vehicleKey;
+  const diagnosticProfile = getVehicleProfile(diagnosticVehicleKey);
+  const diagnosticProbes = getVehicleReadDataProbes(diagnosticVehicleKey);
+  const toyotaRequestHeader = diagnosticProbes[0]?.requestHeader || "7E0";
+  const toyotaResponseHeader = diagnosticProbes[0]?.responseHeader || "7E8";
 
   const button = $("#runGekoTest");
   const cancelButton = $("#cancelGekoTest");
@@ -1753,7 +2842,9 @@ async function runGekoDiagnostic() {
     meta: {
       appVersion: APP_VERSION,
       reportId: createDiagnosticReportId("ELM", Date.now()),
-      vehicle: "Lexus IS220d 2008 · 2AD-FHV · 2,2 D-CAT",
+      vehicle: activeVehicleName(),
+      vehicleKey: diagnosticVehicleKey,
+      vehicleProfileVersion: diagnosticProfile?.profileVersion || "generic-eobd",
       engineRunningDeclared: declaredEngineRunning("diagnosticEngineState"),
       note: $("#diagnosticNote")?.value?.trim() || "",
       userAgent: navigator.userAgent,
@@ -1772,6 +2863,10 @@ async function runGekoDiagnostic() {
   setKeepAwake(true);
 
   try {
+    await runFullDiagnosticSteps("Adapteri", [
+      ...VLINKER_CAPABILITY_PROBES
+    ]);
+
     let workingProbe = await executeFullDiagnosticStep({
       phase: "Nykytila ennen nollausta",
       ...diagnosticModeStep("0100", 0x00, "Kokeile nykyisiä ELM- ja protokolla-asetuksia", "", 12000),
@@ -1783,10 +2878,6 @@ async function runGekoDiagnostic() {
     } else {
       workingProbe = null;
     }
-
-    await runFullDiagnosticSteps("Adapteri", [
-      ...VLINKER_CAPABILITY_PROBES
-    ]);
 
     if (!workingProbe) {
       await runFullDiagnosticSteps("Hidas klooniturvallinen alustus", [
@@ -1958,7 +3049,7 @@ async function runGekoDiagnostic() {
     ]);
 
     const preToyotaSummary = summarizeFullDiagnostic(state.diagnosticRun);
-    if (preToyotaSummary.adapterResponded) {
+    if (preToyotaSummary.adapterResponded && diagnosticProbes.length) {
       state.toyotaProbeStatus = "laajennettu testi käynnissä";
       await runFullDiagnosticSteps("Toyota Read Data · normaali ELM-muoto", [
         { command: "ATSP6", expected: "ok", label: "Varmista CAN 11/500" },
@@ -1969,50 +3060,50 @@ async function runGekoDiagnostic() {
         { command: "ATH1", expected: "ok", label: "CAN-otsakkeet näkyviin" },
         { command: "ATS1", expected: "ok", label: "Välilyönnit näkyviin" },
         { command: "ATCRA", expected: "ok", optional: true, label: "Poista aiempi vastaanottosuodatin" },
-        { command: "ATSH7E0", expected: "ok", label: "Toyota-moottori-ECU 7E0", requestHeader: "7E0" }
+        { command: `ATSH${toyotaRequestHeader}`, expected: "ok", label: `Toyota-ECU ${toyotaRequestHeader}`, requestHeader: toyotaRequestHeader }
       ]);
 
       const toyotaSetupResults = state.diagnosticRun.results.filter(result => result.phase === "Toyota Read Data · normaali ELM-muoto");
       const canReady = toyotaSetupResults.some(result => result.command === "ATSP6" && result.validResponse);
-      const headerReady = toyotaSetupResults.some(result => result.command === "ATSH7E0" && result.validResponse);
+      const headerReady = toyotaSetupResults.some(result => result.command === `ATSH${toyotaRequestHeader}` && result.validResponse);
 
       if (canReady && headerReady) {
         await runFullDiagnosticSteps("Toyota Read Data · normaali ELM-muoto",
-          TOYOTA_READ_DATA_PROBES.map(probe => ({ ...toyotaDiagnosticStep(probe, "formatted"), pauseAfterMs: 250 }))
+          diagnosticProbes.map(probe => ({ ...toyotaDiagnosticStep(probe, "formatted"), pauseAfterMs: 250 }))
         );
 
-        let missing = TOYOTA_READ_DATA_PROBES.filter(probe => !toyotaProbeResponded(state.diagnosticRun, probe.identifier));
+        let missing = diagnosticProbes.filter(probe => !toyotaProbeResponded(state.diagnosticRun, probe.identifier));
         if (missing.length) {
           await runFullDiagnosticSteps("Toyota Read Data · 7E8-suodatettu", [
             { command: "ATCAF1", expected: "ok", label: "Pidä automaattinen CAN-muotoilu" },
             { command: "ATCFC1", expected: "ok", label: "Pidä automaattinen flow control" },
             { command: "ATSTFF", expected: "ok", label: "Pisin ELM-vastausodotus" },
-            { command: "ATSH7E0", expected: "ok", label: "Toyota-moottori-ECU 7E0", requestHeader: "7E0" },
-            { command: "ATCRA7E8", expected: "ok", optional: true, label: "Rajaa vastaukset moottori-ECUun 7E8", requestHeader: "7E0" },
+            { command: `ATSH${toyotaRequestHeader}`, expected: "ok", label: `Toyota-ECU ${toyotaRequestHeader}`, requestHeader: toyotaRequestHeader },
+            { command: `ATCRA${toyotaResponseHeader}`, expected: "ok", optional: true, label: `Rajaa vastaukset ECUun ${toyotaResponseHeader}`, requestHeader: toyotaRequestHeader },
             ...missing.map(probe => ({ ...toyotaDiagnosticStep(probe, "filtered-formatted", 16000), pauseAfterMs: 350 }))
           ]);
         }
 
-        missing = TOYOTA_READ_DATA_PROBES.filter(probe => !toyotaProbeResponded(state.diagnosticRun, probe.identifier));
+        missing = diagnosticProbes.filter(probe => !toyotaProbeResponded(state.diagnosticRun, probe.identifier));
         if (missing.length) {
           await runFullDiagnosticSteps("Toyota Read Data · raaka ISO-TP", [
             { command: "ATSP6", expected: "ok", label: "Varmista CAN 11/500" },
             { command: "ATCAF0", expected: "ok", label: "Käytä raakaa CAN-kehystä" },
-            { command: "ATCFC0", expected: "ok", label: "Poista automaattinen flow control yksikehyskyselyltä" },
+            { command: isCt200h() ? "ATCFC1" : "ATCFC0", expected: "ok", label: isCt200h() ? "Säilytä flow control CT:n monikehysvastauksille" : "Poista automaattinen flow control yksikehyskyselyltä" },
             { command: "ATH1", expected: "ok", label: "CAN-otsakkeet näkyviin" },
             { command: "ATS1", expected: "ok", label: "Välilyönnit näkyviin" },
             { command: "ATSTFF", expected: "ok", label: "Pisin ELM-vastausodotus" },
-            { command: "ATSH7E0", expected: "ok", label: "Toyota-moottori-ECU 7E0", requestHeader: "7E0" },
-            { command: "ATCRA7E8", expected: "ok", optional: true, label: "Rajaa vastaukset moottori-ECUun 7E8", requestHeader: "7E0" },
+            { command: `ATSH${toyotaRequestHeader}`, expected: "ok", label: `Toyota-ECU ${toyotaRequestHeader}`, requestHeader: toyotaRequestHeader },
+            { command: `ATCRA${toyotaResponseHeader}`, expected: "ok", optional: true, label: `Rajaa vastaukset ECUun ${toyotaResponseHeader}`, requestHeader: toyotaRequestHeader },
             ...missing.map(probe => ({ ...toyotaDiagnosticStep(probe, "raw-single-frame", 16000), pauseAfterMs: 350 }))
           ]);
         }
 
         const toyotaSummary = summarizeFullDiagnostic(state.diagnosticRun);
-        state.toyotaProbeStatus = `positiiviset vastaukset ${toyotaSummary.toyotaResponseCount}/${TOYOTA_READ_DATA_PROBES.length}`;
+        state.toyotaProbeStatus = `positiiviset vastaukset ${toyotaSummary.toyotaResponseCount}/${diagnosticProbes.length}`;
       } else {
-        state.toyotaProbeStatus = `ei lähetetty: CAN-alustus=${canReady ? "OK" : "FAIL"}, ATSH7E0=${headerReady ? "OK" : "FAIL"}`;
-        for (const probe of TOYOTA_READ_DATA_PROBES) {
+        state.toyotaProbeStatus = `ei lähetetty: CAN-alustus=${canReady ? "OK" : "FAIL"}, ATSH${toyotaRequestHeader}=${headerReady ? "OK" : "FAIL"}`;
+        for (const probe of diagnosticProbes) {
           appendSkippedDiagnosticStep(
             { phase: "Toyota Read Data", ...toyotaDiagnosticStep(probe, "formatted") },
             state.toyotaProbeStatus
@@ -2020,8 +3111,10 @@ async function runGekoDiagnostic() {
         }
       }
     } else {
-      state.toyotaProbeStatus = "ei lähetetty: ELM-adapteri ei vastannut ATI-kyselyyn";
-      for (const probe of TOYOTA_READ_DATA_PROBES) {
+      state.toyotaProbeStatus = diagnosticProbes.length
+        ? "ei lähetetty: ELM-adapteri ei vastannut ATI-kyselyyn"
+        : "ei lähetetty: ajoneuvoprofiili tunnistamatta";
+      for (const probe of diagnosticProbes) {
         appendSkippedDiagnosticStep(
           { phase: "Toyota Read Data", ...toyotaDiagnosticStep(probe, "formatted") },
           state.toyotaProbeStatus
@@ -2120,7 +3213,9 @@ async function runQuicklynksWideDiagnostic() {
     meta: {
       appVersion: APP_VERSION,
       reportId: createDiagnosticReportId("QKL", startedAt),
-      vehicle: "Lexus IS220d 2008 · 2AD-FHV · 2,2 D-CAT",
+      vehicle: activeVehicleName(),
+      vehicleKey: state.vehicleKey,
+      vehicleProfileVersion: activeVehicleProfile()?.profileVersion || "generic-eobd",
       engineRunningDeclared: declaredEngineRunning("quicklynksDiagnosticEngineState"),
       note: $("#quicklynksDiagnosticNote")?.value?.trim() || "",
       userAgent: navigator.userAgent,
@@ -2258,7 +3353,8 @@ function fullDiagnosticFilename() {
   const adapter = state.diagnosticRun?.kind === "quicklynks" ? "Quicklynks" : "GEKO-ELM327";
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const nonce = Math.floor(Math.random() * 0x10000).toString(16).toUpperCase().padStart(4, "0");
-  return `IS220d_Flex_laaja_diagnostiikka_${adapter}_${timestamp}_${nonce}.txt`;
+  const vehicle = isCt200h() ? "Lexus_CT200h" : state.vehicleKey === VEHICLE_KEYS.IS220D ? "Lexus_IS220d" : "Lexus";
+  return `${vehicle}_Flex_laaja_diagnostiikka_${adapter}_${timestamp}_${nonce}.txt`;
 }
 
 async function saveOrShareFullDiagnostic(share = false) {
@@ -2269,8 +3365,8 @@ async function saveOrShareFullDiagnostic(share = false) {
     ? buildQuicklynksWideDiagnosticAnalysisPrompt(state.diagnosticRun)
     : buildFullDiagnosticAnalysisPrompt(state.diagnosticRun);
   const title = quicklynks
-    ? "IS220d Flex · laaja Quicklynks BLE -diagnostiikka"
-    : "IS220d Flex · laaja ELM/CAN-diagnostiikka";
+    ? "Lexus OBD Flex · laaja Quicklynks BLE -diagnostiikka"
+    : `Lexus OBD Flex · ${activeVehicleName()} · laaja ELM/CAN-diagnostiikka`;
   try {
     if (nativeTransport.available() && globalThis.obd?.exportCsv) {
       const uri = await nativeTransport.exportCsv(filename, state.fullDiagnosticReport, "text/plain");
@@ -2279,7 +3375,7 @@ async function saveOrShareFullDiagnostic(share = false) {
         await nativeTransport.shareCsv(uri, prompt, title, "text/plain");
         toast("Valitse ChatGPT jakovalikosta");
       } else {
-        toast("Raportti tallennettu Lataukset/IS220d OBD -kansioon");
+        toast("Raportti tallennettu Lataukset/Lexus OBD -kansioon");
       }
       return;
     }
@@ -2354,7 +3450,7 @@ async function analyzeObdPlusTraceFile() {
 function obdPlusTraceFilename() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const nonce = Math.floor(Math.random() * 0x10000).toString(16).toUpperCase().padStart(4, "0");
-  return `IS220d_Flex_OBDPlus_BLE_trace_${timestamp}_${nonce}.txt`;
+  return `Lexus_Flex_OBDPlus_BLE_trace_${timestamp}_${nonce}.txt`;
 }
 
 async function copyObdPlusTraceReport() {
@@ -2371,7 +3467,7 @@ async function saveOrShareObdPlusTrace(share = false) {
   if (!state.obdPlusTraceReport || !state.obdPlusTraceAnalysis) return toast("Analysoi BLE-jälki ensin");
   const filename = obdPlusTraceFilename();
   const prompt = buildQuicklynksTraceAnalysisPrompt(state.obdPlusTraceAnalysis);
-  const title = "IS220d Flex · OBD Plus / Quicklynks BLE -jälkiraportti";
+  const title = "Lexus OBD Flex · OBD Plus / Quicklynks BLE -jälkiraportti";
   try {
     if (nativeTransport.available() && globalThis.obd?.exportCsv) {
       const uri = await nativeTransport.exportCsv(filename, state.obdPlusTraceReport, "text/plain");
@@ -2380,7 +3476,7 @@ async function saveOrShareObdPlusTrace(share = false) {
         await nativeTransport.shareCsv(uri, prompt, title, "text/plain");
         toast("Valitse ChatGPT jakovalikosta");
       } else {
-        toast("Raportti tallennettu Lataukset/IS220d OBD -kansioon");
+        toast("Raportti tallennettu Lataukset/Lexus OBD -kansioon");
       }
       return;
     }
@@ -2401,7 +3497,387 @@ async function saveOrShareObdPlusTrace(share = false) {
   }
 }
 
+const POWER_HISTORY_KEY = "lexusPowerTestRunsV1";
+const POWER_HISTORY_LIMIT = 12;
+
+function parseFinnishNumber(value) {
+  const normalized = String(value ?? "").trim().replace(/\s+/g, "").replace(",", ".");
+  return normalized ? Number(normalized) : NaN;
+}
+
+function formNumber(id, fallback = NaN) {
+  const value = parseFinnishNumber($(`#${id}`)?.value);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function formNumberText(value, decimals = 2) {
+  const fixed = Number(value).toFixed(decimals);
+  const trimmed = decimals > 0 ? fixed.replace(/\.?0+$/, "") : fixed;
+  return trimmed.replace(".", ",");
+}
+
+function powerVehicleKey() {
+  return state.vehicleKey === VEHICLE_KEYS.CT200H ? VEHICLE_KEYS.CT200H : VEHICLE_KEYS.IS220D;
+}
+
+function applyPowerVehicleDefaults(force = false) {
+  const massInput = $("#powerTotalMass");
+  if (!massInput || state.powerTestRun && !["complete", "aborted"].includes(state.powerTestRun.status)) return;
+  const vehicleKey = powerVehicleKey();
+  const defaults = vehiclePowerDefaults(vehicleKey);
+  if (force || massInput.dataset.vehicleKey !== vehicleKey) {
+    massInput.value = formNumberText(defaults.totalMassKg, 0);
+    massInput.dataset.vehicleKey = vehicleKey;
+    $("#powerCd").value = formNumberText(defaults.dragCoefficient, 2);
+    $("#powerFrontalArea").value = formNumberText(defaults.frontalAreaM2, 2);
+    $("#powerCrr").value = formNumberText(defaults.rollingResistanceCoefficient, 3);
+    $("#powerDrivetrainLoss").value = formNumberText((1 - defaults.drivetrainEfficiency) * 100, 0);
+  }
+  $("#powerVehicleReference").textContent = vehicleKey === VEHICLE_KEYS.CT200H
+    ? `CT 200h -vertailu: 100 kW / 136 DIN hv järjestelmäteho ja 0–100 km/h 10,3 s. Massaoletus ${defaults.totalMassKg} kg sisältää auton, kuljettajan ja kevyen kuorman — korjaa kenttään testin todellinen kokonaismassa.`
+    : `IS220d-vertailu: 130 kW / 177 DIN hv ja 0–100 km/h 8,9 s. Massaoletus ${defaults.totalMassKg} kg sisältää auton, kuljettajan ja kevyen kuorman — korjaa kenttään testin todellinen kokonaismassa.`;
+  renderPowerHistory();
+}
+
+function powerSettingsFromForm() {
+  const presetId = $("#powerPreset").value;
+  const custom = presetId === "custom";
+  const totalMassKg = formNumber("powerTotalMass");
+  const startKmh = formNumber("powerStartKmh");
+  const endKmh = formNumber("powerEndKmh");
+  if (!Number.isFinite(totalMassKg) || totalMassKg < 500 || totalMassKg > 3500) {
+    throw new Error("Anna auton, henkilöiden, polttoaineen ja kuorman todellinen kokonaismassa väliltä 500–3500 kg");
+  }
+  if (custom && (!Number.isFinite(startKmh) || !Number.isFinite(endKmh) || startKmh < 0 || endKmh - startKmh < 10 || endKmh > 180)) {
+    throw new Error("Mukautetun testin alku- ja loppunopeuden eron pitää olla vähintään 10 km/h ja loppunopeuden enintään 180 km/h");
+  }
+  return {
+    presetId,
+    vehicleKey: powerVehicleKey(),
+    vehicleName: activeVehicleName(),
+    totalMassKg,
+    startKmh,
+    endKmh,
+    roadGradePercent: formNumber("powerRoadGrade", 0),
+    ambientTemperatureC: formNumber("powerTemperature", 15),
+    ambientPressureKpa: formNumber("powerPressure", 101.3),
+    dragCoefficient: formNumber("powerCd"),
+    frontalAreaM2: formNumber("powerFrontalArea"),
+    rollingResistanceCoefficient: formNumber("powerCrr"),
+    drivetrainLossPercent: formNumber("powerDrivetrainLoss")
+  };
+}
+
+function loadPowerHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(POWER_HISTORY_KEY) || "[]");
+    state.powerTestRuns = Array.isArray(parsed)
+      ? parsed.filter(run => run?.schemaVersion === "lexus-power-test-v1" && run?.status === "complete" && run?.result).slice(0, POWER_HISTORY_LIMIT)
+      : [];
+  } catch {
+    state.powerTestRuns = [];
+  }
+}
+
+function persistPowerHistory() {
+  const compact = state.powerTestRuns.slice(0, POWER_HISTORY_LIMIT);
+  try {
+    localStorage.setItem(POWER_HISTORY_KEY, JSON.stringify(compact));
+  } catch {
+    state.powerTestRuns = compact.slice(0, 6);
+    try { localStorage.setItem(POWER_HISTORY_KEY, JSON.stringify(state.powerTestRuns)); } catch {}
+  }
+}
+
+function storeCompletedPowerRun(run) {
+  const stored = JSON.parse(JSON.stringify(run));
+  state.powerTestRuns = [stored, ...state.powerTestRuns.filter(item => item.id !== stored.id)].slice(0, POWER_HISTORY_LIMIT);
+  persistPowerHistory();
+}
+
+function powerObdSnapshot() {
+  const now = Date.now();
+  const keys = [
+    "speed", "rpm", "load", "pedal", "pedalE", "maf", "map", "boostPressure", "barometricPressure",
+    "ctHvSoc", "ctHvCurrent", "ctHvPackPower", "ctHvPackVoltage", "ctHvBlockDelta", "ctHvTemperatureMax"
+  ];
+  return Object.fromEntries(keys.flatMap(id => {
+    const value = state.values[id];
+    const updatedAt = state.updatedAt[id];
+    const maximumAge = id.startsWith("ctHv") ? 5500 : 2500;
+    return Number.isFinite(value) && Number.isFinite(updatedAt) && now - updatedAt <= maximumAge ? [[id, value]] : [];
+  }));
+}
+
+function powerRunActive() {
+  return Boolean(state.powerTestRun && !["complete", "aborted"].includes(state.powerTestRun.status));
+}
+
+function livePowerGpsRate(run) {
+  const samples = run?.samples || [];
+  if (samples.length < 2) return null;
+  const lastTime = samples.at(-1).monotonicMs;
+  const recent = samples.filter(sample => sample.monotonicMs >= lastTime - 5000);
+  if (recent.length < 2) return null;
+  const seconds = (recent.at(-1).monotonicMs - recent[0].monotonicMs) / 1000;
+  return seconds > 0 ? (recent.length - 1) / seconds : null;
+}
+
+function renderPowerChart() {
+  const run = state.powerTestRun;
+  const samples = run?.samples || [];
+  const origin = run?.startCrossing?.monotonicMs || samples[0]?.monotonicMs || 0;
+  const points = samples.slice(-600).map(sample => ({ time: sample.monotonicMs - origin, value: sample.speedKmh }));
+  drawLineChart($("#powerChart"), points, { unit: "km/h", colorVariable: "--info" });
+}
+
+function powerBadge(run) {
+  if (!run) return { className: "neutral", text: "EI ALOITETTU" };
+  if (run.status === "complete") return { className: "complete", text: "VALMIS" };
+  if (run.status === "aborted") return { className: "aborted", text: "KESKEYTYNYT" };
+  if (run.status === "running") return { className: "running", text: "AJANOTTO" };
+  if (run.status === "armed") return { className: "ready", text: "VALMIS" };
+  return { className: "neutral", text: run.status === "ready" ? "GPS VALMIS" : "HAKEE GPS:ÄÄ" };
+}
+
+function renderPowerTestStatus() {
+  const run = state.powerTestRun;
+  const badge = powerBadge(run);
+  $("#powerStatusBadge").className = `power-test-badge ${badge.className}`;
+  $("#powerStatusBadge").textContent = badge.text;
+  const sample = state.powerLastGpsSample;
+  $("#powerGpsSpeed").textContent = Number.isFinite(sample?.speedKmh) ? Math.round(sample.speedKmh) : "–";
+  $("#powerGpsAccuracy").textContent = sample
+    ? `${Number.isFinite(sample.horizontalAccuracyM) ? sample.horizontalAccuracyM.toFixed(0) : "–"} / ${Number.isFinite(sample.speedAccuracyMps) ? sample.speedAccuracyMps.toFixed(2).replace(".", ",") : "–"}`
+    : "–";
+  const rate = livePowerGpsRate(run);
+  $("#powerGpsRate").textContent = Number.isFinite(rate) ? rate.toFixed(1).replace(".", ",") : "–";
+  const elapsed = run?.status === "running" && sample && Number.isFinite(run.startedAtMs)
+    ? Math.max(0, (sample.monotonicMs - run.startedAtMs) / 1000)
+    : run?.result?.elapsedSeconds || 0;
+  $("#powerElapsed").textContent = elapsed.toFixed(3).replace(".", ",");
+  const type = run?.status === "aborted" ? "error" : ["acquiring", "ready"].includes(run?.status) ? "warning" : "";
+  setNotice("powerTestStatus", run ? (run.abortReason || run.statusText) : "Täytä kokonaismassa ja valitse testi. OBD-yhteys on vapaaehtoinen; GPS tekee ajanoton.", type);
+  $("#powerTargetLabel").textContent = run ? `Tavoite ${run.settings.label}` : "Tavoite –";
+  $("#powerArmButton").disabled = powerRunActive();
+  $("#powerArmButton").textContent = run && ["complete", "aborted"].includes(run.status) ? "Aloita uusi testi" : "Valmistele ja viritä testi";
+  $("#powerCancelButton").disabled = !powerRunActive();
+  for (const id of ["powerPreset", "powerStartKmh", "powerEndKmh", "powerTotalMass", "powerRoadGrade", "powerTemperature", "powerPressure", "powerCd", "powerFrontalArea", "powerCrr", "powerDrivetrainLoss"]) {
+    if ($(`#${id}`)) $(`#${id}`).disabled = powerRunActive();
+  }
+  $("#powerObdStatus").textContent = state.connected
+    ? `OBD: ${state.client?.adapterIdentity || "yhdistetty"}${state.liveActive ? " · nopeus, kierrokset ja kuormitus tallentuvat GPS:n rinnalle" : " · live-luku käynnistyy testin ajaksi"}`
+    : "OBD: ei yhteyttä — GPS-ajanotto ja tehoarvio toimivat silti.";
+  renderPowerChart();
+}
+
+function renderPowerResult(run = state.powerTestRun) {
+  const card = $("#powerResultCard");
+  if (!run?.result) { card.classList.add("hidden"); return; }
+  const result = run.result;
+  card.classList.remove("hidden");
+  $("#powerResultTime").textContent = result.elapsedSeconds.toFixed(3).replace(".", ",");
+  $("#powerResultPowerLabel").textContent = run.settings.vehicleKey === VEHICLE_KEYS.CT200H ? "JÄRJESTELMÄTEHOARVIO" : "MOOTTORITEHOARVIO";
+  $("#powerResultPower").textContent = Number.isFinite(result.peakSystemPowerKw)
+    ? `${result.peakSystemPowerKw.toFixed(0)} / ${result.peakSystemPowerHp.toFixed(0)}`
+    : "–";
+  const metrics = result.quality.metrics;
+  setNotice(
+    "powerQualitySummary",
+    `Mittauslaatu ${result.quality.confidenceText} ${Math.round(result.quality.score)}/100 · GPS ${Number.isFinite(metrics.sampleRateHz) ? metrics.sampleRateHz.toFixed(1).replace(".", ",") : "–"} Hz · suurin näyteväli ${Number.isFinite(metrics.maximumGapMs) ? Math.round(metrics.maximumGapMs) : "–"} ms · pyörätehoarvio ${Number.isFinite(result.peakWheelPowerKw) ? result.peakWheelPowerKw.toFixed(1).replace(".", ",") : "–"} kW · häviökorjattu arvio ${Number.isFinite(result.peakSystemPowerKw) ? result.peakSystemPowerKw.toFixed(1).replace(".", ",") : "–"} kW.`,
+    result.quality.confidence === "low" ? "warning" : ""
+  );
+  $("#powerSplitGrid").innerHTML = result.splits.map(split =>
+    `<div><span>${escapeHtml(`${run.settings.startKmh.toFixed(0)}–${split.targetKmh.toFixed(split.targetKmh % 1 ? 1 : 0)} km/h`)}</span><strong>${split.elapsedSeconds.toFixed(3).replace(".", ",")} s</strong></div>`
+  ).join("");
+  const comparison = comparePowerTestRuns(state.powerTestRuns, run);
+  if (comparison.count) {
+    setNotice(
+      "powerComparison",
+      `Aiemmat saman auton ${run.settings.label} -vedot: ${comparison.count} kpl · paras ${comparison.bestSeconds.toFixed(3).replace(".", ",")} s · keskiarvo ${comparison.averageSeconds.toFixed(3).replace(".", ",")} s${Number.isFinite(comparison.timeSpreadSeconds) ? ` · hajontaväli ${comparison.timeSpreadSeconds.toFixed(3).replace(".", ",")} s` : ""}.`,
+      ""
+    );
+  } else {
+    setNotice("powerComparison", "Ensimmäinen saman auton ja saman nopeusvälin tallennettu veto. Tee vähintään kaksi vastakkaissuuntaista vetoa toistettavuuden arvioimiseksi.", "warning");
+  }
+  $("#powerWarnings").innerHTML = (result.warnings || []).map(warning => `<p>• ${escapeHtml(warning)}</p>`).join("");
+}
+
+function renderPowerHistory() {
+  const root = $("#powerHistory");
+  if (!root) return;
+  const vehicleKey = powerVehicleKey();
+  const runs = state.powerTestRuns.filter(run => run.vehicleKey === vehicleKey).slice(0, 8);
+  root.innerHTML = "";
+  root.className = runs.length ? "session-list" : "session-list empty-state";
+  if (!runs.length) { root.textContent = "Ei tallennettuja tehotestejä"; return; }
+  for (const run of runs) {
+    const item = document.createElement("div");
+    item.className = "session-item";
+    const quality = run.result?.quality?.confidenceText || "tuntematon";
+    const power = Number.isFinite(run.result?.peakSystemPowerKw) ? `${run.result.peakSystemPowerKw.toFixed(0)} kW` : "teho –";
+    item.innerHTML = `<div><strong>${escapeHtml(formatDateTime(run.createdAt))} · ${escapeHtml(run.settings?.label || "tehotesti")}</strong><p>${run.result.elapsedSeconds.toFixed(3).replace(".", ",")} s · ${escapeHtml(power)} · laatu ${escapeHtml(quality)}</p></div><span class="chevron">${run.result?.valid ? "✓" : "!"}</span>`;
+    root.append(item);
+  }
+}
+
+async function stopPowerTestResources() {
+  powerGpsSource.stop();
+  if (state.powerLiveStartedByTest) {
+    state.powerLiveStartedByTest = false;
+    if (state.liveActive) await stopLive();
+  }
+  if (!state.recording && !state.ctPurchaseRoadActive) await setKeepAwake(false);
+}
+
+async function finishPowerTest() {
+  const run = state.powerTestRun;
+  if (!run?.result) return;
+  await stopPowerTestResources();
+  state.powerTestReport = buildPowerTestReport(run);
+  storeCompletedPowerRun(run);
+  renderPowerTestStatus();
+  renderPowerResult(run);
+  renderPowerHistory();
+  toast(`${run.settings.label} valmis: ${run.result.elapsedSeconds.toFixed(3).replace(".", ",")} s`);
+}
+
+function handlePowerGpsSample(rawSample) {
+  const run = state.powerTestRun;
+  if (!run || !powerRunActive()) return;
+  const event = ingestPowerTestSample(run, rawSample, powerObdSnapshot());
+  state.powerLastGpsSample = run.samples.at(-1) || state.powerLastGpsSample;
+  renderPowerTestStatus();
+  if (event.type === "started") toast("Tehotestin ajanotto käynnistyi");
+  if (event.type === "complete") void finishPowerTest();
+  if (event.type === "aborted") void cancelPowerTest(event.reason || run.abortReason, false);
+}
+
+function handlePowerGpsError(error) {
+  if (!powerRunActive()) return;
+  const message = String(error?.message || error || "GPS-virhe");
+  setNotice("powerTestStatus", message, "error");
+  if (/poistettiin käytöstä|permission|oikeus|valesijain/i.test(message)) void cancelPowerTest(message, false);
+}
+
+async function startPowerTest() {
+  if (powerRunActive()) return;
+  if (state.injectorTestRunning) return toast("Viimeistele suutintesti ennen tehotestiä");
+  if (state.recording) return toast("Lopeta tavallinen koeajotallennus ennen tehotestiä");
+  if (state.ctPurchaseRoadActive) return toast("Lopeta CT-ostotarkastuksen koeajovaihe ennen tehotestiä");
+  if (state.diagnosticRunning) return toast("Odota diagnostiikan valmistumista ennen tehotestiä");
+  let settings;
+  try { settings = powerSettingsFromForm(); }
+  catch (error) { setNotice("powerTestStatus", error.message, "error"); return; }
+  const run = createPowerTestRun(settings, {
+    appVersion: APP_VERSION,
+    adapter: state.connected ? state.client?.adapterIdentity || "OBD yhdistetty" : "OBD ei käytössä",
+    protocol: state.connected ? state.client?.protocolIdentity || "EOBD" : "GPS-päämittaus"
+  });
+  state.powerTestRun = run;
+  state.powerTestReport = "";
+  state.powerLastGpsSample = null;
+  $("#powerResultCard").classList.add("hidden");
+  renderPowerTestStatus();
+  try {
+    state.powerGpsSourceInfo = await powerGpsSource.start(handlePowerGpsSample, handlePowerGpsError);
+    if (state.connected && !state.liveActive) {
+      state.powerLiveStartedByTest = true;
+      void startLive();
+    } else {
+      state.powerLiveStartedByTest = false;
+    }
+    await setKeepAwake($("#powerKeepAwake").checked);
+    toast("GPS käynnistyi · testi virittyy automaattisesti");
+  } catch (error) {
+    cancelPowerTestRun(run, error.message);
+    await stopPowerTestResources();
+    renderPowerTestStatus();
+    setNotice("powerTestStatus", `${error.message}. Tarkista Androidin Tarkka sijainti -oikeus ja puhelimen GPS.`, "error");
+  }
+}
+
+async function cancelPowerTest(reason = "Käyttäjä keskeytti testin", showToast = true) {
+  const run = state.powerTestRun;
+  if (!run) return;
+  cancelPowerTestRun(run, reason);
+  await stopPowerTestResources();
+  renderPowerTestStatus();
+  if (showToast) toast("Tehotesti keskeytettiin");
+}
+
+function powerReportFilename(extension = "txt") {
+  const run = state.powerTestRun;
+  const timestamp = new Date(run?.createdAt || Date.now()).toISOString().replace(/[:.]/g, "-");
+  const vehicle = run?.vehicleKey === VEHICLE_KEYS.CT200H ? "Lexus_CT200h" : "Lexus_IS220d";
+  return `${vehicle}_tehotesti_${run?.settings?.presetId || "power"}_Flex-${APP_VERSION}_${timestamp}.${extension}`;
+}
+
+async function copyPowerReport() {
+  if (!state.powerTestReport) return toast("Aja tehotesti ensin");
+  try { await navigator.clipboard.writeText(state.powerTestReport); toast("Tehotestiraportti kopioitu"); }
+  catch { toast("Raportin kopiointi ei onnistunut"); }
+}
+
+async function saveOrSharePowerReport(share = false) {
+  const run = state.powerTestRun;
+  if (!run?.result || !state.powerTestReport) return toast("Aja tehotesti ensin");
+  const filename = powerReportFilename("txt");
+  const prompt = buildPowerTestAnalysisPrompt(run);
+  const title = `Lexus OBD Flex · ${run.settings.label} tehotesti`;
+  try {
+    if (nativeTransport.available() && globalThis.obd?.exportCsv) {
+      const uri = await nativeTransport.exportCsv(filename, state.powerTestReport, "text/plain");
+      if (!uri?.startsWith("content:")) throw new Error("Android ei palauttanut tiedoston osoitetta");
+      if (share) {
+        await nativeTransport.shareCsv(uri, prompt, title, "text/plain");
+        toast("Valitse ChatGPT jakovalikosta");
+      } else {
+        toast("Raportti tallennettu Lataukset/Lexus OBD -kansioon");
+      }
+      return;
+    }
+    const file = new File([state.powerTestReport], filename, { type: "text/plain;charset=utf-8" });
+    if (share && navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+      await navigator.share({ title, text: prompt, files: [file] });
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(file);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    if (share) await navigator.clipboard?.writeText(prompt);
+    toast(share ? "Raportti tallennettu ja analyysipyyntö kopioitu" : "Raportti tallennettu");
+  } catch (error) {
+    if (error?.name !== "AbortError") toast(`Raporttitoiminto epäonnistui: ${error.message}`);
+  }
+}
+
+async function savePowerCsv() {
+  const run = state.powerTestRun;
+  if (!run?.result) return toast("Aja tehotesti ensin");
+  const filename = powerReportFilename("csv");
+  const csv = powerTestToCsv(run);
+  try {
+    if (nativeTransport.available() && globalThis.obd?.exportCsv) {
+      await nativeTransport.exportCsv(filename, csv, "text/csv");
+      toast("Raakadata tallennettu Lataukset/Lexus OBD -kansioon");
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast("Raakadata tallennettu");
+  } catch (error) {
+    toast(`CSV-tallennus epäonnistui: ${error.message}`);
+  }
+}
+
 async function sendTerminalCommand() {
+  if (state.injectorTestRunning) return toast("Raakaterminaali on lukittu suutintestin ajaksi");
   if (!requireConnection(false)) return;
   if (state.client?.binaryQuicklynks) {
     toast("Quicklynks FFF6 ei käytä ASCII-ELM327-komentoja");
@@ -2410,7 +3886,8 @@ async function sendTerminalCommand() {
   }
   const input = $("#terminalCommand");
   const command = input.value.replace(/\s+/g, "").toUpperCase();
-  if (!isSafeTerminalCommand(command)) {
+  const profileScoped = /^(?:21|13|0221)/.test(command);
+  if (!isSafeTerminalCommand(command) || profileScoped && !isProfileReadOnlyCommand(command, state.vehicleKey)) {
     toast("Komento estettiin: vain turvalliset AT- ja lukukomennot sallitaan");
     return;
   }
@@ -2425,6 +3902,15 @@ function goToPage(name) {
   if (name === "sessions") renderSessionList();
   if (name === "live") requestAnimationFrame(updateLiveChart);
   if (name === "dpnr") requestAnimationFrame(renderDpnrMonitor);
+  if (name === "power") {
+    renderPowerTestStatus();
+    renderPowerResult();
+    renderPowerHistory();
+  }
+  if (name === "injector-test") {
+    renderInjectorProgress();
+    if (state.injectorTestRun?.samples?.length) renderInjectorSample(state.injectorTestRun.samples.at(-1));
+  }
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -2466,6 +3952,10 @@ function escapeHtml(value) { return String(value ?? "").replace(/[&<>'"]/g, char
 function attachEvents() {
   $$(".nav-item").forEach(button => button.addEventListener("click", () => goToPage(button.dataset.page)));
   $$('[data-go]').forEach(button => button.addEventListener("click", () => goToPage(button.dataset.go)));
+  $("#themeSelect").addEventListener("change", event => {
+    const selected = themeController.setPreference(event.target.value);
+    toast(`Teema vaihdettu: ${selected.label}`);
+  });
   $("#refreshDevices").addEventListener("click", () => refreshDevices(true));
   $("#copyBleDiagnostics").addEventListener("click", async () => {
     if (!state.bleDiagnosticsReport) return toast("Aja BLE-haku ensin");
@@ -2515,10 +4005,35 @@ function attachEvents() {
   $("#saveObdPlusTrace").addEventListener("click", () => saveOrShareObdPlusTrace(false));
   $("#shareObdPlusTrace").addEventListener("click", () => saveOrShareObdPlusTrace(true));
   $("#deviceSelect").addEventListener("change", updateDeviceHelp);
+  $("#vehicleSelect").addEventListener("change", event => {
+    if (powerRunActive() || state.injectorTestRunning) {
+      event.target.value = state.vehicleSelection;
+      toast("Ajoneuvoprofiilia ei voi vaihtaa kesken testin");
+      return;
+    }
+    selectVehicleProfile(event.target.value);
+  });
   $("#connectButton").addEventListener("click", connect);
   $("#disconnectButton").addEventListener("click", disconnect);
+  $("#detectVehicleButton").addEventListener("click", () => detectVehicleProfile({ userInitiated: true }));
   $("#scanDtcButton").addEventListener("click", readDtc);
   $("#clearDtcButton").addEventListener("click", clearDtc);
+  $("#ctRunPreflight").addEventListener("click", runCtPurchasePreflight);
+  $("#ctToggleRoadTest").addEventListener("click", toggleCtPurchaseRoadTest);
+  $("#ctFinalizeTest").addEventListener("click", finalizeCtPurchaseTest);
+  $("#ctCopyReport").addEventListener("click", copyCtPurchaseReport);
+  $("#ctSaveReport").addEventListener("click", () => saveOrShareCtPurchaseReport(false));
+  $("#ctShareReport").addEventListener("click", () => saveOrShareCtPurchaseReport(true));
+  $("#startInjectorTest").addEventListener("click", runInjectorTest);
+  $("#cancelInjectorTest").addEventListener("click", () => {
+    if (!state.injectorTestRunning) return;
+    state.injectorTestAbortRequested = true;
+    $("#cancelInjectorTest").disabled = true;
+    renderInjectorProgress("Keskeytyspyyntö vastaanotettu · nykyinen lukukierros ja palautus viimeistellään…");
+  });
+  $("#copyInjectorReport").addEventListener("click", copyInjectorTestReport);
+  $("#saveInjectorReport").addEventListener("click", () => saveOrShareInjectorTestReport(false));
+  $("#shareInjectorReport").addEventListener("click", () => saveOrShareInjectorTestReport(true));
   $("#toggleLiveButton").addEventListener("click", () => state.liveActive ? stopLive() : startLive());
   $("#dpnrToggleLiveButton").addEventListener("click", () => state.liveActive ? stopLive() : startLive());
   $("#liveChartMetric").addEventListener("change", updateLiveChart);
@@ -2528,6 +4043,17 @@ function attachEvents() {
   $("#markerButton").addEventListener("click", addMarker);
   $("#keepAwake").addEventListener("change", event => state.recording && setKeepAwake(event.target.checked));
   $("#dpnrKeepAwake").addEventListener("change", event => state.recording && setKeepAwake(event.target.checked));
+  $("#powerPreset").addEventListener("change", event => {
+    $("#powerCustomRange").classList.toggle("hidden", event.target.value !== "custom");
+    renderPowerTestStatus();
+  });
+  $("#powerArmButton").addEventListener("click", startPowerTest);
+  $("#powerCancelButton").addEventListener("click", () => cancelPowerTest());
+  $("#powerCopyReport").addEventListener("click", copyPowerReport);
+  $("#powerSaveReport").addEventListener("click", () => saveOrSharePowerReport(false));
+  $("#powerShareReport").addEventListener("click", () => saveOrSharePowerReport(true));
+  $("#powerSaveCsv").addEventListener("click", savePowerCsv);
+  $("#powerKeepAwake").addEventListener("change", event => powerRunActive() && setKeepAwake(event.target.checked));
   $("#terminalSend").addEventListener("click", sendTerminalCommand);
   $("#terminalCommand").addEventListener("keydown", event => { if (event.key === "Enter") sendTerminalCommand(); });
   $$('[data-terminal-command]').forEach(button => button.addEventListener("click", () => {
@@ -2540,20 +4066,39 @@ function attachEvents() {
     try { await navigator.clipboard.writeText(state.terminalEntries.join("\n")); toast("Terminaaliloki kopioitu"); }
     catch { toast("Kopiointi ei onnistunut"); }
   });
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && state.recording && $("#keepAwake").checked) setKeepAwake(true); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && powerRunActive()) void cancelPowerTest("Sovellus siirtyi taustalle kesken GPS-mittauksen", false);
+    if (document.visibilityState === "hidden" && state.injectorTestRunning) {
+      state.injectorTestAbortRequested = true;
+      renderInjectorProgress("Sovellus siirtyi taustalle · testi keskeytetään turvallisesti ja raportti viimeistellään…");
+    }
+    if (document.visibilityState === "visible" && state.recording && ($("#keepAwake").checked || $("#dpnrKeepAwake")?.checked)) setKeepAwake(true);
+    if (document.visibilityState === "visible" && powerRunActive() && $("#powerKeepAwake").checked) setKeepAwake(true);
+  });
 }
 
 async function init() {
+  themeController = createThemeController({ onChange: handleThemeChange });
+  renderThemeSelection(themeController.getSnapshot());
   attachEvents();
+  loadPowerHistory();
   $("#protocolSelect").value = localStorage.getItem("obdProtocol") || "auto";
+  $("#vehicleSelect").value = state.vehicleSelection;
+  applyVehicleProfileUi();
   renderMetrics();
   updateDriveValues();
+  renderCtPurchaseProgress();
+  renderInjectorProgress();
+  renderInjectorSample();
+  applyPowerVehicleDefaults();
+  renderPowerTestStatus();
+  renderPowerHistory();
   await refreshDevices(false);
   resetConnectionStages();
   renderElmDiagnostics();
   renderQuicklynksDiagnostics();
   await renderSessionList();
-  appendTerminal(`${formatClock(Date.now())}  IS220d OBD Flex ${APP_VERSION} diagnostiikka valmis`);
+  appendTerminal(`${formatClock(Date.now())}  Lexus OBD Flex ${APP_VERSION} diagnostiikka valmis · ${activeVehicleName()}`);
 }
 
 init().catch(error => {

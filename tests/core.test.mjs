@@ -385,7 +385,7 @@ test("ELM327:n ECU- ja Toyota-vastaukset tunnistetaan myös CAN-otsakkeiden kans
   assert.equal(hasToyotaReadDataResponse("7E8 03 7F 21 12\r>"), false);
 });
 
-test("Techstreamin 217E-, 217F- ja 212C-vastaukset puretaan varmennetuilla kaavoilla", () => {
+test("Techstreamin tuotanto- ja suutintestivastaukset puretaan määritellyillä kaavoilla", () => {
   assert.deepEqual(extractToyotaReadDataPayload("7E8 06 61 7E 0A 04 02 00\r>", 0x7e), [0x0a, 0x04, 0x02, 0x00]);
   const pressure = decodeToyotaReadDataResponse("7E8 06 61 7E 0A 04 02 00\r>", 0x7e);
   assert.equal(pressure.complete, true);
@@ -400,6 +400,20 @@ test("Techstreamin 217E-, 217F- ja 212C-vastaukset puretaan varmennetuilla kaavo
 
   const egr = decodeToyotaReadDataResponse("7E8 03 61 2C 80\r>", 0x2c);
   assert.ok(Math.abs(egr.values.egrPositionPercent - 50.196078) < 0.0001);
+
+  const fuelTemperature = decodeToyotaReadDataResponse("7E8 03 61 93 52\r>", 0x93);
+  assert.equal(fuelTemperature.values.fuelTemperatureC, 42);
+  const railPressure = decodeToyotaReadDataResponse("7E8 03 61 96 28\r>", 0x96);
+  assert.equal(railPressure.values.railPressureMpa, 40);
+  const feedback = decodeToyotaReadDataResponse("7E8 06 61 9C 40 38 48 30\r>", 0x9c);
+  assert.deepEqual(feedback.values, {
+    injectionFeedback1Mm3: 0,
+    injectionFeedback2Mm3: -1.25,
+    injectionFeedback3Mm3: 1.25,
+    injectionFeedback4Mm3: -2.5
+  });
+  const timing = decodeToyotaReadDataResponse("7E8 04 61 AF 03 B6\r>", 0xaf);
+  assert.equal(timing.values.injectionTimingDegCa, 5);
   assert.deepEqual(parseToyotaNegativeResponse("7E8 03 7F 21 12\r>"), {
     code: "12",
     description: "alitoimintoa tai tunnistetta ei tueta"
@@ -444,13 +458,17 @@ test("vLinker MC+ löytää varmennetut Toyota-livearvot ja lukee saman 217E-keh
   assert.deepEqual([...new Set(commands.filter(command => /^21/.test(command)))].sort(), ["212C", "217E", "217F"]);
 });
 
-test("Toyota Read Data -testi sallii vain kolme varmennettua lukutunnistetta ja niiden raakamuodot", () => {
+test("Toyota Read Data -sallintalista sisältää tuotantoluvut ja erilliset suutintestiluvut", () => {
   assert.deepEqual(TOYOTA_READ_DATA_PROBES.map(probe => probe.command), ["217E", "217F", "212C"]);
-  assert.deepEqual(TOYOTA_READ_DATA_ALLOWED_COMMANDS, [
+  assert.deepEqual(TOYOTA_READ_DATA_ALLOWED_COMMANDS.slice(0, 6), [
     "217E", "02217E0000000000",
     "217F", "02217F0000000000",
     "212C", "02212C0000000000"
   ]);
+  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("2193"), true);
+  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("2196"), true);
+  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("219C"), true);
+  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("21AF"), true);
   assert.equal(evaluateFullDiagnosticStep(
     { command: "217F", expected: "toyotaReadData", toyotaIdentifier: 0x7f },
     "7E8 06 61 7F 01 00 02 00\r>"
@@ -470,6 +488,8 @@ test("raakaterminaali estää kirjoittavat komennot", () => {
   assert.equal(isSafeTerminalCommand("217E"), true);
   assert.equal(isSafeTerminalCommand("217F"), true);
   assert.equal(isSafeTerminalCommand("212C"), true);
+  assert.equal(isSafeTerminalCommand("219C"), true);
+  assert.equal(isSafeTerminalCommand("21AF"), true);
   assert.equal(isSafeTerminalCommand("2192"), false);
 });
 
@@ -490,7 +510,7 @@ test("laaja raportti säilyttää raakavastaukset ja välttää varman ATCS-vika
     startedAt: Date.UTC(2026, 7, 5, 12, 0, 0),
     endedAt: Date.UTC(2026, 7, 5, 12, 1, 0),
     cancelled: false,
-    meta: { appVersion: "0.5.1", device: "OBDII", address: "66:1E:32:1F:27:BA", engineRunning: true, initialConnectionStrategy: "forced-can6" },
+    meta: { appVersion: "0.5.1", vehicleKey: "is220d", device: "OBDII", address: "66:1E:32:1F:27:BA", engineRunning: true, initialConnectionStrategy: "forced-can6" },
     results: [
       { sequence: 1, phase: "Adapteri", label: "Tunniste", command: "ATI", status: "PASS", expected: "identity", validResponse: true, raw: "ELM327 v2.1\r>", cleaned: "ELM327 v2.1", durationMs: 80, timeoutMs: 5000 },
       { sequence: 2, phase: "CAN", label: "Protokolla", command: "ATSP6", status: "PASS", expected: "ok", validResponse: true, raw: "OK\r>", cleaned: "OK", durationMs: 30, timeoutMs: 4000 },
@@ -504,8 +524,8 @@ test("laaja raportti säilyttää raakavastaukset ja välttää varman ATCS-vika
   assert.match(run.summary.findings.join("\n"), /ATCS palautti arvon/);
   assert.match(run.summary.findings.join("\n"), /ilman kloonikohtaista virhelaskuritulkintaa/);
   const report = buildFullDiagnosticReport(run);
-  assert.match(report, /BEGIN IS220D OBD FLEX FULL DIAGNOSTIC REPORT/);
-  assert.match(report, /Raporttimuoto: elm-can-readonly-v5/);
+  assert.match(report, /BEGIN LEXUS OBD FLEX FULL DIAGNOSTIC REPORT/);
+  assert.match(report, /Raporttimuoto: elm-can-readonly-v6-multivehicle/);
   assert.match(report, /Ajoneuvoprofiili: is220d-xe20-2ad-fhv-readonly-v1/);
   assert.match(report, /Yhdistämisessä toiminut yhteyspolku: forced-can6/);
   assert.match(report, /Bluetooth-osoite: \*\*:\*\*:\*\*:\*\*:27:BA/);
@@ -514,6 +534,14 @@ test("laaja raportti säilyttää raakavastaukset ja välttää varman ATCS-vika
   assert.match(report, /KONELUETTAVA TSV/);
   assert.match(report, /connection_strategy/);
   assert.match(buildFullDiagnosticAnalysisPrompt(run), /älä päättele ATCS-arvosta yksin/i);
+});
+
+test("tunnistamattoman auton raportti ei nimeä sitä IS220d:ksi", () => {
+  const run = { startedAt: Date.now(), endedAt: Date.now(), meta: { vehicleKey: "auto", vehicle: "Yleinen EOBD" }, results: [] };
+  const report = buildFullDiagnosticReport(run);
+  assert.match(report, /Ajoneuvoprofiili: tunnistamaton \/ yleinen EOBD/);
+  assert.match(report, /Toyota Read Data -vastauksia: 0\/0/);
+  assert.doesNotMatch(report, /Ajoneuvoprofiili: is220d/);
 });
 
 test("raporttitunnus on vakaa annetulla ajalla ja satunnaisarvolla", () => {
@@ -1318,23 +1346,16 @@ test("CSV-vienti ja sessiotilastot", () => {
         values: { load: 70, coolant: 89, rpm: 1800, speed: 52, voltage: 14.18, fuelRate: 6.2 },
         valueAgesMs: { load: 18, coolant: 18, rpm: 18, speed: 18, voltage: 320, fuelRate: 320 },
         pollQuality: { sourceCount: 3, attempts: 10, hits: 9, cacheHits: 2, misses: 1, lossPercent: 10, maxMissStreak: 1, latencyEwmaMs: 120.5 },
-        marker: "Nykäisy",
-        rawLatest: {
-          dpnrDifferentialPressure: "7E8 06 61 7E 0A 04 02 00",
-          dpnrInletTemperature: "7E8 06 61 7F 01 00 02 00",
-          toyotaEgrPosition: "7E8 03 61 2C 80"
-        }
+        marker: "Nykäisy"
       }
     ],
     markers: [{ timestamp: Date.parse("2026-07-22T12:00:01Z"), label: "Nykäisy" }]
   };
   const csv = sessionToCsv(session);
   assert.equal(csv.startsWith("\uFEFF"), true);
-  assert.match(csv, /schema_version;app_version;vehicle;adapter;protocol/);
+  assert.match(csv, /schema_version;app_version;vehicle;vehicle_key;vehicle_profile_version;adapter;protocol/);
   assert.match(csv, /timestamp;elapsed_ms;sample_gap_ms/);
   assert.match(csv, /poll_source_count;poll_attempts;poll_hits;poll_cache_hits;poll_misses;poll_loss_percent;poll_max_miss_streak;poll_latency_ewma_ms/);
-  assert.match(csv, /toyota_217e_raw;toyota_217f_raw;toyota_212c_raw/);
-  assert.match(csv, /7E8 06 61 7E 0A 04 02 00;7E8 06 61 7F 01 00 02 00;7E8 03 61 2C 80/);
   assert.match(csv, /load;load_unit;load_age_ms/);
   assert.match(csv, /coolant;coolant_unit/);
   assert.match(csv, /rpm;rpm_unit/);

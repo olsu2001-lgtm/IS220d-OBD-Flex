@@ -481,11 +481,11 @@ export function buildQuicklynksTraceReport(analysis, options = {}) {
     if (analysis.toyotaTargetRequests.length) findings.push(`Jäljessä esiintyi ${analysis.toyotaTargetRequests.length} pyyntöä, joissa on 21 7E/21 7F- tai 61 7E/61 7F -kohde.`);
   }
   const lines = [
-    "===== BEGIN IS220D OBD FLEX OBD PLUS BLE TRACE REPORT =====",
+    "===== BEGIN LEXUS OBD FLEX OBD PLUS BLE TRACE REPORT =====",
     "Raporttityyppi: OBD Plus / Quicklynks BLE -liikennejäljen passiivinen analyysi",
     `Raporttitunnus: ${reportId}`,
     "Raporttimuoto: quicklynks-obdplus-btsnoop-readonly-v1",
-    `Sovellus: IS220d OBD Flex ${options.appVersion || "0.6.8"}`,
+    `Sovellus: Lexus OBD Flex ${options.appVersion || "0.7.0"}`,
     `Analysoitu: ${new Date(analyzedAt).toISOString()}`,
     `Lähdetiedosto: ${analysis.sourceName}`,
     `ZIP-merkintä: ${analysis.sourceEntryName || "ei ZIP-pakettia"}`,
@@ -538,14 +538,14 @@ export function buildQuicklynksTraceReport(analysis, options = {}) {
       sequence.responseChunks.map(chunk => chunk.valueHex).join("|")
     ].join("\t")),
     "TSV_END",
-    "===== END IS220D OBD FLEX OBD PLUS BLE TRACE REPORT ====="
+    "===== END LEXUS OBD FLEX OBD PLUS BLE TRACE REPORT ====="
   ];
   return lines.join("\n");
 }
 
 export function buildQuicklynksTraceAnalysisPrompt(analysis) {
   return [
-    "Analysoi liitteenä oleva Flex 0.6.8:n passiivinen OBD Plus / Quicklynks BLE -liikennejälkiraportti.",
+    "Analysoi liitteenä oleva Lexus OBD Flex 0.7.0:n passiivinen OBD Plus / Quicklynks BLE -liikennejälkiraportti.",
     "Selvitä, sisältääkö se tunnetusta 41/61-taulukkoprotokollasta poikkeavan, vain lukemiseen soveltuvan raw-CAN- tai otsakekomentokuoren.",
     "Älä ehdota tuntemattoman kuoren lähettämistä autolle pelkän tavukuvion perusteella.",
     "Toyota-tavoitteet ovat 2AD-FHV/ECD_P3:n 21 7E ja 21 7F, mutta ne saa lisätä Flexiin vasta, kun pyyntökuori, ECU-osoite ja 61 7E/61 7F -vastausrakenne ovat näytöllä varmennettuja.",

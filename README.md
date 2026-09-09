@@ -1,15 +1,37 @@
-# IS220d OBD Flex
+# Lexus OBD Flex
 
-> **Turvallisuus:** Tämä projekti on vain lukeva. Tutustu ennen muutoksia
-> tiedostoihin [AGENTS.md](AGENTS.md), [docs/SAFETY.md](docs/SAFETY.md) ja
-> [docs/PROTOCOL.md](docs/PROTOCOL.md). IS220d OBD Classic on erillinen projekti.
+Flex 0.7.8 lisää Lexus IS220d / 2AD-FHV -moottorille oman DPNR-tarkistusnäkymän
+ja säilyttää 0.7.7:n vain lukevan, noin
+45 sekunnin suutinten tasapaino- ja vuotoepäilyseulonnan. Testi kerää
+lämpimällä vakaalla tyhjäkäynnillä kierrosluvun, jäähdytysnesteen ja
+polttoaineen lämpötilan, rail-paineen sekä neljän sylinterin Techstream-
+korjausarvot. Se muodostaa raakavastaukset ja mittausolosuhteet sisältävän
+TXT-raportin, joka voidaan jakaa suoraan tekoälysovellukselle. Tulos erottaa
+OBD-seulonnan varsinaisesta paluuvirta-/leak-off-testistä eikä lähetä Active
+Test-, kirjoitus-, poisto- tai regenerointikomentoja.
 
-Paikallisesti toimiva Android-diagnostiikkasovellus vuoden 2008 Lexus
-IS220d:lle. Flex 0.6.9 lisää Vgate vLinkerille oman DPNR-tarkistusnäkymän,
-Toyota-raakavasteiden jatkuvan seurannan ja niiden CSV-tallennuksen. Flex 0.6.8:n
-lähdekohtainen prioriteettipollaus,
-samasta vastauksesta johdettujen mittarien fan-outin, adaptiivisen
-aikakatkaisun, virhebackoffin sekä mittauskadon ja vasteajan laadunseurannan.
+Flex 0.7.5 korjasi 0.7.3:n APK:ssa havaitun WebView-käynnistysvirheen, joka
+esti teeman vaihdon, sivunavigaation ja Bluetooth-laitelistan toiminnan.
+Rakennus validoi nämä kolme toimintoa jatkossa myös paketoidusta
+`app.bundle.js`-tiedostosta ennen APK:n muodostamista.
+
+Paikallisesti toimiva Android-diagnostiikkasovellus Lexus CT 200h / ZWA10:lle
+ja Lexus IS220d / XE20:lle. Flex 0.7.7 säilyttää 0.7.4:n toiminnon, joka tunnistaa yhteydessä olevan auton
+automaattisesti standardin VIN-luvun ja varmennettujen Lexus-mallitunnisteiden
+perusteella. Flex 0.7.3:n järjestelmäteema, kuusi vaihdettavaa väripalettia
+sekä teemoihin mukautuvat kuvaajat säilyvät. Flex 0.7.2:n
+GPS-pohjainen kiihtyvyys- ja tehoarvio sekä Flex 0.7.1:n CT 200h
+-ostotarkastus säilyvät aiempien validoitujen, vain lukevien profiilien päällä.
+Sovellus säilyttää hybridiohjaimen
+7E2/7EA-livearvot,
+14 HV-akkulohkon jännitteet ja sisäiset vastukset, lämpötilat, akkuvirran,
+tehorajat, varaustilat sekä 0A/13B0-hybridivikakoodien luvun. CT-profiili ei
+lähetä vikakoodien poistoa, Active Test-, kirjoitus-, koodaus- tai
+pakkolatauskomentoja.
+
+Flex 0.6.8:n lähdekohtainen prioriteettipollaus, samasta vastauksesta
+johdettujen mittarien fan-out, adaptiivinen aikakatkaisu, virhebackoff sekä
+mittauskadon ja vasteajan laadunseuranta säilyvät.
 Flex 0.6.7 lisää validoidun 2AD-FHV-diagnostiikkaprofiilin,
 atomiset ECU-lukutransaktiot, yleisen kielteisten ECU-vastausten luokittelun,
 katkenneiden ISO-TP-vastausten tarkistuksen sekä replay- ja emulaattoritestit.
@@ -35,6 +57,175 @@ Quicklynks BLE327 -binäärikuljetuksen. Quicklynks-polku lukee pääkehyksen,
 kenttätestillä varmennettuja standardi-PID-arvoja ja turvallisia
 standardoituja diesel-lisä-PID:ejä. Tallennetun koeajon voi edelleen jakaa
 Excel-turvallisena CSV-tiedostona tekoälysovellukseen.
+
+## Automaattinen ajoneuvotunnistus 0.7.4
+
+**Automaattinen tunnistus (suositus)** on uuden asennuksen oletus. Flex ajaa
+tunnistuksen jokaisella ASCII-ELM327- tai vLinker MC+ Classic/BLE -yhteydellä.
+Myös tallennetun IS220d- tai CT 200h -käsivalinnan yhteydessä tunnistus
+tehdään; käsivalintaa käytetään vain, jos auto ei anna riittävää näyttöä.
+
+Tunnistus yhdistää seuraavat vain lukevat lähteet:
+
+- standardin Mode 09 PID 02 VIN-tunniste;
+- CT 200h:n hybridiohjaimen `7E2/7EA`-osoitteesta luettu `21C1`-tunniste,
+  jonka pitää sisältää ZWA10;
+- IS220d:n moottoriohjaimen kaikki kolme varmennettua `217E`, `217F` ja
+  `212C`-lukuvastausta.
+
+Vahva yhden lähteen tunnistus voi valita profiilin, ja yhteensopiva VIN +
+mallikohtainen ECU-vastaus merkitään varmaksi tunnistukseksi. Ristiriitaisista
+tiedoista ei arvata autoa. Jos tietoa ei saada, Flex kertoo syyn ja käyttää
+käsin valittua varaprofiilia tai yleistä EOBD-tilaa. Tunnistuksen voi ajaa
+uudelleen Yhteys-sivun **Tunnista auto uudelleen** -painikkeella, kun live-luku
+ja testit eivät ole käynnissä.
+
+Quicklynks FFF6 -binääriprotokollalle ei ole varmennettua VIN- tai Toyota-
+mallitunnisteen lukua. Sillä appi ilmoittaa rajoituksesta ja käyttää
+käsivalintaa; yleinen varmennettu Quicklynks-OBD-luku toimii ennallaan.
+Tunnistus ei lisää kirjoitus-, poisto-, Active Test- tai
+pakkoregenerointikomentoja.
+
+## Teemat 0.7.3
+
+Teemavalitsin avautuu **Yhteys → Sovelluksen teema** -kortista. Vaihtoehdot:
+
+- **Järjestelmä** seuraa Androidin tummaa ja vaaleaa tilaa.
+- **Lexus Dark** on Flexin alkuperäinen tumma vihreä ulkoasu.
+- **Pearl Light** on vaalea helmiäissävyinen päiväkäyttöön tarkoitettu teema.
+- **OLED Black** käyttää puhdasta mustaa taustaa ja hillittyä vihreää.
+- **Hybrid Blue** käyttää CT 200h -henkistä tummansinistä palettia.
+- **F Sport Red** käyttää grafiitinharmaata taustaa ja punaista korostusta.
+- **Korkea kontrasti** käyttää mustaa, valkoista ja keltaista luettavuuden
+  maksimoimiseksi.
+
+Valinta näkyy heti, tallentuu vain puhelimeen ja säilyy päivitysten yli.
+Järjestelmä-valinta reagoi Androidin teeman muutokseen myös sovelluksen ollessa
+auki. Live-, Tehotesti- ja tallennetun ajon kuvaajat piirretään uudelleen
+teemaväreillä. Vihreä onnistuminen, keltainen varoitus ja punainen virhe ovat
+aina tilamerkityksiä eivätkä vaihdu teeman korostusvärin mukana. Jokaisen
+paletin perusteksti, himmeä teksti ja pääpainike kuuluvat automaattiseen WCAG
+AA -kontrastitestiin.
+
+## Tehotesti 0.7.2
+
+- Uusi **Tehotesti**-välilehti mittaa automaattisesti välit 0–100 km/h,
+  80–120 km/h, 0–60 mph ja 60–120 km/h. Mukana on myös käyttäjän määrittämä
+  nopeusväli. Rajanylitysten ajat interpoloidaan GPS-näytteiden väliin.
+- Androidin natiivi GPS-silta käyttää monotonista aikaa ja vastaanottaa
+  nopeuden, nopeustarkkuuden, korkeuden, suunnan sekä näytteen laatutiedot.
+  Leveys- tai pituusastetta ei lueta, tallenneta eikä viedä raporttiin.
+- OBD-yhteys on vapaaehtoinen. Kun yhteys on käytettävissä, GPS:n rinnalle
+  tallennetaan auton nopeus, kierrosluku, kuormitus ja saatavilla olevat
+  tehoon liittyvät arvot laadun ja ajotilanteen tarkastelua varten. Testi ei
+  lisää uusia ECU-komentoja.
+- Tehoarvio muodostuu liike-energian muutoksesta sekä syötettyyn massaan,
+  tien kaltevuuteen, ilmanpaineeseen, lämpötilaan, vierintävastukseen ja
+  ilmanvastukseen perustuvista vastustöistä. Huippu on noin sekunnin
+  tehoikkunoiden robusti 90. persentiili, ei yksittäinen GPS-piikki.
+- Tulos erottaa keskimääräisen ja huippupyörätehon sekä valitulla
+  voimansiirron hyötysuhteella korjatun IS220d:n moottoriteho- tai CT 200h:n
+  järjestelmätehoarvion. Kyse on ajonaikaisesta arviosta, ei dynamometrin
+  mittaustuloksesta.
+- Ajoneuvo-oletukset ovat muokattavia. IS220d:n vertailu on 130 kW / 177 DIN
+  hv ja 0–100 km/h 8,9 s; CT 200h:n vertailu 100 kW / 136 DIN hv ja 0–100
+  km/h 10,3 s. Todellinen kokonaismassa on syötettävä ennen vetoa.
+- Laaturaportti tarkistaa muun muassa GPS-näytetaajuuden, suurimman
+  näytevälin, vaaka- ja nopeustarkkuuden, ajosuunnan vakauden, GPS/OBD-
+  nopeuseron ja valesijaintitiedon. Alle 1,5 Hz tai muuten heikko mittaus
+  säilyttää kiihtyvyysajan mutta ei kelpaa tehovertailuun.
+- TXT-raportti ja CSV sisältävät asetukset, väliajat, laatuarvion, varoitukset
+  ja reitittömän raakadatan. Sovellus säilyttää enintään 12 aiempaa vetoa ja
+  vertaa vain samaa ajoneuvoa sekä samaa nopeusväliä.
+
+Testi tehdään turvallisesti puhelin kiinnitettynä tai matkustajan käyttämänä.
+Nopeusrajoituksia on noudatettava; suuret nopeudet kuuluvat suljetulle
+alueelle. Tasainen, kuiva ja tuuleton tie sekä vastakkaisiin suuntiin tehdyt
+vedot pienentävät tie- ja tuulivirhettä.
+
+## CT 200h -ostotarkastus 0.7.1
+
+- CT-profiilissa näkyy uusi **Ostotesti**-välilehti. Kohteen vuosimalli,
+  mittarilukema, tunniste ja huomiot tallentuvat raporttiin.
+- Paikallaan tehtävä esitarkastus lukee EOBD:n MIL/readiness-tilan,
+  tallennetut, odottavat ja pysyvät moottorikoodit, STFT/LTFT:n, EGR-arvot,
+  matkan ja lämpenemiskerrat koodien nollauksesta, ohjainlaitteen jännitteen,
+  ZWA10-tunnisteen, kaikki viisi HV-dataryhmää ja hybridiohjaimen koodit.
+- Jarru-/luistonesto-ohjainta kokeillaan erillisellä vain lukevalla
+  `7B0`/`7B8`-transaktiolla. Osoitus on tutkimuskandidaatti, ei fyysisellä
+  CT:llä varmennettu julkaisu. Vain kelvollinen `53`-vastaus hyväksytään;
+  `NO DATA`, aikakatkaisu tai tuntematon vastaus merkitään kattavuuspuutteeksi
+  ja raportti ohjaa Techstream Health Checkiin.
+- Koeajon näytteenotto vaatii yhtä aikaa tuoreen HV-virran ja kaikki 14
+  lohkojännitettä. Näytteet luokitellaan automaattisesti paikallaan-, purku-
+  ja regenerointivaiheisiin. Valmis kattavuus vaatii vähintään 3 / 5 / 5
+  hyväksyttyä näytettä näistä vaiheista sekä vähintään 10 minuutin testijakson.
+- Raporttia muodostettaessa sovellus lukee moottorin ja hybridiohjaimen
+  vikakoodit uudelleen. Puuttuva koeajon jälkeinen uusintaluku jättää testin
+  keskeneräiseksi.
+- Raportti tarkistaa toistuvan alimman lohkon, kuormituksen lohkoeron,
+  lämpötilat, vastusarvojen hajonnan, P0A80/P3000-,
+  C1391/C1252/C1253/C1256-, P0401- ja P0300–P0304-koodit sekä mahdollisen
+  tuoreen vikakoodien nollauksen.
+- Flexin 0,200/0,300 V lohkoerot ovat näkyviä ostoseulontarajoja, eivät
+  Lexuksen vikakoodi- tai korjausrajoja. Sovellus ei muodosta HV-akun
+  kapasiteetti- tai SOH-prosenttia.
+- Tulos on jokin neljästä: **keskeytä kauppa ja tutki**, **testi kesken**,
+  **huomioita** tai **ei selkeää poikkeamaa tässä seulonnassa**. Puuttuva
+  kuormitusvaihe tai ECU-vastaus ei voi muuttua vihreäksi tulokseksi.
+- Raportti säilyttää esitarkastuksen raakavastaukset ja koeajon näytteet, ja
+  sen voi tallentaa, kopioida tai jakaa ChatGPT:lle Androidin jakovalikolla.
+- Ostotesti vaatii vLinker MC+:n tai muun ASCII-ELM327:n. Quicklynksin
+  suljetulle FFF0/FFF6-kanavalle ei lähetetä CT:n valmistajakohtaisia pyyntöjä.
+
+Tarkastus ei korvaa auton mekaanista nosturitarkastusta, jarrujen
+ammattilaistarkastusta, huoltohistorian/VIN-kampanjoiden varmistusta tai
+tarvittaessa Techstream Health Checkiä.
+
+## Lexus CT 200h / ZWA10 0.7.0
+
+- Ajoneuvovalinnat ovat **Lexus IS220d**, **Lexus CT 200h** ja
+  **automaattinen tunnistus**. Automaatti hyväksyy CT-profiilin vain, jos
+  hybridiohjaimen `21C1`-vastaus sisältää ZWA10-mallitunnisteen. Muussa
+  tapauksessa se kokeilee IS220d:n varmennettua `217E`-lukua ja jättää
+  tunnistamattoman auton yleiseen EOBD-tilaan.
+- `ct200h-zwa10-gen3-hybrid-readonly-v1` määrittää 2ZR-FXE-hybridin,
+  `7E2`-pyyntö- ja `7EA`-vastausotsakkeen, 201,6 V NiMH-akun, 28 moduulia ja
+  14 kahden moduulin lohkoa. Profiili validoidaan sovelluksen käynnistyessä ja
+  on syväjäädytetty `writable=false`-rakenteeksi.
+- Hybridilive sisältää 52 suoraan purettua mittaria viidestä pyynnöstä:
+  `2101` varaustila, `2181` lohkojännitteet, `2187` jäähdytysilma ja TB1–TB3,
+  `2195` lohkojen sisäiset vastukset sekä `2198` akkuvirta, lataus- ja
+  purkaustehojen rajat ja SOC-hajonta. Lisäksi akun teho johdetaan
+  lohkojännitteiden summasta ja virrasta.
+- Saman vastauksen arvot jaetaan yhdestä fyysisestä pyynnöstä. `2181` luetaan
+  kerran, vaikka näkymässä olisi samanaikaisesti 14 lohkojännitettä, minimi,
+  maksimi, ero ja lohkoindeksit.
+- ISO-TP-purkaja vaatii ilmoitetun kokonaispituuden ja oikean jatkokehysten
+  järjestyksen. Jokainen julkaistava arvo tarkistetaan profiilin
+  järkevyysrajoihin. Katkennut tai epäuskottava vastaus säilyy diagnostiikassa
+  mutta sitä ei näytetä mittausarvona.
+- Hybridivikakoodit luetaan palveluilla `0A` ja `13B0`. Moottorin tavalliset
+  EOBD-koodit säilyvät. CT-tilassa poistopainike on pois käytöstä ja
+  `7E2`-transaktio palauttaa aina moottori-ECU:n `7E0`-otsakkeen ennen muuta
+  pollausliikennettä.
+- ASCII-ELM327, vLinker MC+ Classic ja vLinker MC+ BLE voivat käyttää
+  hybridiprofiilia. Quicklynks FFF0/FFF6 säilyttää vain oman varmennetun
+  standardi-OBD-polun; sen suljetulle binäärikanavalle ei arvata CT:n
+  raw-CAN-kuoria.
+- Tallenteen skeemaversio 5 ja CSV sisältävät ajoneuvoavaimen sekä
+  profiiliversion. Raportit, tiedostonimet, ajonäkymä ja analyysipyyntö
+  mukautuvat valittuun ajoneuvoon.
+- Mukana on synteettinen CT-replay-fixture ja 12 CT-spesifiä regressiotestiä.
+  Ne kattavat 14 lohkon monikehyksen, kaikki dekooderit, DTC-luvun,
+  komentojärjestyksen, otsakkeen palautuksen, järkevyysrajat, UI-estot ja
+  erillisen ELM327-emulaattoriskenaarion komentorajan.
+
+CT-protokollatuki on toteutettu Techstream 12.20.024 -aineiston staattisen
+Data List -tarkastelun, Lexus-korjausohjeen kenttänimien ja avoimen BETSY-
+tutkimusaineiston perusteella. Techstreamia ei suoriteta eikä sen tiedostoja
+jaeta sovelluksen mukana. Fyysisen CT 200h:n ensimmäinen kenttäajo kannattaa
+tehdä auton ollessa paikallaan ja tallentaa raakavastaukset vertailua varten.
 
 ## Adaptive Live 0.6.8
 
@@ -686,10 +877,10 @@ valitsemalle sovellukselle.
 
 ## Versio ja päivitys
 
-- käyttäjälle näkyvä nimi: `IS220d OBD Flex`
+- käyttäjälle näkyvä nimi: `Lexus OBD Flex`
 - `applicationId`: `fi.oliver.is220dobd` (muuttumaton)
-- `versionName`: `0.6.9`
-- `versionCode`: `609`
+- `versionName`: `0.7.8`
+- `versionCode`: `708`
 - allekirjoitusidentiteetti: sama kuin Flex 0.2.1:ssä
 
 Debug- ja release-APK käyttävät tarkoituksella samaa aiemman Flexin allekirjoitusidentiteettiä, jotta kumpikin voidaan asentaa 0.2.1:n päälle. Release-paketti sisältää minifioidun käyttöliittymäkoodin; debug-paketti sisältää lukukelpoisemman nipun.
@@ -712,6 +903,6 @@ Rakennus toimii ilman Android SDK:n tai Android Studion erillistä asennusta. Ta
 Tulokset:
 
 ```text
-dist/IS220d_OBD-Flex-0.6.9-debug.apk
-dist/IS220d_OBD-Flex-0.6.9-release.apk
+dist/Lexus_OBD-Flex-0.7.8-debug.apk
+dist/Lexus_OBD-Flex-0.7.8-release.apk
 ```

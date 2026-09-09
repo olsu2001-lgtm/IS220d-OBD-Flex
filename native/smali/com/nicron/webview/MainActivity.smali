@@ -10,6 +10,8 @@
 
 .field private obdBridge:Lcom/nicron/webview/ObdBridge;
 
+.field private powerGpsBridge:Lcom/nicron/webview/PowerGpsBridge;
+
 .field private webView:Landroid/webkit/WebView;
 
 
@@ -215,13 +217,25 @@
 
     invoke-virtual {v2, v0, v3}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
 
+    new-instance v0, Lcom/nicron/webview/PowerGpsBridge;
+
+    invoke-direct {v0, p0}, Lcom/nicron/webview/PowerGpsBridge;-><init>(Landroid/app/Activity;)V
+
+    iput-object v0, p0, Lcom/nicron/webview/MainActivity;->powerGpsBridge:Lcom/nicron/webview/PowerGpsBridge;
+
+    iget-object v2, p0, Lcom/nicron/webview/MainActivity;->webView:Landroid/webkit/WebView;
+
+    const-string v3, "powerGps"
+
+    invoke-virtual {v2, v0, v3}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
+
     sget v0, Landroid/os/Build$VERSION;->SDK_INT:I
 
     const/16 v2, 0x1f
 
     if-lt v0, v2, :legacy_ble_permission
 
-    const/4 v2, 0x2
+    const/4 v2, 0x3
 
     new-array p1, v2, [Ljava/lang/String;
 
@@ -234,6 +248,12 @@
     const-string v0, "android.permission.BLUETOOTH_SCAN"
 
     const/4 v2, 0x1
+
+    aput-object v0, p1, v2
+
+    const-string v0, "android.permission.ACCESS_FINE_LOCATION"
+
+    const/4 v2, 0x2
 
     aput-object v0, p1, v2
 
@@ -301,6 +321,13 @@
     invoke-virtual {v0}, Lcom/nicron/webview/BleObdBridge;->disconnect()V
 
     :ble_bridge_done
+    iget-object v0, p0, Lcom/nicron/webview/MainActivity;->powerGpsBridge:Lcom/nicron/webview/PowerGpsBridge;
+
+    if-eqz v0, :gps_bridge_done
+
+    invoke-virtual {v0}, Lcom/nicron/webview/PowerGpsBridge;->stop()V
+
+    :gps_bridge_done
     iget-object v0, p0, Lcom/nicron/webview/MainActivity;->webView:Landroid/webkit/WebView;
 
     if-eqz v0, :web_done

@@ -6,6 +6,7 @@ import {
   IS220D_DIAGNOSTIC_PROFILE,
   IS220D_ENGINE_ECU_PROFILE,
   TOYOTA_READ_DATA_PROBES,
+  IS220D_INJECTOR_SCREENING_PROBES,
   TOYOTA_READ_DATA_ALLOWED_COMMANDS,
   validateDiagnosticProfile,
   getToyotaReadDataProbe,
@@ -56,17 +57,22 @@ test("profiilivalidaattori estää kirjoittavan tai vääränmuotoisen määritt
   assert.match(validation.errors.join("\n"), /virheellinen min\/max-alue/);
 });
 
-test("profiili johtaa täsmälleen nykyiset kolme Toyota-lukua ja raakakuoret", () => {
+test("profiili johtaa tuotantoluvut ja erillisen vain lukevan suutintestiryhmän", () => {
   assert.deepEqual(TOYOTA_READ_DATA_PROBES.map(probe => probe.command), ["217E", "217F", "212C"]);
-  assert.deepEqual(TOYOTA_READ_DATA_ALLOWED_COMMANDS, [
+  assert.deepEqual(IS220D_INJECTOR_SCREENING_PROBES.map(probe => probe.command), ["2193", "2196", "219C", "21AF"]);
+  assert.deepEqual(TOYOTA_READ_DATA_ALLOWED_COMMANDS.slice(0, 6), [
     "217E", "02217E0000000000",
     "217F", "02217F0000000000",
     "212C", "02212C0000000000"
   ]);
+  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("219C"), true);
+  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("02219C0000000000"), true);
   assert.equal(getToyotaReadDataProbe("21 7E")?.id, "engine.dpnr_status");
   assert.equal(getToyotaReadDataProbe(0x2c)?.command, "212C");
+  assert.equal(getToyotaReadDataProbe(0x9c)?.command, "219C");
   assert.equal(buildProfileProbeCommand(getToyotaReadDataProbe("217F"), "raw-single-frame"), "02217F0000000000");
   assert.equal(isProfileReadOnlyCommand("217E"), true);
+  assert.equal(isProfileReadOnlyCommand("219C"), true);
   assert.equal(isProfileReadOnlyCommand("2192"), false);
 });
 

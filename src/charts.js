@@ -9,12 +9,12 @@ export function drawLineChart(canvas, points, options = {}) {
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = options.background || "#0d131a";
+  ctx.fillStyle = options.background || themeColor("--surface-chart", "#0d131a");
   ctx.fillRect(0, 0, width, height);
 
   const values = (points || []).filter(point => Number.isFinite(point.value));
   if (values.length < 2) {
-    ctx.fillStyle = "#667587";
+    ctx.fillStyle = themeColor("--neutral", "#667587");
     ctx.font = "12px system-ui";
     ctx.textAlign = "center";
     ctx.fillText("Kuvaaja ilmestyy, kun arvoja on vähintään kaksi", width / 2, height / 2);
@@ -33,9 +33,9 @@ export function drawLineChart(canvas, points, options = {}) {
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
-  ctx.strokeStyle = "#24303d";
+  ctx.strokeStyle = themeColor("--chart-grid", "#24303d");
   ctx.lineWidth = 1;
-  ctx.fillStyle = "#718196";
+  ctx.fillStyle = themeColor("--chart-text", "#718196");
   ctx.font = "10px system-ui";
   ctx.textAlign = "right";
   for (let i = 0; i <= 4; i++) {
@@ -54,15 +54,15 @@ export function drawLineChart(canvas, points, options = {}) {
     const y = padding.top + (max - point.value) / (max - min) * plotHeight;
     if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = options.color || "#58d68d";
+  ctx.strokeStyle = options.color || themeColor(options.colorVariable || "--accent", "#58d68d");
   ctx.lineWidth = 2;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.stroke();
 
   if (options.markers?.length) {
-    ctx.strokeStyle = "#ffcc66";
-    ctx.fillStyle = "#ffcc66";
+    ctx.strokeStyle = themeColor("--warning", "#ffcc66");
+    ctx.fillStyle = themeColor("--warning", "#ffcc66");
     ctx.textAlign = "center";
     for (const marker of options.markers) {
       const x = padding.left + (marker.time - minTime) / Math.max(1, maxTime - minTime) * plotWidth;
@@ -75,11 +75,17 @@ export function drawLineChart(canvas, points, options = {}) {
     }
   }
 
-  ctx.fillStyle = "#718196";
+  ctx.fillStyle = themeColor("--chart-text", "#718196");
   ctx.textAlign = "left";
   ctx.fillText(formatDuration(maxTime - minTime), padding.left, height - 8);
   ctx.textAlign = "right";
   ctx.fillText(options.unit || "", width - padding.right, height - 8);
+}
+
+function themeColor(variable, fallback) {
+  if (typeof globalThis.getComputedStyle !== "function" || !globalThis.document?.documentElement) return fallback;
+  const value = globalThis.getComputedStyle(globalThis.document.documentElement).getPropertyValue(variable).trim();
+  return value || fallback;
 }
 
 function formatAxis(value) {

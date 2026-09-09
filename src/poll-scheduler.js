@@ -1,4 +1,4 @@
-import { getToyotaReadDataProbe } from "./is220d-profile.js";
+import { getProfileReadDataProbe } from "./vehicle-profiles.js";
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const hexByte = value => (Number(value) & 0xff).toString(16).padStart(2, "0").toUpperCase();
@@ -60,7 +60,7 @@ export function pollSourceForDefinition(definition) {
   if (!definition || definition.derived || definition.adapterOnly) return null;
   if (definition.toyotaCommand) {
     const command = String(definition.toyotaCommand).replace(/\s+/g, "").toUpperCase();
-    const probe = getToyotaReadDataProbe(command);
+    const probe = getProfileReadDataProbe(command, definition.vehicleKey || "");
     if (!probe || !definition.toyotaValueKey) return null;
     return Object.freeze({
       key: `toyota:${command}`,
