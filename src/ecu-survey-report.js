@@ -43,6 +43,7 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
     `Profile: ${clean(snapshot.profileVersion) || "unknown"}`,
     `Safe probe: ${clean(snapshot.safeProbe) || "unknown"}`,
     `Run ID: ${clean(snapshot.runId) || "unknown"}`,
+    `Build SHA: ${clean(snapshot.buildSha) || "not embedded"}`,
     `Responding headers: ${Number(summary.respondingHeaders || 0)}/${Number(summary.plannedHeaders || snapshot.nodes.length)}`,
     `Expected responding: ${Number(summary.expectedResponding || 0)}`,
     `Expected no response: ${Number(summary.expectedNoResponse || 0)}`,

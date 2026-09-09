@@ -114,6 +114,7 @@ export function buildEcuSurveyUiModel(snapshot, historyResult = null) {
     .reverse()
     .map(item => Object.freeze({
       runId: String(item?.runId || ""),
+      buildSha: String(item?.buildSha || ""),
       timestamp: snapshotTimestamp(item),
       respondingCount: snapshotRespondingCount(item),
       plannedCount: Array.isArray(item?.nodes) ? item.nodes.length : 0,
@@ -125,6 +126,7 @@ export function buildEcuSurveyUiModel(snapshot, historyResult = null) {
   return Object.freeze({
     visible: true,
     runId: String(snapshot.runId || ""),
+    buildSha: String(snapshot.buildSha || ""),
     timestamp: snapshotTimestamp(snapshot),
     profileVersion: String(snapshot.profileVersion || ""),
     safeProbe: String(snapshot.safeProbe || "0100"),

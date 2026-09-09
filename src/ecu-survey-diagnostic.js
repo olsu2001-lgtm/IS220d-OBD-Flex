@@ -7,6 +7,14 @@ import { extractMode09IdentityFromDiagnosticRun } from "./mode09-identity.js";
 
 const normalizeHex = value => String(value || "").replace(/\s+/g, "").toUpperCase();
 
+function runtimeBuildSha() {
+  try {
+    return String(globalThis.__IS220D_BUILD_SHA__ || "").trim();
+  } catch {
+    return "";
+  }
+}
+
 export function extractCanResponseHeaders(raw) {
   const headers = new Set();
   const lines = String(raw || "").toUpperCase().split(/[\r\n]+/);
@@ -79,6 +87,7 @@ export function ecuSurveySnapshotFromDiagnosticRun(
 
   return Object.freeze({
     ...survey,
+    buildSha: runtimeBuildSha(),
     identity: extractMode09IdentityFromDiagnosticRun(run)
   });
 }
