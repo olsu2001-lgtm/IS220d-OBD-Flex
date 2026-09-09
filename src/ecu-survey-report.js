@@ -1,5 +1,6 @@
 import { ecuSurveyTopologySignature } from "./ecu-survey.js";
 import { buildFieldValidationTextReport } from "./field-validation.js";
+import { buildTechstreamReferenceTextReport } from "./techstream-reference-report.js";
 
 const clean = value => String(value ?? "").replace(/[\r\n\t]+/g, " ").trim();
 
@@ -69,6 +70,9 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
   if (historyResult?.fieldValidation) {
     lines.push("", buildFieldValidationTextReport(historyResult.fieldValidation).trimEnd());
   }
+  if (historyResult?.techstreamComparison?.loaded) {
+    lines.push("", buildTechstreamReferenceTextReport(historyResult.techstreamComparison).trimEnd());
+  }
   lines.push("", "Nodes:");
 
   for (const node of snapshot.nodes) {
@@ -95,6 +99,7 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
     "- A stable response topology is repeatability evidence, not proof of ECU identity.",
     "- Mode 09 match/mismatch compares observed read-only identity data to repository vehicle evidence; mismatch is an evidence flag, not an ECU fault verdict.",
     "- The field-validation gate summarizes stored diagnostic evidence; Techstream cross-check remains independent external evidence.",
+    "- Imported Techstream reference evidence uses a neutral Flex JSON schema; system names never create CAN mappings automatically.",
     "- Unmapped responders stay unidentified until independent vehicle/Techstream evidence exists.",
     "- Expected-no-response is an inspection flag, not an automatic ECU fault verdict.",
     "- This section is derived from the existing read-only diagnostic results and sends no additional vehicle command."
