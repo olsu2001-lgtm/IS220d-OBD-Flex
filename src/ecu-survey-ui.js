@@ -3,12 +3,8 @@ import { ecuSurveyTopologySignature } from "./ecu-survey.js";
 function repeatabilityState(repeatability) {
   const required = Math.max(1, Number(repeatability?.requiredRuns || 3));
   const observed = Math.max(0, Number(repeatability?.observedRuns || 0));
-  if (repeatability?.stable) {
-    return Object.freeze({ code: "stable", label: `Vakaa ${observed}/${required}`, observed, required });
-  }
-  if (observed < required) {
-    return Object.freeze({ code: "collecting", label: `Kerätään ${observed}/${required}`, observed, required });
-  }
+  if (repeatability?.stable) return Object.freeze({ code: "stable", label: `Vakaa ${observed}/${required}`, observed, required });
+  if (observed < required) return Object.freeze({ code: "collecting", label: `Kerätään ${observed}/${required}`, observed, required });
   return Object.freeze({ code: "changed", label: "Topologia muuttui", observed, required });
 }
 
@@ -43,25 +39,20 @@ function identityOverallState(overall) {
 }
 
 function identityModel(identity) {
-  if (!identity || typeof identity !== "object") {
-    return Object.freeze({ visible: false, overallCode: "not-observed", overallLabel: "Identiteettiä ei luettu", fields: Object.freeze([]) });
-  }
+  if (!identity || typeof identity !== "object") return Object.freeze({ visible: false, overallCode: "not-observed", overallLabel: "Identiteettiä ei luettu", fields: Object.freeze([]) });
   const order = ["vin", "calibrationId", "calibrationVerificationNumber", "ecuName"];
-  const fields = order
-    .map(key => identity.fields?.[key])
-    .filter(Boolean)
-    .map(field => {
-      const state = identityUiState(field.status);
-      return Object.freeze({
-        id: String(field.id || ""),
-        label: String(field.label || field.id || ""),
-        value: String(field.value || ""),
-        expected: String(field.expected || ""),
-        responseHeader: String(field.responseHeader || ""),
-        stateCode: state.code,
-        stateLabel: state.label
-      });
+  const fields = order.map(key => identity.fields?.[key]).filter(Boolean).map(field => {
+    const state = identityUiState(field.status);
+    return Object.freeze({
+      id: String(field.id || ""),
+      label: String(field.label || field.id || ""),
+      value: String(field.value || ""),
+      expected: String(field.expected || ""),
+      responseHeader: String(field.responseHeader || ""),
+      stateCode: state.code,
+      stateLabel: state.label
     });
+  });
   const overall = identityOverallState(identity.overall);
   return Object.freeze({
     visible: fields.length > 0,
@@ -104,6 +95,81 @@ function fieldValidationState(session) {
   });
 }
 
+function techstreamStatus(status, loaded) {
+  if (!loaded) return Object.freeze({ code: "not-loaded", label: "Ei Techstream-referenssiä" });
+  switch (status) {
+    case "verified-mappings-observed": return Object.freeze({ code: "observed", label: "Varmennetut mappingit havaittu" });
+    case "verified-mapping-discrepancy": return Object.freeze({ code: "attention", label: "Mapping-poikkeama" });
+    case "incomplete-reference": return Object.freeze({ code: "incomplete", label: "Referenssi keskeneräinen" });
+    case "reference-only": return Object.freeze({ code: "review", label: "Referenssi ladattu · survey puuttuu" });
+    default: return Object.freeze({ code: "review", label: "Referenssi ladattu · käsintarkistus" });
+  }
+}
+
+function techstreamReferenceModel(comparison) {
+  const loaded = comparison?.loaded === true;
+  const state = techstreamStatus(comparison?.status, loaded);
+  if (!loaded) {
+    return Object.freeze({
+      visible: true,
+      loaded: false,
+      code: state.code,
+      label: state.label,
+      referenceId: "",
+      capturedAt: "",
+      systemCount: 0,
+      dtcCount: 0,
+      systemsWithDtcs: 0,
+      verifiedMappings: 0,
+      candidateMappings: 0,
+      verifiedObserved: 0,
+      verifiedDiscrepancies: 0,
+      mappings: Object.freeze([]),
+      systems: Object.freeze([]),
+      unmappedFlexResponders: Object.freeze([]),
+      unmappedTechstreamSystems: Object.freeze([]),
+      manualReviewRequired: true
+    });
+  }
+  return Object.freeze({
+    visible: true,
+    loaded: true,
+    code: state.code,
+    label: state.label,
+    referenceId: String(comparison.reference?.referenceId || ""),
+    capturedAt: String(comparison.reference?.capturedAt || ""),
+    note: String(comparison.reference?.note || ""),
+    systemCount: Number(comparison.systemCount || 0),
+    dtcCount: Number(comparison.dtcCount || 0),
+    systemsWithDtcs: Number(comparison.systemsWithDtcs || 0),
+    verifiedMappings: Number(comparison.verifiedMappings || 0),
+    candidateMappings: Number(comparison.candidateMappings || 0),
+    verifiedObserved: Number(comparison.verifiedObserved || 0),
+    verifiedDiscrepancies: Number(comparison.verifiedDiscrepancies || 0),
+    mappings: Object.freeze((comparison.mappings || []).map(mapping => Object.freeze({
+      requestHeader: String(mapping?.requestHeader || ""),
+      responseHeader: String(mapping?.responseHeader || ""),
+      systemName: String(mapping?.systemName || ""),
+      evidenceLevel: String(mapping?.evidenceLevel || ""),
+      evidenceNote: String(mapping?.evidenceNote || ""),
+      status: String(mapping?.status || "not-observed"),
+      observedResponseHeaders: Object.freeze([...(mapping?.observedResponseHeaders || [])].map(String))
+    }))),
+    systems: Object.freeze((comparison.reference?.systems || []).map(system => Object.freeze({
+      name: String(system?.name || ""),
+      dtcs: Object.freeze([...(system?.dtcs || [])].map(String)),
+      note: String(system?.note || "")
+    }))),
+    unmappedFlexResponders: Object.freeze((comparison.unmappedFlexResponders || []).map(item => Object.freeze({
+      requestHeader: String(item?.requestHeader || ""),
+      responseHeaders: Object.freeze([...(item?.responseHeaders || [])].map(String)),
+      knownEcuId: String(item?.knownEcuId || "")
+    }))),
+    unmappedTechstreamSystems: Object.freeze([...(comparison.unmappedTechstreamSystems || [])].map(String)),
+    manualReviewRequired: true
+  });
+}
+
 function snapshotTimestamp(snapshot) {
   if (Number.isFinite(snapshot?.endedAt)) return Number(snapshot.endedAt);
   if (Number.isFinite(snapshot?.startedAt)) return Number(snapshot.startedAt);
@@ -115,44 +181,37 @@ function snapshotRespondingCount(snapshot) {
 }
 
 export function buildEcuSurveyUiModel(snapshot, historyResult = null) {
-  if (!snapshot || snapshot.mode !== "read-only" || !Array.isArray(snapshot.nodes)) {
-    return Object.freeze({ visible: false });
-  }
+  if (!snapshot || snapshot.mode !== "read-only" || !Array.isArray(snapshot.nodes)) return Object.freeze({ visible: false });
 
   const historySnapshots = Array.isArray(historyResult?.snapshots) ? historyResult.snapshots : [];
   const comparableSnapshots = Array.isArray(historyResult?.comparableSnapshots) ? historyResult.comparableSnapshots : historySnapshots;
   const comparableRunIds = new Set(comparableSnapshots.map(item => String(item?.runId || "")));
   const repeatability = repeatabilityState(historyResult?.repeatability || null);
-  const nodes = snapshot.nodes
-    .map(node => {
-      const observedResponseHeaders = [...(node?.observedResponseHeaders || [])].map(String).sort();
-      const state = nodeUiState(node);
-      return Object.freeze({
-        requestHeader: String(node?.requestHeader || ""),
-        responseHeader: observedResponseHeaders.join(", ") || "–",
-        ecuId: String(node?.knownEcuId || ""),
-        ecuLabel: String(node?.knownEcuLabel || node?.knownEcuId || "Tunnistamaton ECU"),
-        expectation: String(node?.expectation || "unknown"),
-        responding: node?.responding === true,
-        stateCode: state.code,
-        stateLabel: state.label
-      });
-    })
-    .sort((a, b) => a.requestHeader.localeCompare(b.requestHeader));
+  const nodes = snapshot.nodes.map(node => {
+    const observedResponseHeaders = [...(node?.observedResponseHeaders || [])].map(String).sort();
+    const state = nodeUiState(node);
+    return Object.freeze({
+      requestHeader: String(node?.requestHeader || ""),
+      responseHeader: observedResponseHeaders.join(", ") || "–",
+      ecuId: String(node?.knownEcuId || ""),
+      ecuLabel: String(node?.knownEcuLabel || node?.knownEcuId || "Tunnistamaton ECU"),
+      expectation: String(node?.expectation || "unknown"),
+      responding: node?.responding === true,
+      stateCode: state.code,
+      stateLabel: state.label
+    });
+  }).sort((a, b) => a.requestHeader.localeCompare(b.requestHeader));
 
-  const history = [...historySnapshots]
-    .slice(-5)
-    .reverse()
-    .map(item => Object.freeze({
-      runId: String(item?.runId || ""),
-      buildSha: String(item?.buildSha || ""),
-      timestamp: snapshotTimestamp(item),
-      respondingCount: snapshotRespondingCount(item),
-      plannedCount: Array.isArray(item?.nodes) ? item.nodes.length : 0,
-      topologySignature: ecuSurveyTopologySignature(item) || "none",
-      compatible: comparableRunIds.has(String(item?.runId || "")),
-      identityOverall: String(item?.identity?.overall || "not-observed")
-    }));
+  const history = [...historySnapshots].slice(-5).reverse().map(item => Object.freeze({
+    runId: String(item?.runId || ""),
+    buildSha: String(item?.buildSha || ""),
+    timestamp: snapshotTimestamp(item),
+    respondingCount: snapshotRespondingCount(item),
+    plannedCount: Array.isArray(item?.nodes) ? item.nodes.length : 0,
+    topologySignature: ecuSurveyTopologySignature(item) || "none",
+    compatible: comparableRunIds.has(String(item?.runId || "")),
+    identityOverall: String(item?.identity?.overall || "not-observed")
+  }));
 
   return Object.freeze({
     visible: true,
@@ -169,6 +228,7 @@ export function buildEcuSurveyUiModel(snapshot, historyResult = null) {
     topologySignature: ecuSurveyTopologySignature(snapshot) || "none",
     identity: identityModel(snapshot.identity),
     fieldValidation: fieldValidationState(historyResult?.fieldValidation),
+    techstreamReference: techstreamReferenceModel(historyResult?.techstreamComparison),
     nodes: Object.freeze(nodes),
     history: Object.freeze(history)
   });

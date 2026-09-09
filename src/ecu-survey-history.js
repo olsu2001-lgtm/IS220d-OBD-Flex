@@ -1,6 +1,11 @@
 import { evaluateEcuSurveyRepeatability } from "./ecu-survey.js";
 import { evaluateFieldValidationSession } from "./field-validation.js";
+import {
+  compareTechstreamReference,
+  loadTechstreamReference
+} from "./techstream-reference.js";
 import { installEcuSurveyUi, notifyEcuSurveyUi } from "./ecu-survey-ui-runtime.js";
+import { installTechstreamReferenceUi } from "./techstream-reference-ui.js";
 
 export const ECU_SURVEY_HISTORY_KEY = "is220d-obd:ecu-survey-history:v1";
 export const ECU_SURVEY_HISTORY_LIMIT = 10;
@@ -164,19 +169,26 @@ export function loadEcuSurveyHistory(storage = undefined) {
   }
 }
 
-export function summarizeEcuSurveyHistory(storage = undefined) {
-  const snapshots = loadEcuSurveyHistory(storage);
+function summarizeSnapshots(snapshots, storage) {
   const latestSnapshot = snapshots.length ? snapshots[snapshots.length - 1] : null;
   const comparableSnapshots = latestSnapshot
     ? Object.freeze(snapshots.filter(item => compatibleWith(item, latestSnapshot)))
     : Object.freeze([]);
+  const techstreamReference = loadTechstreamReference(storage);
   return Object.freeze({
     snapshots,
     latestSnapshot,
     comparableSnapshots,
     repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3),
-    fieldValidation: evaluateFieldValidationSession(snapshots)
+    fieldValidation: evaluateFieldValidationSession(snapshots),
+    techstreamReference,
+    techstreamComparison: compareTechstreamReference(techstreamReference, latestSnapshot)
   });
+}
+
+export function summarizeEcuSurveyHistory(storage = undefined) {
+  const targetStorage = resolveStorage(storage);
+  return summarizeSnapshots(loadEcuSurveyHistory(targetStorage), targetStorage);
 }
 
 export function recordEcuSurveySnapshot(snapshot, storage = undefined) {
@@ -194,13 +206,17 @@ export function recordEcuSurveySnapshot(snapshot, storage = undefined) {
   } catch (caught) {
     error = caught?.message || String(caught);
   }
+  const techstreamReference = loadTechstreamReference(targetStorage);
   const result = Object.freeze({
     persisted,
     error,
     snapshots,
+    latestSnapshot: compact,
     comparableSnapshots,
     repeatability: evaluateEcuSurveyRepeatability(comparableSnapshots, 3),
-    fieldValidation: evaluateFieldValidationSession(snapshots)
+    fieldValidation: evaluateFieldValidationSession(snapshots),
+    techstreamReference,
+    techstreamComparison: compareTechstreamReference(techstreamReference, compact)
   });
   notifyEcuSurveyUi(snapshot, result);
   return result;
@@ -218,5 +234,7 @@ export function clearEcuSurveyHistory(storage = undefined) {
 }
 
 if (typeof document !== "undefined") {
-  installEcuSurveyUi({ loadHistory: () => summarizeEcuSurveyHistory() });
+  const loadHistory = () => summarizeEcuSurveyHistory();
+  installEcuSurveyUi({ loadHistory });
+  installTechstreamReferenceUi({ loadHistory });
 }
