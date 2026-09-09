@@ -1,4 +1,5 @@
 import { ecuSurveyTopologySignature } from "./ecu-survey.js";
+import { evaluateReleaseReadiness } from "./release-readiness.js";
 
 export const EVIDENCE_SUPPORT_BUNDLE_SCHEMA_VERSION = 1;
 export const EVIDENCE_SUPPORT_BUNDLE_TYPE = "is220d-obd-flex-evidence-support";
@@ -145,6 +146,23 @@ function compactTechstreamComparison(comparison) {
   });
 }
 
+function compactReleaseReadiness(readiness) {
+  return Object.freeze({
+    schemaVersion: Number(readiness?.schemaVersion || 1),
+    targetVersion: clean(readiness?.targetVersion),
+    status: clean(readiness?.status),
+    readyForReleaseReview: readiness?.readyForReleaseReview === true,
+    releaseApproved: false,
+    manualReviewRequired: true,
+    fieldStatus: clean(readiness?.fieldStatus),
+    techstreamStatus: clean(readiness?.techstreamStatus),
+    checks: compactChecks(readiness?.checks),
+    blockers: Object.freeze([...(readiness?.blockers || [])].map(clean).filter(Boolean)),
+    warnings: Object.freeze([...(readiness?.warnings || [])].map(clean).filter(Boolean)),
+    writable: false
+  });
+}
+
 export function buildEvidenceSupportBundle(historyResult, { generatedAt = Date.now() } = {}) {
   const history = historyResult || {};
   const validation = history.fieldValidation || null;
@@ -155,6 +173,10 @@ export function buildEvidenceSupportBundle(historyResult, { generatedAt = Date.n
   const latest = history.latestSnapshot || sourceRuns[sourceRuns.length - 1] || null;
   const techstreamReference = compactTechstreamReference(history.techstreamReference);
   const techstreamComparison = compactTechstreamComparison(history.techstreamComparison);
+  const releaseReadiness = compactReleaseReadiness(evaluateReleaseReadiness({
+    fieldValidation: validation,
+    techstreamComparison: history.techstreamComparison
+  }));
 
   return Object.freeze({
     schemaVersion: EVIDENCE_SUPPORT_BUNDLE_SCHEMA_VERSION,
@@ -165,6 +187,7 @@ export function buildEvidenceSupportBundle(historyResult, { generatedAt = Date.n
     safeProbe: clean(latest?.safeProbe) || "0100",
     buildSha: clean(validation?.buildSha || latest?.buildSha),
     fieldValidation: compactFieldValidation(validation),
+    releaseReadiness,
     runs,
     techstream: Object.freeze({
       reference: techstreamReference,
