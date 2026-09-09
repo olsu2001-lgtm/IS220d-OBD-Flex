@@ -2,6 +2,7 @@ const STYLE_ID = "simple-ui-style";
 const ROOT_ID = "simpleUseCard";
 const ADVANCED_ID = "advancedDiagnostics";
 const PROTOCOL_KEY = "obdProtocol";
+const PROTOCOL_OVERRIDE_KEY = "is220d-obd:protocol-advanced-override:v1";
 const TRANSPORT_STATUS_EVENT = "is220d:classic-transport-status";
 let transportActivity = null;
 
@@ -38,11 +39,18 @@ function go(page) {
 function configureDefaultProtocol() {
   const select = document.getElementById("protocolSelect");
   if (!select) return false;
-  let stored = "";
-  try { stored = String(globalThis.localStorage?.getItem(PROTOCOL_KEY) || ""); } catch {}
-  if (!stored) {
+  let advancedOverride = false;
+  try { advancedOverride = globalThis.localStorage?.getItem(PROTOCOL_OVERRIDE_KEY) === "true"; } catch {}
+  if (!advancedOverride) {
     select.value = "can6";
     try { globalThis.localStorage?.setItem(PROTOCOL_KEY, "can6"); } catch {}
+  }
+  if (select.dataset.simpleProtocolObserved !== "true") {
+    select.dataset.simpleProtocolObserved = "true";
+    select.addEventListener("change", event => {
+      if (event?.isTrusted === false) return;
+      try { globalThis.localStorage?.setItem(PROTOCOL_OVERRIDE_KEY, "true"); } catch {}
+    });
   }
   return true;
 }
@@ -52,7 +60,7 @@ function moveProtocolToAdvanced(container) {
   const label = document.querySelector('label[for="protocolSelect"]');
   if (!select || !label || container.contains(select)) return;
   const box = create("div", "advanced-connection-settings");
-  box.append(label, select, create("p", "hint", "IS220d käyttää CAN 11 bit / 500 kbit/s -protokollaa. Muuta tätä vain yhteysongelman tutkimista varten."));
+  box.append(label, select, create("p", "hint", "IS220d käyttää CAN 11 bit / 500 kbit/s -protokollaa. Muuta tätä vain yhteysongelman tutkimista varten; käsin valittu arvo säilyy seuraaviin käynnistyksiin."));
   container.prepend(box);
 }
 
