@@ -9,10 +9,30 @@ import {
   IS220D_ENGINE_ECU_PROFILE,
   FULL_DIAGNOSTIC_ENGINE_HEADERS,
   TOYOTA_READ_DATA_PROBES,
+  IS220D_INJECTOR_SCREENING_PROBES,
   TOYOTA_READ_DATA_ALLOWED_COMMANDS,
-  getToyotaReadDataProbe,
-  isProfileReadOnlyCommand
+  getToyotaReadDataProbe
 } from "./is220d-profile.js";
+import {
+  CT200H_DIAGNOSTIC_PROFILE,
+  CT200H_HYBRID_ECU_PROFILE,
+  CT200H_READ_DATA_PROBES,
+  CT200H_LIVE_DATA_PROBES,
+  CT200H_DTC_REQUESTS,
+  validateCt200hDiagnosticProfile
+} from "./ct200h-profile.js";
+import {
+  VEHICLE_KEYS,
+  VEHICLE_PROFILES,
+  ALL_PROFILE_READ_ONLY_COMMANDS,
+  getVehicleProfile,
+  getVehicleReadDataProbes,
+  getVehicleDtcRequests,
+  getProfileReadDataProbe,
+  isProfileReadOnlyCommand,
+  metricSupportsVehicle,
+  vehicleDisplayName
+} from "./vehicle-profiles.js";
 import {
   parseDiagnosticNegativeResponse,
   classifyDiagnosticResponse
@@ -23,10 +43,33 @@ export {
   IS220D_ENGINE_ECU_PROFILE,
   FULL_DIAGNOSTIC_ENGINE_HEADERS,
   TOYOTA_READ_DATA_PROBES,
+  IS220D_INJECTOR_SCREENING_PROBES,
   TOYOTA_READ_DATA_ALLOWED_COMMANDS,
-  getToyotaReadDataProbe,
-  isProfileReadOnlyCommand
+  getToyotaReadDataProbe
 } from "./is220d-profile.js";
+export {
+  CT200H_DIAGNOSTIC_PROFILE,
+  CT200H_HYBRID_ECU_PROFILE,
+  CT200H_READ_DATA_PROBES,
+  CT200H_LIVE_DATA_PROBES,
+  CT200H_DTC_REQUESTS,
+  CT200H_READ_ONLY_ALLOWED_COMMANDS,
+  getCt200hReadDataProbe,
+  validateCt200hDiagnosticProfile
+} from "./ct200h-profile.js";
+export {
+  VEHICLE_KEYS,
+  VEHICLE_PROFILES,
+  ALL_READ_DATA_PROBES,
+  ALL_PROFILE_READ_ONLY_COMMANDS,
+  getVehicleProfile,
+  getVehicleReadDataProbes,
+  getVehicleDtcRequests,
+  getProfileReadDataProbe,
+  isProfileReadOnlyCommand,
+  metricSupportsVehicle,
+  vehicleDisplayName
+} from "./vehicle-profiles.js";
 export {
   parseDiagnosticNegativeResponse,
   classifyDiagnosticResponse,
@@ -49,7 +92,7 @@ export const QUICKLYNKS_OPTIONAL_STANDARD_INTERVAL_MS = 1200;
 export const QUICKLYNKS_OPTIONAL_STANDARD_TIMEOUT_MS = 750;
 export const QUICKLYNKS_OPTIONAL_STANDARD_RETRY_MS = 120000;
 
-export const FULL_DIAGNOSTIC_SCRIPT_VERSION = "elm-can-readonly-v5";
+export const FULL_DIAGNOSTIC_SCRIPT_VERSION = "elm-can-readonly-v6-multivehicle";
 export const QUICKLYNKS_WIDE_DIAGNOSTIC_SCRIPT_VERSION = "quicklynks-ble-readonly-v2";
 export const QUICKLYNKS_WIDE_DIAGNOSTIC_ROUNDS = 3;
 export const QUICKLYNKS_WIDE_DIAGNOSTIC_TIMEOUT_MS = 3000;
@@ -79,8 +122,19 @@ const DTC_DESCRIPTIONS = {
   P0401: "Pakokaasun takaisinkierrätyksen virtaus liian pieni",
   P0402: "Pakokaasun takaisinkierrätyksen virtaus liian suuri",
   P0405: "EGR-anturin A signaali liian alhainen",
+  P0300: "Satunnainen tai usean sylinterin sytytyskatkos",
+  P0301: "Sylinterin 1 sytytyskatkos",
+  P0302: "Sylinterin 2 sytytyskatkos",
+  P0303: "Sylinterin 3 sytytyskatkos",
+  P0304: "Sylinterin 4 sytytyskatkos",
+  P0A80: "Vaihda hybridiakun kokonaisuus – varmista ensin lohkojännitteet ja vikakoodin INF-lisäkoodi",
+  P3000: "Hybridijärjestelmän akun ohjaus ilmoittaa viasta – lue myös muut hybridiohjaimet",
   P2002: "Hiukkassuodattimen tehokkuus alle raja-arvon",
-  P2463: "Hiukkassuodattimeen kertynyt liikaa nokea"
+  P2463: "Hiukkassuodattimeen kertynyt liikaa nokea",
+  C1252: "Jarrutehostimen pumpun moottorin käyntiaika poikkeava",
+  C1253: "Jarrutehostimen pumpun moottorin rele-/virtapiiri",
+  C1256: "Jarrutehostimen paineakun paine liian alhainen",
+  C1391: "Jarrutehostimen paineakun painevuoto"
 };
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -249,7 +303,132 @@ export function parseToyotaNegativeResponse(raw) {
 
 const DPNR_STATE_NAMES = Object.freeze(["Standby", "Ready", "Operate", "Complete"]);
 
-export function decodeToyotaReadDataResponse(raw, identifier = 0x7e) {
+function ctWord(payload, offset) {
+  if (!Number.isInteger(payload?.[offset]) || !Number.isInteger(payload?.[offset + 1])) return NaN;
+  return payload[offset] * 256 + payload[offset + 1];
+}
+
+function printableAscii(payload, start, length) {
+  return payload
+    .slice(start, start + length)
+    .filter(value => value >= 0x20 && value <= 0x7e)
+    .map(value => String.fromCharCode(value))
+    .join("")
+    .trim();
+}
+
+function decodeCt200hReadData(base, payloadDetails) {
+  const payload = payloadDetails.payload;
+  const id = base.identifier;
+  const complete = minimum => payloadDetails.transportComplete && payload.length >= minimum;
+
+  if (id === 0xc1) {
+    if (!complete(7)) return base;
+    const modelCode = printableAscii(payload, 0, 7);
+    const engineCode = printableAscii(payload, 7, 6);
+    const destination = printableAscii(payload, 15, 1);
+    return {
+      ...base,
+      complete: true,
+      values: {
+        modelCode,
+        engineCode,
+        destination,
+        zwa10Confirmed: /ZWA10/i.test(modelCode)
+      }
+    };
+  }
+
+  if (id === 0x01) {
+    if (!complete(22)) return base;
+    return {
+      ...base,
+      complete: true,
+      values: { stateOfChargePercent: payload[21] * 20 / 51 }
+    };
+  }
+
+  if (id === 0x81) {
+    if (!complete(28)) return base;
+    const blockVoltages = Array.from({ length: 14 }, (_, index) =>
+      ctWord(payload, index * 2) * 79.99 / 65535
+    );
+    const minimumV = Math.min(...blockVoltages);
+    const maximumV = Math.max(...blockVoltages);
+    const values = {
+      packVoltageV: blockVoltages.reduce((sum, value) => sum + value, 0),
+      blockMinimumV: minimumV,
+      blockMaximumV: maximumV,
+      blockDeltaV: maximumV - minimumV,
+      blockMinimumIndex: blockVoltages.indexOf(minimumV) + 1,
+      blockMaximumIndex: blockVoltages.indexOf(maximumV) + 1
+    };
+    blockVoltages.forEach((value, index) => {
+      values[`blockVoltage${String(index + 1).padStart(2, "0")}V`] = value;
+    });
+    return { ...base, complete: true, values };
+  }
+
+  if (id === 0x87) {
+    if (!complete(8)) return base;
+    const temperatures = Array.from({ length: 4 }, (_, index) =>
+      ctWord(payload, index * 2) * 255.9 / 65535 - 50
+    );
+    const batteryTemperatures = temperatures.slice(1);
+    const minimumC = Math.min(...batteryTemperatures);
+    const maximumC = Math.max(...batteryTemperatures);
+    return {
+      ...base,
+      complete: true,
+      values: {
+        intakeTemperatureC: temperatures[0],
+        temperature1C: temperatures[1],
+        temperature2C: temperatures[2],
+        temperature3C: temperatures[3],
+        temperatureMinimumC: minimumC,
+        temperatureMaximumC: maximumC,
+        temperatureDeltaC: maximumC - minimumC
+      }
+    };
+  }
+
+  if (id === 0x95) {
+    if (!complete(14)) return base;
+    const resistances = payload.slice(0, 14).map(value => value / 1000);
+    const minimumOhm = Math.min(...resistances);
+    const maximumOhm = Math.max(...resistances);
+    const values = {
+      internalResistanceMinimumOhm: minimumOhm,
+      internalResistanceMaximumOhm: maximumOhm,
+      internalResistanceDeltaOhm: maximumOhm - minimumOhm
+    };
+    resistances.forEach((value, index) => {
+      values[`internalResistance${String(index + 1).padStart(2, "0")}Ohm`] = value;
+    });
+    return { ...base, complete: true, values };
+  }
+
+  if (id === 0x98) {
+    if (!complete(8)) return base;
+    return {
+      ...base,
+      complete: true,
+      values: {
+        batteryCurrentA: ctWord(payload, 0) / 100 - 327.68,
+        chargeControlKw: payload[2] / 2 - 64,
+        dischargeControlKw: payload[3] / 2 - 64,
+        deltaSocPercent: payload[4] / 2,
+        socAfterIgnitionPercent: payload[5] / 2,
+        socMaximumPercent: payload[6] / 2,
+        socMinimumPercent: payload[7] / 2
+      }
+    };
+  }
+
+  return base;
+}
+
+export function decodeToyotaReadDataResponse(raw, identifier = 0x7e, vehicleKey = VEHICLE_KEYS.IS220D) {
   const id = Number(identifier) & 0xff;
   const payloadDetails = extractToyotaReadDataPayloadDetails(raw, id);
   if (payloadDetails == null) return null;
@@ -264,8 +443,11 @@ export function decodeToyotaReadDataResponse(raw, identifier = 0x7e) {
     transportComplete: payloadDetails.transportComplete,
     sequenceError: payloadDetails.sequenceError,
     complete: false,
-    values: {}
+    values: {},
+    vehicleKey
   };
+
+  if (vehicleKey === VEHICLE_KEYS.CT200H) return decodeCt200hReadData(base, payloadDetails);
 
   if (id === 0x7e) {
     if (!payloadDetails.transportComplete || payload.length < 4) return base;
@@ -307,6 +489,48 @@ export function decodeToyotaReadDataResponse(raw, identifier = 0x7e) {
     };
   }
 
+  if (id === 0x93) {
+    if (!payloadDetails.transportComplete || payload.length < 1) return base;
+    return {
+      ...base,
+      complete: true,
+      values: { fuelTemperatureC: payload[0] - 40 }
+    };
+  }
+
+  if (id === 0x96) {
+    if (!payloadDetails.transportComplete || payload.length < 1) return base;
+    return {
+      ...base,
+      complete: true,
+      values: { railPressureMpa: payload[0] }
+    };
+  }
+
+  if (id === 0x9c) {
+    if (!payloadDetails.transportComplete || payload.length < 4) return base;
+    const feedback = payload.slice(0, 4).map(value => value * 10 / 64 - 10);
+    return {
+      ...base,
+      complete: true,
+      values: {
+        injectionFeedback1Mm3: feedback[0],
+        injectionFeedback2Mm3: feedback[1],
+        injectionFeedback3Mm3: feedback[2],
+        injectionFeedback4Mm3: feedback[3]
+      }
+    };
+  }
+
+  if (id === 0xaf) {
+    if (!payloadDetails.transportComplete || payload.length < 2) return base;
+    return {
+      ...base,
+      complete: true,
+      values: { injectionTimingDegCa: (payload[0] * 256 + payload[1] - 900) / 10 }
+    };
+  }
+
   return base;
 }
 
@@ -322,6 +546,20 @@ function formatToyotaReadDataValues(decoded) {
   }
   if (decoded.identifier === 0x2c) {
     return `EGR-asento ${values.egrPositionPercent.toFixed(1)} %`;
+  }
+  if (decoded.identifier === 0x93) return `polttoainelämpö ${values.fuelTemperatureC.toFixed(0)} °C`;
+  if (decoded.identifier === 0x96) return `rail-paine ${values.railPressureMpa.toFixed(0)} MPa`;
+  if (decoded.identifier === 0x9c) {
+    return `suutinkorjaukset ${[1, 2, 3, 4].map(index => values[`injectionFeedback${index}Mm3`].toFixed(2)).join(" / ")} mm³`;
+  }
+  if (decoded.identifier === 0xaf) return `ruiskutusajoitus ${values.injectionTimingDegCa.toFixed(1)} °CA`;
+  if (decoded.vehicleKey === VEHICLE_KEYS.CT200H) {
+    if (decoded.identifier === 0xc1) return `malli ${values.modelCode || "ei tulkittavissa"}${values.engineCode ? `; moottori ${values.engineCode}` : ""}`;
+    if (decoded.identifier === 0x01) return `HV SOC ${values.stateOfChargePercent.toFixed(1)} %`;
+    if (decoded.identifier === 0x81) return `14 lohkoa; ${values.blockMinimumV.toFixed(3)}–${values.blockMaximumV.toFixed(3)} V; ero ${values.blockDeltaV.toFixed(3)} V; yhteensä ${values.packVoltageV.toFixed(1)} V`;
+    if (decoded.identifier === 0x87) return `TB1–TB3 ${values.temperature1C.toFixed(1)} / ${values.temperature2C.toFixed(1)} / ${values.temperature3C.toFixed(1)} °C`;
+    if (decoded.identifier === 0x95) return `R01–R14 ${values.internalResistanceMinimumOhm.toFixed(3)}–${values.internalResistanceMaximumOhm.toFixed(3)} Ω`;
+    if (decoded.identifier === 0x98) return `HV-virta ${values.batteryCurrentA.toFixed(1)} A; SOC-hajonta ${values.deltaSocPercent.toFixed(1)} %`;
   }
   return `positiivinen 61 ${decoded.identifierHex} -vastaus löytyi`;
 }
@@ -348,6 +586,43 @@ export function parseDtcResponse(raw, responseMode) {
         codes.push({ code, description: DTC_DESCRIPTIONS[code] || "Yleinen EOBD-vikakoodi – tarkka diagnoosi vaatii lisätutkimusta" });
       }
     }
+  }
+  return codes;
+}
+
+export function parseCountedDtcResponse(raw, responseMode, source = "Hybridiohjain") {
+  const service = Number(responseMode) & 0xff;
+  const lines = hexLines(cleanElmResponse(raw));
+  let payload = [];
+  let collecting = false;
+  let expectedLength = null;
+
+  for (const line of lines) {
+    const bytes = line.match(/../g)?.map(value => Number.parseInt(value, 16)) || [];
+    const serviceIndex = bytes.indexOf(service);
+    if (serviceIndex >= 0) {
+      collecting = true;
+      payload.push(...bytes.slice(serviceIndex + 1));
+      if (payload.length) expectedLength = 1 + payload[0] * 2;
+    } else if (collecting && (bytes[0] & 0xf0) === 0x20) {
+      payload.push(...bytes.slice(1));
+    }
+    if (expectedLength != null && payload.length >= expectedLength) break;
+  }
+
+  if (!payload.length) return [];
+  const count = Math.min(payload[0], Math.floor((payload.length - 1) / 2));
+  const codes = [];
+  const seen = new Set();
+  for (let index = 0; index < count; index++) {
+    const code = decodeDtcBytes(payload[1 + index * 2], payload[2 + index * 2]);
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    codes.push({
+      code,
+      description: DTC_DESCRIPTIONS[code] || "Lexus-hybridijärjestelmän vikakoodi – tarkka diagnoosi vaatii korjausohjeen ja mahdollisen INF-lisäkoodin",
+      source
+    });
   }
   return codes;
 }
@@ -443,25 +718,43 @@ export const PID_DEFINITIONS = [
   { id: "oxygenConcentrationB1S1", pid: 0x8c, name: "Happipitoisuus B1S1", short: "O₂ B1S1", unit: "%", decimals: 2, standardAdvanced: true, quicklynksOptional: true, decode: bytes => wordAt(bytes, 1) * 10 / 65536 },
   { id: "pmSensorRegenerating", pid: 0x8f, name: "PM-anturi regeneroi B1", short: "PM-anturin poltto", unit: "", decimals: 0, format: "onOff", standardAdvanced: true, quicklynksOptional: true, decode: bytes => (byteAt(bytes, 1) & 0x02) ? 1 : 0 },
   { id: "pmSensorDpfLoad", pid: 0x8f, name: "PM-anturin DPF-kuormitus B1", short: "PM DPF-kuorma", unit: "%", decimals: 2, standardAdvanced: true, quicklynksOptional: true, decode: bytes => wordAt(bytes, 2) / 100 },
-  { id: "dpnrDifferentialPressure", pid: null, name: "DPNR-paine-ero (Techstream)", short: "DPNR paine-ero", unit: "kPa", decimals: 2, toyotaReadData: true, toyotaIdentifier: 0x7e, toyotaCommand: "217E", toyotaValueKey: "dpnrDifferentialPressureKpa" },
-  { id: "dpnrSulfurRegenerationState", pid: null, name: "DPNR-rikkiregeneroinnin tila", short: "DPNR S-tila", unit: "", decimals: 0, format: "dpnrState", toyotaReadData: true, toyotaIdentifier: 0x7e, toyotaCommand: "217E", toyotaValueKey: "sulfurRegenerationState" },
-  { id: "dpnrPmRegenerationState", pid: null, name: "DPNR-PM-regeneroinnin tila", short: "DPNR PM-tila", unit: "", decimals: 0, format: "dpnrState", toyotaReadData: true, toyotaIdentifier: 0x7e, toyotaCommand: "217E", toyotaValueKey: "pmRegenerationState" },
-  { id: "dpnrRegenerationActive", pid: null, name: "DPNR-regenerointi käynnissä", short: "DPNR-poltto", unit: "", decimals: 0, format: "onOff", toyotaReadData: true, toyotaIdentifier: 0x7e, toyotaCommand: "217E", toyotaValueKey: "regenerationActive" },
-  { id: "dpnrInletTemperature", pid: null, name: "Pakolämpö ennen DPNR:ää", short: "DPNR tulo °C", unit: "°C", decimals: 1, toyotaReadData: true, toyotaIdentifier: 0x7f, toyotaCommand: "217F", toyotaValueKey: "dpnrInletTemperatureC" },
-  { id: "dpnrOutletTemperature", pid: null, name: "Pakolämpö DPNR:n jälkeen", short: "DPNR lähtö °C", unit: "°C", decimals: 1, toyotaReadData: true, toyotaIdentifier: 0x7f, toyotaCommand: "217F", toyotaValueKey: "dpnrOutletTemperatureC" },
-  { id: "toyotaEgrPosition", pid: null, name: "EGR-venttiilin asento (Techstream)", short: "EGR TS", unit: "%", decimals: 1, toyotaReadData: true, toyotaIdentifier: 0x2c, toyotaCommand: "212C", toyotaValueKey: "egrPositionPercent" },
-  { id: "toyotaFuelTemperature", pid: null, name: "Polttoaineen lämpötila (Techstream)", short: "Polttoainelämpö TS", unit: "°C", decimals: 0, toyotaReadData: true },
-  { id: "toyotaRailPressure", pid: null, name: "Common rail -paine (Techstream)", short: "Rail TS", unit: "MPa", decimals: 0, toyotaReadData: true },
-  { id: "injectionFeedback1", pid: null, name: "Suutinkorjaus 1 (Techstream)", short: "Suutinkorjaus 1", unit: "mm³", decimals: 2, toyotaReadData: true },
-  { id: "injectionFeedback2", pid: null, name: "Suutinkorjaus 2 (Techstream)", short: "Suutinkorjaus 2", unit: "mm³", decimals: 2, toyotaReadData: true },
-  { id: "injectionFeedback3", pid: null, name: "Suutinkorjaus 3 (Techstream)", short: "Suutinkorjaus 3", unit: "mm³", decimals: 2, toyotaReadData: true },
-  { id: "injectionFeedback4", pid: null, name: "Suutinkorjaus 4 (Techstream)", short: "Suutinkorjaus 4", unit: "mm³", decimals: 2, toyotaReadData: true },
-  { id: "toyotaInjectionTiming", pid: null, name: "Ruiskutusajoitus (Techstream)", short: "Ruiskutusajoitus TS", unit: "°CA", decimals: 1, toyotaReadData: true }
+  { id: "dpnrDifferentialPressure", pid: null, name: "DPNR-paine-ero (Techstream)", short: "DPNR paine-ero", unit: "kPa", decimals: 2, vehicleKey: "is220d", toyotaReadData: true, toyotaIdentifier: 0x7e, toyotaCommand: "217E", toyotaValueKey: "dpnrDifferentialPressureKpa" },
+  { id: "dpnrSulfurRegenerationState", pid: null, name: "DPNR-rikkiregeneroinnin tila", short: "DPNR S-tila", unit: "", decimals: 0, format: "dpnrState", vehicleKey: "is220d", toyotaReadData: true, toyotaIdentifier: 0x7e, toyotaCommand: "217E", toyotaValueKey: "sulfurRegenerationState" },
+  { id: "dpnrPmRegenerationState", pid: null, name: "DPNR-PM-regeneroinnin tila", short: "DPNR PM-tila", unit: "", decimals: 0, format: "dpnrState", vehicleKey: "is220d", toyotaReadData: true, toyotaIdentifier: 0x7e, toyotaCommand: "217E", toyotaValueKey: "pmRegenerationState" },
+  { id: "dpnrRegenerationActive", pid: null, name: "DPNR-regenerointi käynnissä", short: "DPNR-poltto", unit: "", decimals: 0, format: "onOff", vehicleKey: "is220d", toyotaReadData: true, toyotaIdentifier: 0x7e, toyotaCommand: "217E", toyotaValueKey: "regenerationActive" },
+  { id: "dpnrInletTemperature", pid: null, name: "Pakolämpö ennen DPNR:ää", short: "DPNR tulo °C", unit: "°C", decimals: 1, vehicleKey: "is220d", toyotaReadData: true, toyotaIdentifier: 0x7f, toyotaCommand: "217F", toyotaValueKey: "dpnrInletTemperatureC" },
+  { id: "dpnrOutletTemperature", pid: null, name: "Pakolämpö DPNR:n jälkeen", short: "DPNR lähtö °C", unit: "°C", decimals: 1, vehicleKey: "is220d", toyotaReadData: true, toyotaIdentifier: 0x7f, toyotaCommand: "217F", toyotaValueKey: "dpnrOutletTemperatureC" },
+  { id: "toyotaEgrPosition", pid: null, name: "EGR-venttiilin asento (Techstream)", short: "EGR TS", unit: "%", decimals: 1, vehicleKey: "is220d", toyotaReadData: true, toyotaIdentifier: 0x2c, toyotaCommand: "212C", toyotaValueKey: "egrPositionPercent" },
+  { id: "toyotaFuelTemperature", pid: null, name: "Polttoaineen lämpötila (Techstream)", short: "Polttoainelämpö TS", unit: "°C", decimals: 0, vehicleKey: "is220d", toyotaReadData: true },
+  { id: "toyotaRailPressure", pid: null, name: "Common rail -paine (Techstream)", short: "Rail TS", unit: "MPa", decimals: 0, vehicleKey: "is220d", toyotaReadData: true },
+  { id: "injectionFeedback1", pid: null, name: "Suutinkorjaus 1 (Techstream)", short: "Suutinkorjaus 1", unit: "mm³", decimals: 2, vehicleKey: "is220d", toyotaReadData: true },
+  { id: "injectionFeedback2", pid: null, name: "Suutinkorjaus 2 (Techstream)", short: "Suutinkorjaus 2", unit: "mm³", decimals: 2, vehicleKey: "is220d", toyotaReadData: true },
+  { id: "injectionFeedback3", pid: null, name: "Suutinkorjaus 3 (Techstream)", short: "Suutinkorjaus 3", unit: "mm³", decimals: 2, vehicleKey: "is220d", toyotaReadData: true },
+  { id: "injectionFeedback4", pid: null, name: "Suutinkorjaus 4 (Techstream)", short: "Suutinkorjaus 4", unit: "mm³", decimals: 2, vehicleKey: "is220d", toyotaReadData: true },
+  { id: "toyotaInjectionTiming", pid: null, name: "Ruiskutusajoitus (Techstream)", short: "Ruiskutusajoitus TS", unit: "°CA", decimals: 1, vehicleKey: "is220d", toyotaReadData: true },
+  ...CT200H_LIVE_DATA_PROBES.flatMap(probe => probe.fields.map(field => ({
+    id: field.id,
+    pid: null,
+    name: field.label,
+    short: field.label.replace(/^HV-akun\s+/i, "HV ").slice(0, 28),
+    unit: field.unit,
+    decimals: field.decimals,
+    vehicleKey: VEHICLE_KEYS.CT200H,
+    evidence: field.evidence,
+    toyotaReadData: true,
+    toyotaIdentifier: probe.identifier,
+    toyotaCommand: probe.command,
+    toyotaValueKey: field.valueKey
+  }))),
+  { id: "ctHvPackPower", pid: null, name: "HV-akun teho (plus = purkaus)", short: "HV teho", unit: "kW", decimals: 1, vehicleKey: VEHICLE_KEYS.CT200H, derived: true }
 ];
 
 export const PID_BY_ID = Object.fromEntries(PID_DEFINITIONS.map(def => [def.id, def]));
 export const TOYOTA_LIVE_METRIC_IDS = Object.freeze(
-  PID_DEFINITIONS.filter(def => def.toyotaCommand && def.toyotaValueKey).map(def => def.id)
+  PID_DEFINITIONS.filter(def => def.vehicleKey === VEHICLE_KEYS.IS220D && def.toyotaCommand && def.toyotaValueKey).map(def => def.id)
+);
+export const CT200H_LIVE_METRIC_IDS = Object.freeze(
+  PID_DEFINITIONS.filter(def => def.vehicleKey === VEHICLE_KEYS.CT200H && def.toyotaCommand && def.toyotaValueKey).map(def => def.id)
 );
 export const PID_BY_HEX = Object.fromEntries(
   PID_DEFINITIONS.filter(def => Number.isInteger(def.pid)).map(def => [hexByte(def.pid), def])
@@ -684,7 +977,7 @@ export function parseSupportedPids(raw, rangeStart = 0x00) {
 export function isSafeTerminalCommand(command) {
   const normalized = String(command || "").replace(/\s+/g, "").toUpperCase();
   if (/^AT[A-Z0-9@]*$/.test(normalized)) return true;
-  if (TOYOTA_READ_DATA_PROBES.some(probe => probe.command === normalized)) return true;
+  if (ALL_PROFILE_READ_ONLY_COMMANDS.includes(normalized)) return true;
   return /^(01|02|03|07|09|0A)[0-9A-F]*$/.test(normalized);
 }
 
@@ -751,7 +1044,7 @@ export function evaluateFullDiagnosticStep(step, raw = "", error = "") {
       : interpretation;
   } else if (expected === "toyota217e" || expected === "toyotaReadData") {
     const identifier = Number.isInteger(step?.toyotaIdentifier) ? step.toyotaIdentifier : 0x7e;
-    const decodedToyota = decodeToyotaReadDataResponse(raw, identifier);
+    const decodedToyota = decodeToyotaReadDataResponse(raw, identifier, step?.vehicleKey || VEHICLE_KEYS.IS220D);
     const negativeDiagnostic = diagnosticOutcome.negativeResponse || parseDiagnosticNegativeResponse(raw, 0x21);
     const negativeToyota = negativeDiagnostic
       ? { code: negativeDiagnostic.code, description: negativeDiagnostic.description }
@@ -832,12 +1125,14 @@ export function evaluateFullDiagnosticStep(step, raw = "", error = "") {
 function diagnosticToyotaIdentifier(result) {
   if (Number.isInteger(result?.toyotaIdentifier)) return result.toyotaIdentifier & 0xff;
   const command = String(result?.command || "").replace(/\s+/g, "").toUpperCase();
-  const probe = TOYOTA_READ_DATA_PROBES.find(item => item.command === command || item.rawCommand === command);
+  const probe = getProfileReadDataProbe(command, result?.vehicleKey || "");
   return probe?.identifier ?? null;
 }
 
 export function summarizeFullDiagnostic(run = {}) {
   const results = Array.isArray(run.results) ? run.results : [];
+  const vehicleKey = getVehicleProfile(run?.meta?.vehicleKey) ? run.meta.vehicleKey : "";
+  const diagnosticProbes = getVehicleReadDataProbes(vehicleKey);
   const adapterCapabilities = summarizeAdapterCapabilities(results, run.meta || {});
   const findCommands = command => results.filter(result => result.command === command);
   const passed = results.filter(result => result.status === "PASS").length;
@@ -856,13 +1151,13 @@ export function summarizeFullDiagnostic(run = {}) {
   const directHeaders = [...new Set(validObdResponses.map(result => result.requestHeader).filter(header => header && header !== "7DF"))];
   const engineHeader = directHeaders.includes("7E0") ? "7E0" : directHeaders[0] || (broadcastResponded ? "7DF" : "");
   const monitorSawFrames = results.some(result => result.expected === "monitor" && result.validResponse);
-  const toyotaProbeSummaries = TOYOTA_READ_DATA_PROBES.map(probe => {
+  const toyotaProbeSummaries = diagnosticProbes.map(probe => {
     const attempts = results.filter(result =>
       (result.expected === "toyota217e" || result.expected === "toyotaReadData") &&
       diagnosticToyotaIdentifier(result) === probe.identifier
     );
     const positive = attempts.find(result => result.validResponse) || null;
-    const decoded = positive?.decodedToyota || (positive ? decodeToyotaReadDataResponse(positive.raw, probe.identifier) : null);
+    const decoded = positive?.decodedToyota || (positive ? decodeToyotaReadDataResponse(positive.raw, probe.identifier, vehicleKey) : null);
     const negativeResponses = attempts.map(result => result.negativeToyota).filter(Boolean);
     return {
       identifier: probe.identifier,
@@ -992,22 +1287,25 @@ export function buildFullDiagnosticReport(run = {}) {
   const summary = run.summary || summarizeFullDiagnostic(run);
   const adapterCapabilities = summary.adapterCapabilities || summarizeAdapterCapabilities(results, run.meta || {});
   const meta = run.meta || {};
+  const vehicleKey = getVehicleProfile(meta.vehicleKey) ? meta.vehicleKey : "";
+  const vehicleProfile = getVehicleProfile(vehicleKey);
+  const diagnosticProbes = getVehicleReadDataProbes(vehicleKey);
   const durationMs = Math.max(0, Number(run.endedAt || Date.now()) - Number(run.startedAt || Date.now()));
   const lines = [
-    "===== BEGIN IS220D OBD FLEX FULL DIAGNOSTIC REPORT =====",
+    "===== BEGIN LEXUS OBD FLEX FULL DIAGNOSTIC REPORT =====",
     "Raporttityyppi: Laaja ELM/CAN-diagnostiikka",
     `Raporttitunnus: ${meta.reportId || "ei tietoa"}`,
     `Raporttimuoto: ${FULL_DIAGNOSTIC_SCRIPT_VERSION}`,
-    `Sovellus: IS220d OBD Flex ${meta.appVersion || "tuntematon"}`,
-    `Ajoneuvoprofiili: ${IS220D_DIAGNOSTIC_PROFILE.profileVersion}`,
-    `Profiilin skeema: ${IS220D_DIAGNOSTIC_PROFILE.schemaVersion}`,
-    `Julkaistavan arvon vähimmäisevidenssi: ${IS220D_DIAGNOSTIC_PROFILE.evidencePolicy.publishMinimum}`,
-    `Profiili vain luku: ${IS220D_DIAGNOSTIC_PROFILE.writable === false ? "kyllä" : "ei"}`,
+    `Sovellus: Lexus OBD Flex ${meta.appVersion || "tuntematon"}`,
+    `Ajoneuvoprofiili: ${vehicleProfile?.profileVersion || "tunnistamaton / yleinen EOBD"}`,
+    `Profiilin skeema: ${vehicleProfile?.schemaVersion || "ei käytössä"}`,
+    `Julkaistavan arvon vähimmäisevidenssi: ${vehicleProfile?.evidencePolicy?.publishMinimum || "ei ajoneuvokohtaista profiilia"}`,
+    `Profiili vain luku: ${vehicleProfile ? (vehicleProfile.writable === false ? "kyllä" : "ei") : "ei ajoneuvokohtaista profiilia"}`,
     `Aloitus: ${new Date(run.startedAt || Date.now()).toISOString()}`,
     `Lopetus: ${new Date(run.endedAt || Date.now()).toISOString()}`,
     `Kesto_ms: ${durationMs}`,
     `Keskeytetty: ${run.cancelled ? "kyllä" : "ei"}`,
-    `Ajoneuvo: ${meta.vehicle || "Lexus IS220d 2008 · 2AD-FHV"}`,
+    `Ajoneuvo: ${meta.vehicle || vehicleProfile?.vehicle?.displayName || "Yleinen EOBD / tunnistamaton Lexus"}`,
     `Moottorin tila, käyttäjän ilmoitus: ${summary.engineRunningDeclared === true ? "käy" : summary.engineRunningDeclared === false ? "ei käy" : "automaattinen / ei ilmoitettu"}`,
     `Moottorin tila, kierrosluvusta havaittu: ${summary.engineRunningObserved === true ? "käy" : summary.engineRunningObserved === false ? "ei käy" : "ei voitu päätellä"}`,
     `Havaittu kierrosluku: ${Number.isFinite(summary.observedRpm) ? `${summary.observedRpm} rpm` : "ei tietoa"}`,
@@ -1044,10 +1342,8 @@ export function buildFullDiagnosticReport(run = {}) {
     `Suorat vastaavat osoitteet: ${summary.directHeaders.join(", ") || "ei löytynyt"}`,
     `Valittu palautusosoite: ${summary.engineHeader || "7DF"}`,
     `CAN-kuuntelu näki kehyksiä: ${summary.monitorSawFrames ? "kyllä" : "ei"}`,
-    `Toyota Read Data -vastauksia: ${summary.toyotaResponseCount}/${TOYOTA_READ_DATA_PROBES.length}`,
-    `Toyota 61 7E löytyi: ${summary.toyotaProbeSummaries.find(item => item.identifier === 0x7e)?.responded ? "kyllä" : "ei / ei ajettu"}`,
-    `Toyota 61 7F löytyi: ${summary.toyotaProbeSummaries.find(item => item.identifier === 0x7f)?.responded ? "kyllä" : "ei / ei ajettu"}`,
-    `Toyota 61 2C löytyi: ${summary.toyotaProbeSummaries.find(item => item.identifier === 0x2c)?.responded ? "kyllä" : "ei / ei ajettu"}`,
+    `Toyota Read Data -vastauksia: ${summary.toyotaResponseCount}/${diagnosticProbes.length}`,
+    ...summary.toyotaProbeSummaries.map(item => `Toyota ${item.command} / 61 ${item.identifierHex} löytyi: ${item.responded ? "kyllä" : "ei / ei ajettu"}`),
     ...summary.toyotaProbeSummaries.filter(item => item.responded).map(item =>
       `Toyota ${item.command} tulkinta: ${formatToyotaReadDataValues(item.decoded)}`
     ),
@@ -1131,21 +1427,21 @@ export function buildFullDiagnosticReport(run = {}) {
       diagnosticEscaped(diagnosticRawText(result.raw).text)
     ].map(diagnosticTsv).join("\t"));
   }
-  lines.push("===== END IS220D OBD FLEX FULL DIAGNOSTIC REPORT =====");
+  lines.push("===== END LEXUS OBD FLEX FULL DIAGNOSTIC REPORT =====");
   return lines.join("\n");
 }
 
 export function buildFullDiagnosticAnalysisPrompt(run = {}) {
   const summary = run.summary || summarizeFullDiagnostic(run);
   return [
-    "Analysoi liitteenä oleva IS220d OBD Flexin automaattinen diagnostiikkaraportti.",
+    "Analysoi liitteenä oleva Lexus OBD Flexin automaattinen diagnostiikkaraportti.",
     "Käy läpi kaikki vaiheet ja raakavastaukset. Erottele varmennetut havainnot, todennäköiset selitykset ja epävarmuudet.",
     "Arvioi erikseen vLinker MC / MC+ -tunnistus, ATI/STI/STDI-identiteetit, kuljetusprofiili, OBD-jännite ja adapterin turvallisten capability-probejen tulokset.",
     "Älä päättele ATCS-arvosta yksin fyysistä CAN-vikaa, koska halvat ELM327-kloonit voivat toteuttaa sen puutteellisesti.",
     "Vertaa Toyota 217E-, 217F- ja 212C-kyselyiden normaalia, 7E8-suodatettua ja raakaa ISO-TP-lukuprofiilia. Päättele erikseen, hyväksyykö adapteri Toyota Read Data 21 -kyselyt ja vastaako 2AD-FHV:n moottori-ECU.",
     "Toyota-arvojen varmennetut kaavat ovat: 217E paine raw16 × 0,0039 − 5 kPa ja kaksi tilatavua; 217F lämpötilat raw16 × 0,625 °C; 212C EGR raw8 × 100/255 %.",
     "Tavoite on päättää, mitä Flexin ohjelmistossa pitää muuttaa seuraavaksi ilman uusia käsin syötettäviä terminaalikomentoketjuja.",
-    `Automaattiyhteenveto: ELM=${summary.adapterResponded ? "OK" : "EI"}, vLinker=${summary.adapterCapabilities.vlinkerDetected ? "KYLLÄ" : "EI"}, ST-ydin=${summary.adapterCapabilities.stnSupported ? "KYLLÄ" : "EI"}, OBD-vastauksia=${summary.validObdResponseCount}, Toyota-vastauksia=${summary.toyotaResponseCount}/${TOYOTA_READ_DATA_PROBES.length}, suorat osoitteet=${summary.directHeaders.join(",") || "ei löytynyt"}, aikakatkaisuja=${summary.timeouts}.`
+    `Automaattiyhteenveto: ELM=${summary.adapterResponded ? "OK" : "EI"}, vLinker=${summary.adapterCapabilities.vlinkerDetected ? "KYLLÄ" : "EI"}, ST-ydin=${summary.adapterCapabilities.stnSupported ? "KYLLÄ" : "EI"}, OBD-vastauksia=${summary.validObdResponseCount}, Toyota-vastauksia=${summary.toyotaResponseCount}/${summary.toyotaProbeSummaries.length}, suorat osoitteet=${summary.directHeaders.join(",") || "ei löytynyt"}, aikakatkaisuja=${summary.timeouts}.`
   ].join("\n");
 }
 
@@ -1680,16 +1976,16 @@ export function buildQuicklynksWideDiagnosticReport(run = {}) {
   const ble = meta.bleDiagnostics || {};
   const baseline = meta.baseline || {};
   const lines = [
-    "===== BEGIN IS220D OBD FLEX QUICKLYNKS WIDE DIAGNOSTIC REPORT =====",
+    "===== BEGIN LEXUS OBD FLEX QUICKLYNKS WIDE DIAGNOSTIC REPORT =====",
     "Raporttityyppi: Laaja Quicklynks BLE -diagnostiikka",
     `Raporttitunnus: ${meta.reportId || "ei tietoa"}`,
     `Raporttimuoto: ${QUICKLYNKS_WIDE_DIAGNOSTIC_SCRIPT_VERSION}`,
-    `Sovellus: IS220d OBD Flex ${meta.appVersion || "tuntematon"}`,
+    `Sovellus: Lexus OBD Flex ${meta.appVersion || "tuntematon"}`,
     `Aloitus: ${new Date(run.startedAt || Date.now()).toISOString()}`,
     `Lopetus: ${new Date(run.endedAt || Date.now()).toISOString()}`,
     `Kesto_ms: ${durationMs}`,
     `Keskeytetty: ${run.cancelled ? "kyllä" : "ei"}`,
-    `Ajoneuvo: ${meta.vehicle || "Lexus IS220d 2008 · 2AD-FHV"}`,
+    `Ajoneuvo: ${meta.vehicle || "Lexus · yleinen EOBD"}`,
     `Moottorin tila, käyttäjän ilmoitus: ${summary.engineRunningDeclared === true ? "käy" : summary.engineRunningDeclared === false ? "ei käy" : "automaattinen / ei ilmoitettu"}`,
     `Moottorin tila, Quicklynks-RPM:stä havaittu: ${summary.engineRunningObserved === true ? "käy" : summary.engineRunningObserved === false ? "ei käy" : "ei voitu päätellä"}`,
     `Havaittu kierrosluku: ${Number.isFinite(summary.observedRpm) ? `${summary.observedRpm} rpm` : "ei tietoa"}`,
@@ -1818,14 +2114,14 @@ export function buildQuicklynksWideDiagnosticReport(run = {}) {
       diagnosticEscaped(diagnosticRawText(result.notificationHex).text)
     ].map(diagnosticTsv).join("\t"));
   }
-  lines.push("===== END IS220D OBD FLEX QUICKLYNKS WIDE DIAGNOSTIC REPORT =====");
+  lines.push("===== END LEXUS OBD FLEX QUICKLYNKS WIDE DIAGNOSTIC REPORT =====");
   return lines.join("\n");
 }
 
 export function buildQuicklynksWideDiagnosticAnalysisPrompt(run = {}) {
   const summary = run.summary || summarizeQuicklynksWideDiagnostic(run);
   return [
-    "Analysoi liitteenä oleva IS220d OBD Flexin laaja Quicklynks BLE -diagnostiikkaraportti.",
+    "Analysoi liitteenä oleva Lexus OBD Flexin laaja Quicklynks BLE -diagnostiikkaraportti.",
     "Tarkista ensin kuusi PID-tukibittikandidaattia ja sen jälkeen jokaisen varsinaisen PIDin kolme kierrosta, täydet raakavastaukset, BLE-ilmoituspalat, vastaustyyppi, payload-pituus ja toistettavuus.",
     "Quicklynksin varmennetussa yksittäisvastausmuodossa PID ei toistu vastauksessa: rakenne on [pituus] [41] [payload].",
     "FF-tavu GATT-jatkopalan alussa on poistettu vain silloin, kun edellinen looginen kehys oli kesken; alkuperäiset notification_hex-palat säilyvät raportissa.",
@@ -1978,7 +2274,7 @@ export class NativeElmTransport {
     return result;
   }
 
-  async shareCsv(uri, prompt, title = "Lexus IS220d koeajodatan analyysi", mimeType = "text/csv") {
+  async shareCsv(uri, prompt, title = "Lexus OBD koeajodatan analyysi", mimeType = "text/csv") {
     if (!this.available() || !this.bridge.shareCsv) return null;
     const result = String(this.bridge.shareCsv(String(uri), String(prompt), String(title), String(mimeType)));
     if (result.startsWith("__ERROR__")) throw new Error(result.slice(9));
@@ -2646,11 +2942,12 @@ export class FakeElmTransport {
     this.connected = false;
     this.startTime = Date.now();
     this.supported = new Set([0x01, ...PID_DEFINITIONS.map(def => def.pid).filter(Number.isInteger), 0x20, 0x40, 0x60]);
+    this.currentHeader = "7E0";
   }
 
   available() { return true; }
   async pairedDevices() { return [{ name: "Simulaattori", address: "FAKE:IS220D", simulated: true }]; }
-  async connect() { this.connected = true; this.startTime = Date.now(); await delay(180); return { ok: true, name: "IS220d-simulaattori", address: "FAKE:IS220D" }; }
+  async connect() { this.connected = true; this.startTime = Date.now(); this.currentHeader = "7E0"; await delay(180); return { ok: true, name: "Lexus-simulaattori", address: "FAKE:IS220D" }; }
   async disconnect() { this.connected = false; }
   isConnected() { return this.connected; }
   async exportCsv() { return "SIMULOITU"; }
@@ -2660,13 +2957,39 @@ export class FakeElmTransport {
     await delay(25 + Math.random() * 35);
     const cmd = String(command).replace(/\s+/g, "").toUpperCase();
     if (cmd === "ATZ") return "ELM327 v2.1\r>";
-    if (cmd === "ATI") return "ELM327 v2.1 (IS220d SIM)\r>";
+    if (cmd === "ATI") return "ELM327 v2.1 (LEXUS FLEX SIM)\r>";
     if (cmd === "ATDP") return "AUTO, ISO 15765-4 (CAN 11/500)\r>";
+    if (cmd.startsWith("ATSH") && cmd.length >= 7) {
+      this.currentHeader = cmd.slice(4);
+      return "OK\r>";
+    }
     if (cmd.startsWith("AT")) return "OK\r>";
     if (cmd === "0101") return "41 01 81 07 A0 01\r>";
     if (cmd === "03") return "43 04 01 00 00\r>";
     if (cmd === "07") return "47 00 87 00 00\r>";
     if (cmd === "0A") return "4A 00 00\r>";
+    if (cmd === "13B0") return "53 00\r>";
+    if (cmd === "0902" && this.currentHeader === "7E0") {
+      return "7E8 10 14 49 02 01 4A 54 48\r7E8 21 42 42 32 36 32 33 30\r7E8 22 32 30 32 38 37 38 37\r>";
+    }
+    if (cmd === "21C1" && this.currentHeader === "7E2") return "NO DATA\r>";
+    if (cmd === "2101" && this.currentHeader === "7E2") return `61 01 ${Array(21).fill("00").join(" ")} 99\r>`;
+    if (cmd === "2181") {
+      const blocks = Array.from({ length: 14 }, (_, index) => hexWord(11790 + (index % 5) * 9)).flatMap(word => word.match(/../g));
+      return `61 81 ${blocks.join(" ")}\r>`;
+    }
+    if (cmd === "2187") {
+      const temperatures = [24.5, 31.1, 32.0, 31.6].flatMap(value => hexWord((value + 50) * 256).match(/../g));
+      return `61 87 ${temperatures.join(" ")}\r>`;
+    }
+    if (cmd === "2195") return `61 95 ${Array.from({ length: 14 }, (_, index) => hexByte(24 + index % 3)).join(" ")}\r>`;
+    if (cmd === "2198") {
+      const currentA = Math.sin((Date.now() - this.startTime) / 1000 * 0.72) * 35;
+      return `61 98 ${hexWord((currentA + 327.68) * 100).match(/../g).join(" ")} 4E B2 04 78 7C 74\r>`;
+    }
+    if (cmd === "217E" && this.currentHeader === "7E0") return "61 7E 0A 04 02 00\r>";
+    if (cmd === "217F" && this.currentHeader === "7E0") return "61 7F 01 00 01 20\r>";
+    if (cmd === "212C" && this.currentHeader === "7E0") return "61 2C 80\r>";
     if (cmd === "04") return "44\r>";
     if (cmd === "0202") return "42 02 04 01\r>";
     if (/^01(00|20|40|60)$/.test(cmd)) {
@@ -2690,6 +3013,8 @@ export class FakeElmTransport {
     const values = {
       0x04: [hexByte(32 + Math.max(0, wave) * 160)],
       0x05: [hexByte(coolant + 40)],
+      0x06: [hexByte(128 + Math.sin(t * 0.2) * 4)],
+      0x07: [hexByte(128 + Math.sin(t * 0.08) * 3)],
       0x0b: [hexByte(map)],
       0x0c: hexWord(rpm * 4).match(/../g),
       0x0d: [hexByte(speed)],
@@ -2701,12 +3026,15 @@ export class FakeElmTransport {
       0x23: hexWord(rail / 10).match(/../g),
       0x2c: [hexByte(45 - Math.max(0, wave) * 28)],
       0x2d: [hexByte(128 + Math.sin(t * .3) * 5)],
+      0x30: ["0C"],
       0x31: ["01", "D4"],
       0x33: ["65"],
       0x42: hexWord(14.18 * 1000).match(/../g),
       0x49: [hexByte(18 + Math.max(0, wave) * 95)],
       0x4a: [hexByte(28 + Math.max(0, wave) * 105)],
       0x4c: [hexByte(50 + Math.max(0, wave) * 100)],
+      0x4d: ["00", "00"],
+      0x4e: ["05", "A0"],
       0x5c: [hexByte(Math.min(94, 52 + t / 22) + 40)],
       0x5e: hexWord(fuelRate * 20).match(/../g)
     };
@@ -2771,6 +3099,19 @@ export class Elm327Client {
     this.toyotaLiveMetricIds = new Set();
     this.toyotaResponseCache = new Map();
     this.ecuTransactionSequence = 0;
+    this.vehicleKey = options.vehicleKey === VEHICLE_KEYS.AUTO
+      ? VEHICLE_KEYS.AUTO
+      : getVehicleProfile(options.vehicleKey)
+        ? options.vehicleKey
+        : VEHICLE_KEYS.IS220D;
+  }
+
+  setVehicleKey(vehicleKey) {
+    const normalized = String(vehicleKey || "").toLowerCase();
+    this.vehicleKey = getVehicleProfile(normalized) ? normalized : VEHICLE_KEYS.AUTO;
+    this.toyotaLiveMetricIds.clear();
+    this.toyotaResponseCache.clear();
+    return this.vehicleKey;
   }
 
   enqueue(task) {
@@ -3013,6 +3354,21 @@ export class Elm327Client {
     return this.enqueue(() => this.transmitQueuedCommand(cmd, timeout));
   }
 
+  readVehicleIdentification({ timeoutMs = 9000 } = {}) {
+    const safeTimeoutMs = Math.max(1000, Math.min(20000, Number(timeoutMs) || 9000));
+    const transactionId = `VIN-${String(++this.ecuTransactionSequence).padStart(5, "0")}`;
+    return this.enqueue(async () => {
+      try {
+        try { await this.transmitQueuedCommand("ATCRA", 3500, transactionId); } catch {}
+        await this.transmitQueuedCommand("ATSH7E0", 4500, transactionId);
+        return await this.transmitQueuedCommand("0902", safeTimeoutMs, transactionId);
+      } finally {
+        try { await this.transmitQueuedCommand("ATCRA", 3500, transactionId); } catch {}
+        try { await this.transmitQueuedCommand("ATSH7E0", 4500, transactionId); } catch {}
+      }
+    });
+  }
+
   runReadOnlyEcuTransaction({
     requestHeader,
     responseHeader = "",
@@ -3021,10 +3377,17 @@ export class Elm327Client {
     clearResponseFilter = true,
     cleanupResponseFilter = true,
     continueOnReadError = false,
-    label = "IS220d read-only ECU"
+    label = "Lexus read-only ECU",
+    profileKey = this.vehicleKey,
+    restoreRequestHeader = ""
   } = {}) {
     const txHeader = validateEcuHeader(requestHeader, "ECU-pyyntöotsake");
     const rxHeader = responseHeader ? validateEcuHeader(responseHeader, "ECU-vastausotsake") : "";
+    const restoreHeader = restoreRequestHeader
+      ? validateEcuHeader(restoreRequestHeader, "ECU-palautusotsake")
+      : profileKey === VEHICLE_KEYS.CT200H && txHeader !== "7E0"
+        ? "7E0"
+        : "";
     const setup = setupCommands.map(normalizeElmCommand);
     for (const command of setup) {
       if (!ELM_PROFILE_SETUP_COMMANDS.has(command)) throw new Error(`ECU-transaktion turvallisuussallintalista esti asetuskomennon ${command || "(tyhjä)"}`);
@@ -3033,7 +3396,7 @@ export class Elm327Client {
     const normalizedRequests = requests.map(request => {
       const descriptor = typeof request === "string" ? { command: request } : { ...(request || {}) };
       const command = normalizeElmCommand(descriptor.command);
-      if (!isProfileReadOnlyCommand(command)) throw new Error(`ECU-transaktion turvallisuussallintalista esti pyynnön ${command || "(tyhjä)"}`);
+      if (!isProfileReadOnlyCommand(command, profileKey)) throw new Error(`ECU-transaktion turvallisuussallintalista esti pyynnön ${command || "(tyhjä)"}`);
       return {
         ...descriptor,
         command,
@@ -3091,12 +3454,16 @@ export class Elm327Client {
         if (rxHeader && cleanupResponseFilter) {
           try { await this.transmitQueuedCommand("ATCRA", 3500, transactionId); } catch {}
         }
+        if (restoreHeader && restoreHeader !== txHeader) {
+          try { await this.transmitQueuedCommand(`ATSH${restoreHeader}`, 4500, transactionId); } catch {}
+        }
       }
       return Object.freeze({
         transactionId,
         label,
         requestHeader: txHeader,
         responseHeader: rxHeader,
+        restoredRequestHeader: restoreHeader,
         startedAt,
         endedAt: Date.now(),
         responses: Object.freeze(responses)
@@ -3115,7 +3482,7 @@ export class Elm327Client {
       if (!supported.has(next)) break;
       start = next;
     }
-    if (this.adapterProfile?.vlinker) {
+    if (getVehicleProfile(this.vehicleKey) && (this.adapterProfile?.vlinker || this.vehicleKey === VEHICLE_KEYS.CT200H)) {
       try {
         const toyotaMetricIds = await this.discoverToyotaLiveMetrics();
         toyotaMetricIds.forEach(id => all.add(id));
@@ -3130,22 +3497,27 @@ export class Elm327Client {
     const discovered = new Set();
     this.toyotaLiveMetricIds.clear();
     this.toyotaResponseCache.clear();
+    const profile = getVehicleProfile(this.vehicleKey);
+    const probes = getVehicleReadDataProbes(this.vehicleKey, { liveOnly: true });
+    if (!profile || !probes.length) return discovered;
+    const requestHeader = probes[0].requestHeader;
     const transaction = await this.runReadOnlyEcuTransaction({
-      requestHeader: IS220D_ENGINE_ECU_PROFILE.requestHeader,
+      requestHeader,
       setupCommands: ["ATSP6", "ATCAF1", "ATCFC1", "ATAL", "ATH0", "ATS0"],
-      requests: TOYOTA_READ_DATA_PROBES.map(probe => ({
+      requests: probes.map(probe => ({
         command: probe.command,
         service: probe.service,
         timeoutMs: 6000
       })),
       continueOnReadError: true,
-      label: `${IS220D_DIAGNOSTIC_PROFILE.profileVersion} · Toyota-livearvojen tunnistus`
+      label: `${profile.profileVersion} · Toyota-livearvojen tunnistus`,
+      profileKey: this.vehicleKey
     });
 
     for (const result of transaction.responses) {
-      const probe = getToyotaReadDataProbe(result.command);
+      const probe = getProfileReadDataProbe(result.command, this.vehicleKey);
       if (!probe || result.error) continue;
-      const decoded = decodeToyotaReadDataResponse(result.raw, probe.identifier);
+      const decoded = decodeToyotaReadDataResponse(result.raw, probe.identifier, this.vehicleKey);
       if (!decoded?.complete) continue;
       this.toyotaResponseCache.set(probe.command, {
         raw: result.raw,
@@ -3155,6 +3527,7 @@ export class Elm327Client {
         transactionId: transaction.transactionId
       });
       for (const definition of PID_DEFINITIONS) {
+        if (!metricSupportsVehicle(definition, this.vehicleKey)) continue;
         if (definition.toyotaCommand !== probe.command || !definition.toyotaValueKey) continue;
         const value = decoded.values?.[definition.toyotaValueKey];
         if (Number.isFinite(Number(value))) discovered.add(definition.id);
@@ -3164,8 +3537,76 @@ export class Elm327Client {
     return new Set(discovered);
   }
 
+  async readVehicleSpecificDtcs({ includeResearchCandidates = false } = {}) {
+    const requests = getVehicleDtcRequests(this.vehicleKey).filter(request =>
+      includeResearchCandidates || request.evidence !== "research-candidate"
+    );
+    if (!requests.length) return Object.freeze({ vehicleKey: this.vehicleKey, groups: Object.freeze([]), notes: Object.freeze([]), transactionIds: Object.freeze([]), transactionId: "" });
+    const requestSets = new Map();
+    for (const request of requests) {
+      const key = `${request.requestHeader}/${request.responseHeader || ""}`;
+      if (!requestSets.has(key)) requestSets.set(key, []);
+      requestSets.get(key).push(request);
+    }
+    const transactions = [];
+    for (const groupedRequests of requestSets.values()) {
+      transactions.push(await this.runReadOnlyEcuTransaction({
+        requestHeader: groupedRequests[0].requestHeader,
+        responseHeader: groupedRequests[0].responseHeader,
+        setupCommands: transactions.length ? [] : ["ATSP6", "ATCAF1", "ATCFC1", "ATAL", "ATH0", "ATS0"],
+        requests: groupedRequests.map(request => ({
+          command: request.command,
+          service: request.service,
+          timeoutMs: 7000
+        })),
+        continueOnReadError: true,
+        label: `${vehicleDisplayName(this.vehicleKey)} · ${groupedRequests[0].ecuId || "ECU"} vikakoodit`,
+        profileKey: this.vehicleKey
+      }));
+    }
+    const groups = [];
+    const notes = [];
+    for (const transaction of transactions) {
+      const groupedRequests = requests.filter(request =>
+        request.requestHeader === transaction.requestHeader && (request.responseHeader || "") === transaction.responseHeader
+      );
+      for (const [index, request] of groupedRequests.entries()) {
+        const response = transaction.responses[index];
+        const outcome = response && !response.error
+          ? classifyDiagnosticResponse({ raw: response.raw, positivePrefix: hexByte(request.responseService) })
+          : null;
+        if (!response || response.error || outcome?.kind !== "positive-response") {
+          notes.push(`${request.label}: ${response?.error || outcome?.description || "kelvollinen vastaus puuttui"}`);
+          continue;
+        }
+        groups.push(Object.freeze({
+          id: request.id,
+          ecuId: request.ecuId,
+          label: request.label,
+          command: request.command,
+          requestHeader: request.requestHeader,
+          responseHeader: request.responseHeader,
+          evidence: request.evidence,
+          validatedOnCt200h: request.validatedOnCt200h !== false,
+          validResponse: true,
+          codes: Object.freeze(parseCountedDtcResponse(response.raw, request.responseService, request.label)),
+          raw: response.raw,
+          transactionId: transaction.transactionId
+        }));
+      }
+    }
+    const transactionIds = Object.freeze(transactions.map(transaction => transaction.transactionId));
+    return Object.freeze({
+      vehicleKey: this.vehicleKey,
+      groups: Object.freeze(groups),
+      notes: Object.freeze(notes),
+      transactionIds,
+      transactionId: transactionIds[0] || ""
+    });
+  }
+
   async readToyotaProbeResponse(probe, timeoutMs = 5000) {
-    if (!probe || !TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes(probe.command) || !isProfileReadOnlyCommand(probe.command)) {
+    if (!probe || !isProfileReadOnlyCommand(probe.command, this.vehicleKey)) {
       throw new Error(`Toyota-livearvon turvallisuussallintalista esti komennon ${probe?.command || "(tyhjä)"}`);
     }
     const now = Date.now();
@@ -3176,10 +3617,11 @@ export class Elm327Client {
         const transaction = await this.runReadOnlyEcuTransaction({
           requestHeader: probe.requestHeader,
           requests: [{ command: probe.command, service: probe.service, timeoutMs: Math.max(1, Number(timeoutMs) || 5000) }],
-          label: `${probe.id} · live-luku`
+          label: `${probe.id} · live-luku`,
+          profileKey: this.vehicleKey
         });
         const raw = transaction.responses[0]?.raw || "";
-        const decoded = decodeToyotaReadDataResponse(raw, probe.identifier);
+        const decoded = decodeToyotaReadDataResponse(raw, probe.identifier, this.vehicleKey);
         if (!decoded?.complete) {
           const decodeError = new Error(`Toyota ${probe.command} -vastaus jäi lyhyeksi tai puuttui`);
           decodeError.raw = raw;
@@ -3227,8 +3669,8 @@ export class Elm327Client {
       throw new Error(`Toyota-livearvoa ${definition.id} ei ole varmennettu tällä yhteydellä`);
     }
     const command = String(definition.toyotaCommand || "").toUpperCase();
-    const probe = getToyotaReadDataProbe(command);
-    if (!probe || !TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes(command) || !isProfileReadOnlyCommand(command)) {
+    const probe = getProfileReadDataProbe(command, this.vehicleKey);
+    if (!probe || !isProfileReadOnlyCommand(command, this.vehicleKey)) {
       throw new Error(`Toyota-livearvon turvallisuussallintalista esti komennon ${command || "(tyhjä)"}`);
     }
     const entry = await this.readToyotaProbeResponse(probe, timeoutMs);
@@ -3241,7 +3683,7 @@ export class Elm327Client {
       error.transactionId = entry.transactionId || "";
       throw error;
     }
-    return { value, raw: entry.raw, updatedAt: entry.updatedAt, transactionId: entry.transactionId || "", source: `Toyota ${command} · vLinker MC+` };
+    return { value, raw: entry.raw, updatedAt: entry.updatedAt, transactionId: entry.transactionId || "", source: `Toyota ${command} · ${vehicleDisplayName(this.vehicleKey)}` };
   }
 
   async readMetricGroup(definitions, timeoutMs = null) {
@@ -3257,7 +3699,7 @@ export class Elm327Client {
       for (const definition of group) {
         if (!this.toyotaLiveMetricIds.has(definition.id)) throw new Error(`Toyota-livearvoa ${definition.id} ei ole varmennettu tällä yhteydellä`);
       }
-      const probe = getToyotaReadDataProbe(command);
+      const probe = getProfileReadDataProbe(command, this.vehicleKey);
       if (!probe) throw new Error(`Toyota-mittariryhmän turvallisuussallintalista esti komennon ${command || "(tyhjä)"}`);
       const entry = await this.readToyotaProbeResponse(probe, timeoutMs ?? 5000);
       let results;
@@ -3272,7 +3714,7 @@ export class Elm327Client {
             raw: entry.raw,
             updatedAt: entry.updatedAt,
             transactionId: entry.transactionId || "",
-            source: `Toyota ${command} · vLinker MC+`
+            source: `Toyota ${command} · ${vehicleDisplayName(this.vehicleKey)}`
           });
         });
       } catch (error) {
@@ -3389,6 +3831,8 @@ export function sessionToCsv(session) {
     "schema_version",
     "app_version",
     "vehicle",
+    "vehicle_key",
+    "vehicle_profile_version",
     "adapter",
     "protocol",
     "session_started_at",
@@ -3406,9 +3850,6 @@ export function sessionToCsv(session) {
     "poll_max_miss_streak",
     "poll_latency_ewma_ms",
     ...definitions.flatMap(def => [def.id, `${def.id}_unit`, `${def.id}_age_ms`]),
-    "toyota_217e_raw",
-    "toyota_217f_raw",
-    "toyota_212c_raw",
     "marker",
     "connection",
     "error"
@@ -3423,6 +3864,8 @@ export function sessionToCsv(session) {
       session.schemaVersion || 3,
       session.appVersion || "0.4.3",
       session.vehicle || "Lexus IS220d 2008 · 2AD-FHV",
+      session.vehicleKey || "is220d",
+      session.vehicleProfileVersion || "legacy",
       session.adapter || "",
       session.protocol || "",
       new Date(session.startedAt).toISOString(),
@@ -3444,9 +3887,6 @@ export function sessionToCsv(session) {
         def.unit,
         sessionMetricAgeMs(session, sample, def.id) ?? ""
       ]),
-      sample.rawLatest?.dpnrDifferentialPressure || sample.raw?.dpnrDifferentialPressure || "",
-      sample.rawLatest?.dpnrInletTemperature || sample.raw?.dpnrInletTemperature || "",
-      sample.rawLatest?.toyotaEgrPosition || sample.raw?.toyotaEgrPosition || "",
       marker,
       sample.connected === false ? "disconnected" : "connected",
       sample.error || ""
@@ -3485,6 +3925,8 @@ export function sessionToQuicklynksResearchCsv(session) {
     "research_schema_version",
     "app_version",
     "vehicle",
+    "vehicle_key",
+    "vehicle_profile_version",
     "adapter",
     "protocol",
     "session_started_at",
@@ -3519,6 +3961,8 @@ export function sessionToQuicklynksResearchCsv(session) {
     research?.schemaVersion || 6,
     session.appVersion || "0.4.3",
     session.vehicle || "Lexus IS220d 2008 · 2AD-FHV",
+    session.vehicleKey || "is220d",
+    session.vehicleProfileVersion || "legacy",
     session.adapter || "",
     session.protocol || "",
     new Date(session.startedAt).toISOString(),
@@ -3620,6 +4064,7 @@ export function calculateSessionStats(session) {
 
 export function buildAiAnalysisPrompt(session) {
   const samples = session.samples || [];
+  const ctSession = session.vehicleKey === VEHICLE_KEYS.CT200H || /CT\s*200h|ZWA10/i.test(session.vehicle || "");
   const available = PID_DEFINITIONS.filter(def =>
     samples.some(sample => Number.isFinite(sessionMetricValue(session, sample, def.id)))
   );
@@ -3637,7 +4082,7 @@ export function buildAiAnalysisPrompt(session) {
   const durationSeconds = Math.max(0, Math.round(((session.endedAt || session.startedAt) - session.startedAt) / 1000));
 
   return [
-    "Analysoi liitteenä oleva IS220d OBD Flex -koeajo-CSV mahdollisten vikojen ja jatkotutkimustarpeiden löytämiseksi.",
+    "Analysoi liitteenä oleva Lexus OBD Flex -koeajo-CSV mahdollisten vikojen ja jatkotutkimustarpeiden löytämiseksi.",
     "",
     "Ajoneuvo ja tallennus:",
     `- Auto: ${session.vehicle || "Lexus IS220d 2008 · 2AD-FHV, 2,2 D-CAT"}`,
@@ -3656,15 +4101,23 @@ export function buildAiAnalysisPrompt(session) {
     isQuicklynksSession(session)
       ? "quicklynksField80 on Quicklynksin koontikehyksen kenttä 80. Sen merkitystä, yksikköä tai muunnosta ei ole varmennettu: se ei ole standardin PID 10 MAF eikä polttoainevirta. adapterVoltage on adapterin mittaama käyttöjännite ja voltage on erillinen ECU:n standardi-PID 42."
       : "fuelRate on standardin Mode 01 PID 5E vain silloin, kun sarake on mukana. Älä päättele puuttuvaa mittaria nollaksi.",
-    "boostPressure on johdettu arvo MAP − ilmanpaine, ei ECU:n ahtopainepyyntö. Käytä lähdearvojen ikäsarakkeita ennen hetkellisten erojen tulkintaa.",
-    "DPF-, pakokaasulämpö-, EGR-, rail-, turbo- ja lambda-arvot ovat standardoituja Mode 01 -arvoja vain silloin, kun vastaava sarake on mukana. Quicklynks-polku ei lähetä Toyota Read Data 21 -kyselyitä, joten dpnr*-, toyota*- ja injectionFeedback1–4-arvoja ei saada tällä adapterilla.",
-    "CSV ei sisällä DPNR-noki-/tuhkamassaa, Toyota-kohtaisia suuttimien korjauksia, IMV/SCV-arvoja, Exhaust Fuel Addition Injector -palautetta tai 5. suuttimen tilaa. Niihin tarvitaan myöhemmin varmennettu RAW/CAN-, ELM327- tai J2534/Techstream-yhteys.",
+    ctSession
+      ? "ctHvPackVoltage on 14 mitatun lohkojännitteen summa ja ctHvPackPower on johdettu jännite × virta; positiivinen ctHvCurrent/ctHvPackPower tarkoittaa purkausta. Käytä lähdearvojen ikäsarakkeita ennen hetkellisten erojen tulkintaa."
+      : "boostPressure on johdettu arvo MAP − ilmanpaine, ei ECU:n ahtopainepyyntö. Käytä lähdearvojen ikäsarakkeita ennen hetkellisten erojen tulkintaa.",
+    ctSession
+      ? "CT-mittarit ctHvBlockVoltage01–14, ctHvInternalResistance01–14 ja TB1–TB3 tulevat vain lukevista 7E2/7EA Toyota Mode 21 -vastauksista. Quicklynks-polku ei tue näitä valmistajakohtaisia kyselyitä. Älä päättele akun kapasiteettia yhdestä jännite- tai vastusnäytteestä."
+      : "DPF-, pakokaasulämpö-, EGR-, rail-, turbo- ja lambda-arvot ovat standardoituja Mode 01 -arvoja vain silloin, kun vastaava sarake on mukana. Quicklynks-polku ei lähetä Toyota Read Data 21 -kyselyitä, joten dpnr*-, toyota*- ja injectionFeedback1–4-arvoja ei saada tällä adapterilla.",
+    ctSession
+      ? "CSV ei sisällä hybridivian INF-lisäkoodeja, eristysvastusta, akun kapasiteettitestiä eikä Active Test -tuloksia. Älä suosittele akuston tai moduulin vaihtoa ilman vikakoodeja, kuormitettua vertailumittausta ja Lexus-korjausohjeen vahvistusta."
+      : "CSV ei sisällä DPNR-noki-/tuhkamassaa, Toyota-kohtaisia suuttimien korjauksia, IMV/SCV-arvoja, Exhaust Fuel Addition Injector -palautetta tai 5. suuttimen tilaa. Niihin tarvitaan myöhemmin varmennettu RAW/CAN-, ELM327- tai J2534/Techstream-yhteys.",
     "",
     "Tee analyysi näin:",
     "1. Tarkista ensin datan eheys, näytekatkot, puuttuvat arvot ja epäuskottavat mittaukset.",
     "2. Kuvaa ajotilanteet nopeuden, kierrosluvun ja kuormituksen perusteella sekä tutki erikseen tapahtumamerkkien ympäristö.",
     "3. Etsi poikkeavat vaihtelut ja signaalien väliset yhteydet. Erottele havainto, mahdollinen selitys ja epävarmuus.",
-    "4. Arvioi, viittaako data jäähdytys-, lataus-, ilmanotto/EGR-, polttoaine-, D-CAT/DPNR- tai voimansiirto-ongelmaan. Älä väitä vikaa, jota mitatut sarakkeet eivät tue.",
+    ctSession
+      ? "4. Arvioi lohkojännitteiden eroa kuorman ja SOC:n suhteen, lämpötilojen tasaisuutta, sisäisten vastusten hajontaa sekä lataus-/purkausvirtaa. Älä väitä akkuvikaa, jota mitatut sarakkeet eivät tue."
+      : "4. Arvioi, viittaako data jäähdytys-, lataus-, ilmanotto/EGR-, polttoaine-, D-CAT/DPNR- tai voimansiirto-ongelmaan. Älä väitä vikaa, jota mitatut sarakkeet eivät tue.",
     "5. Anna priorisoitu johtopäätös: todennäköinen / mahdollinen / ei näyttöä tästä aineistosta.",
     "6. Ehdota seuraavat turvalliset mittaukset ja kerro täsmällisesti, mitä lisä-PIDejä tai Techstream-arvoja tarvitaan päätelmän vahvistamiseen.",
     "7. Nosta mahdollinen ajon keskeyttämistä vaativa löydös selvästi esiin. Älä ehdota osien vaihtoa pelkän korrelaation perusteella.",

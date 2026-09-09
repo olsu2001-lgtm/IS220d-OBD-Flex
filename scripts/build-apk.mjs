@@ -99,6 +99,20 @@ async function buildVariant(label, minify, filename) {
     banner: { js: `globalThis.__IS220D_BUILD_SHA__=${JSON.stringify(buildShortSha)};` },
     outfile: path.join(nitronProject, "app.bundle.js")
   });
+  const smoke = spawnSync(process.execPath, [
+    path.join(root, "scripts", "ui-smoke.mjs"),
+    path.join(nitronProject, "index.html"),
+    path.join(nitronProject, "app.bundle.js")
+  ], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  if (smoke.status !== 0) {
+    process.stderr.write(smoke.stdout || "");
+    process.stderr.write(smoke.stderr || "");
+    throw new Error(`${label}-APK:n paketoitu käyttöliittymä ei läpäissyt savutestiä`);
+  }
+  process.stdout.write(smoke.stdout || "");
   const nitron = spawnSync(process.execPath, [cliPath, "build", "--project", nitronProject], {
     cwd: root,
     stdio: "inherit",
@@ -119,8 +133,8 @@ async function buildVariant(label, minify, filename) {
   return output;
 }
 
-const debugOutput = await buildVariant("debug", false, "IS220d_OBD-Flex-0.6.9-debug.apk");
-const releaseOutput = await buildVariant("release", true, "IS220d_OBD-Flex-0.6.9-release.apk");
+const debugOutput = await buildVariant("debug", false, "Lexus_OBD-Flex-0.7.8-debug.apk");
+const releaseOutput = await buildVariant("release", true, "Lexus_OBD-Flex-0.7.8-release.apk");
 const buildInfo = {
   schemaVersion: 1,
   appVersion,

@@ -1,23 +1,205 @@
 # Muutoshistoria
 
-## 0.6.9 · DPNR-tarkistus
+## 0.7.8 · DPNR-tarkistus ja asennusjärjestyksen korjaus
 
-- Lisätty ajossa ja tyhjäkäynnillä käytettävä DPNR-tarkistusnäkymä Vgate
-  vLinker MC+:lle. Näkymä kokoaa paine-eron, DPNR:n tulo- ja lähtölämmöt,
-  S/PM-regenerointitilat ja polton aktiivisuuden sekä RPM-, jäähdytysneste-,
-  MAF- ja jänniteolosuhteet samaan ruutuun.
-- Toyota `217E`- ja `217F`-raakavasteet näytetään tulkittujen arvojen rinnalla.
-  Täsmälleen samoina pysyvät lämpötilat ja erityisesti 750 °C:n kaksoislukema
-  nostetaan tarkistusvaroitukseksi, ei automaattiseksi anturiviaksi.
-- Koeajolokin skeema 5 säilyttää viimeisimmät `217E`, `217F` ja `212C`
-  -raakavasteet jokaisella näytteellä ja vie ne CSV:hen.
-- Techstreamin `DPF Thermal Deteriorate`, `DPF PM Block` ja `DPF No Activate`
-  jätetään vertailulipuiksi. Niille ei lisätty arvattuja Toyota-tunnisteita tai
-  tavumuunnoksia.
-- Toyota-sallintalista säilyy täsmälleen `217E`, `217F` ja `212C`. Quicklynksin
-  FFF0/FFF6-polku, Classic/SPP, BLE-ISO-TP, vikakoodit ja olemassa oleva
-  tallennus säilyvät erillisinä.
-- Versionumero nostettu arvoihin `versionName 0.6.9` ja `versionCode 609`.
+- Lisätty IS220d-profiilille oma DPNR-tarkistusnäkymä, joka näyttää Toyota
+  `217E`-paine- ja regenerointitilat sekä `217F`-pakolämpötilat tulkittuina ja
+  ECU:n raakavastauksina.
+- Lisätty RPM:n, jäähdytysnesteen, MAF:n ja jännitteen samanaikainen seuranta,
+  DPNR-kuvaaja sekä 750/750 °C -rajatilan näkyvä varoitus.
+- DPNR-loki käyttää samaa jatkuvaa koeajotallennusta ja säilyttää jokaisessa
+  näytteessä myös viimeisimmät täydet raakavastaukset CSV-vientiä varten.
+- Techstreamin `Thermal Deteriorate`, `PM Block` ja `No Activate` jätetään
+  tarkoituksella tulkitsematta, kunnes niiden tunnisteet on varmennettu.
+- Versionumero jatkuu aiemman Flex 0.7.7:n jälkeen (`versionCode 708`), jotta
+  Android hyväksyy päivityksen eikä tulkitse sitä versiopalautukseksi.
+
+## 0.7.7 · IS220d-suutintesti ja tekoälyraportti
+
+- Lisätty vain lukeva IS220d / 2AD-FHV -suutinten tasapaino- ja
+  vuotoepäilyseulonta lämpimälle vakaalle tyhjäkäynnille.
+- Testi kerää standardit `010C`/`0105`-arvot sekä Techstreamista johdetut
+  `2193`-polttoainelämpö-, `2196`-rail-paine- ja `219C`-suutinkorjausarvot.
+- Raportissa ovat näytekohtaiset raakavastaukset, olosuhteet,
+  sylinterikohtaiset tilastot, käsikirjan ±3,0 mm³ tavanomainen alue,
+  4,9 mm³ huoltoraja sekä valmiit tekoälyn analyysiohjeet.
+- Korjausarvoseulontaa ei esitetä varmana vuotodiagnoosina: käyttöliittymä ja
+  raportti ohjaavat tarvittaessa paluuvirta-/leak-off-testiin,
+  puristusmittaukseen ja korkeapainepuolen vuototarkastukseen.
+- Korjattu tunnistamattoman auton laaja raportti niin, ettei se enää nimeä
+  ajoneuvoa virheellisesti IS220d:ksi.
+- Quicklynks-polku ei lähetä Toyota 21xx -kyselyitä; suutintesti vaatii
+  vLinker- tai muun ASCII-ELM327-adapterin.
+
+## 0.7.5 · WebView-käynnistyksen ja käyttöliittymän korjaus
+
+- Korjattu esbuild-paketoijan rikkoma teemamoduulin oletusparametri, joka
+  aiheutti APK:ssa käynnistysvirheen `_c is not defined`.
+- Teeman vaihto, alanavigaatio ja Bluetooth-laitelistan muodostaminen toimivat
+  jälleen, koska käyttöliittymän tapahtumankäsittelijät rekisteröityvät.
+- APK-rakennus ajaa nyt sekä debug- että release-bundlelle todellisen
+  käyttöliittymän savutestin. Julkaisu estetään, elleivät teeman vaihto,
+  Live-sivulle navigointi ja Bluetooth-listan päivitys toimi paketoidulla
+  `app.bundle.js`-tiedostolla.
+- 0.7.4:n automaattinen ajoneuvotunnistus ja kaikki aiemmat vain luku
+  -diagnostiikkapolut säilyvät.
+
+## 0.7.4 · Yhdistetyn auton automaattinen tunnistus
+
+- Ajoneuvon automaattinen tunnistus on nyt uusissa asennuksissa oletus.
+  Tunnistus ajetaan jokaisella tavallisen ASCII-ELM327:n tai vLinker MC+:n
+  Classic/BLE-yhteyskerralla myös silloin, kun käyttäjä on tallentanut
+  käsivalinnan; käsivalinta toimii vain tunnistuksen varaprofiilina.
+- Lisätty standardin Mode 09 PID 02 VIN-luku. Parseri tukee otsakkeellista
+  ISO-TP-monikehystä sekä ELM327:n numeroituja 49 02 -osavastauksia ja
+  hyväksyy vain 17-merkkisen VIN-merkistön.
+- CT 200h varmennetaan ZWA10-hybridiohjaimen mallitunnisteella ja tunnetulla
+  CT-VIN-etuliitteellä. IS220d varmennetaan tunnetulla IS-VIN-etuliitteellä
+  sekä kaikkien kolmen 2AD-FHV-lukuryhmän 217E/217F/212C vastauksilla.
+- Ristiriitaiset VIN- ja ECU-tiedot estävät automaattisen profiilinvaihdon.
+  Puuttuvan näytön tapauksessa appi käyttää nimenomaisesti käsin valittua
+  varaprofiilia tai jää yleiseen EOBD-tilaan; tunnistuksen voi ajaa uudelleen
+  Yhteys-sivulta.
+- Quicklynks FFF6:n binääripolulle ei lisätty arvaavaa VIN- tai Toyota-
+  komentokuorta. Appi kertoo tunnistuksen rajoituksesta ja käyttää siinä
+  käsivalintaa; varmennettu yleinen Quicklynks-OBD-luku säilyy ennallaan.
+- Tunnistus käyttää vain kiinteitä lukukomentoja (`0902`, `21C1`, `217E`,
+  `217F`, `212C`), atomisia ECU-transaktioita ja palauttaa pyyntöotsakkeen
+  `7E0`:aan. Kirjoitus-, poisto-, Active Test- tai pakkoregenerointikomentoja
+  ei lisätty.
+- Lisätty VIN-parserin, tunnistusvarmuuden, ristiriitojen, osavastausten ja
+  atomisen vain luku -komentojärjestyksen regressiotestit.
+- Säilytetty pakettitunnus `fi.oliver.is220dobd`, aiempi allekirjoitus,
+  `minSdk 21` / `targetSdk 34`, internetoikeuden puuttuminen ja
+  `usesCleartextTraffic=false`.
+- Versionumero nostettu arvoihin `versionName 0.7.4` ja `versionCode 704`.
+
+## 0.7.3 · Vaihdettavat teemat
+
+- Lisätty Yhteys-sivulle saavutettava teemavalitsin ja kuusi erillistä
+  väripalettia: Lexus Dark, Pearl Light, OLED Black, Hybrid Blue, F Sport Red
+  ja Korkea kontrasti. Seitsemäs Järjestelmä-valinta seuraa Androidin vaaleaa
+  tai tummaa tilaa automaattisesti.
+- Teemavalinta tallennetaan paikallisesti ja otetaan käyttöön jo ennen
+  käyttöliittymän ensimmäistä piirtoa. Valinta säilyy sovelluksen sulkemisen,
+  puhelimen uudelleenkäynnistyksen ja Flex-päivityksen yli.
+- Uudistettu käyttöliittymän värirakenne semanttisiksi muuttujiksi. Teeman
+  korostusväri vaihtuu, mutta onnistumisen, varoituksen, virheen ja tiedotteen
+  merkitysvärit säilyvät erillisinä kaikissa paleteissa.
+- Live-datan, tallennettujen ajojen ja Tehotestin Canvas-kuvaajat lukevat
+  teemavärit CSS-muuttujista ja piirretään uudelleen heti teeman vaihtuessa.
+- Sovelluksen `theme-color` ja selaimen/WebViewin `color-scheme` päivittyvät
+  valitun tai järjestelmästä ratkaistun teeman mukaan.
+- Lisätty kuusi teemien yksikkö-, integraatio-, pysyvyys-, järjestelmäseuranta-
+  ja kontrastitestiä. Jokaisen paletin perusteksti, himmeä teksti ja
+  pääpainike tarkistetaan WCAG AA -kontrastirajaa vasten. Koko sarja sisältää
+  135 hyväksyttyä testiä.
+- Säilytetty pakettitunnus `fi.oliver.is220dobd`, aiempi allekirjoitus,
+  `minSdk 21` / `targetSdk 34`, internetoikeuden puuttuminen ja
+  `usesCleartextTraffic=false`. Teematoiminto ei lisää Android-oikeuksia eikä
+  ECU-komentoja.
+- Versionumero nostettu arvoihin `versionName 0.7.3` ja `versionCode 703`.
+
+## 0.7.2 · GPS/OBD Power Test
+
+- Lisätty oma Tehotesti-sivu automaattisille 0–100 km/h-, 80–120 km/h-,
+  0–60 mph- ja 60–120 km/h -mittauksille sekä vapaasti määritettävälle
+  nopeusvälille. Nopeusrajojen ylitykset interpoloidaan GPS-näytteiden
+  väliin, ja tulokseen muodostetaan soveltuvat väliajat.
+- Lisätty natiivi Android-GPS-silta, joka käyttää GPS-palvelua ja monotonista
+  `elapsedRealtimeNanos`-aikaa. Silta välittää nopeus-, korkeus-, suunta-,
+  tarkkuus- ja valesijaintitiedot mutta ei leveys- tai pituusastetta.
+- Lisätty fysikaalinen tehoarvio liike-energialle, vierinnälle, tien
+  kaltevuudelle ja ilmanvastukselle. Raportti erottaa keski- ja
+  huippupyörätehon sekä voimansiirtohäviöllä korjatun IS220d-moottoritehon tai
+  CT 200h -järjestelmätehon. Huippuarvio käyttää noin sekunnin ikkunoiden 90.
+  persentiiliä.
+- Lisätty muokattavat massa-, kaltevuus-, lämpötila-, ilmanpaine-, Cd-,
+  otsapinta-ala-, vierintävastus- ja voimansiirtohäviöasetukset. Mukana ovat
+  IS220d:n 130 kW / 177 DIN hv ja 8,9 s sekä CT 200h:n 100 kW / 136 DIN hv ja
+  10,3 s viralliset vertailuarvot.
+- OBD on tehotestissä vapaaehtoinen. Yhdistettynä se tallentaa nykyisen
+  turvallisen livepolun nopeus-, kierrosluku-, kuormitus- ja tehoarvoja GPS:n
+  rinnalle; uusia ECU-pyyntöjä tai kirjoitustoimintoja ei lisätty.
+- Lisätty laatupisteet näytetaajuudelle, näyteväleille, GPS-tarkkuudelle,
+  ajosuunnalle, GPS/OBD-erolle ja valesijainnille. Heikko tulos voidaan
+  raportoida kiihtyvyytenä, mutta sitä ei hyväksytä tehovertailuun.
+- Lisätty reititön TXT-/CSV-vienti, analyysipyyntö ja enintään 12 saman auton
+  sekä saman testivälin tuloksen paikallinen vertailuhistoria.
+- Lisätty 10 tehotestin yksikkö-/integraatiotestiä ja yksi Android/APK-
+  lähdetarkistus. Koko sarja sisältää 129 hyväksyttyä testiä.
+- Säilytetty pakettitunnus `fi.oliver.is220dobd`, aiempi allekirjoitus,
+  `minSdk 21` / `targetSdk 34`, internetoikeuden puuttuminen ja
+  `usesCleartextTraffic=false`. `ACCESS_FINE_LOCATION` tarvitaan GPS-
+  nopeusmittaukseen sekä vanhempien Android-versioiden BLE-hakuun.
+- Versionumero nostettu arvoihin `versionName 0.7.2` ja `versionCode 702`.
+
+## 0.7.1 · CT 200h Purchase Inspection
+
+- Lisätty CT 200h -profiilille nelivaiheinen ostotarkastus: kohdetiedot ja
+  manuaaliset havainnot, paikallaan tehtävä esitarkastus, ohjattu HV-akun
+  koeajo sekä TXT-raportti.
+- Esitarkastus lukee EOBD readiness/MIL-tiedot, Mode 03/07/0A-koodit,
+  jäähdytysnesteen, kierrosluvun, STFT/LTFT:n, EGR-arvot, lämpenemiskerrat ja
+  matkan koodien nollauksesta, ohjainlaitteen jännitteen sekä CT-profiilin
+  ZWA10/HV-lukupaketit ja hybridikoodit.
+- Lisätty kokeellinen, vain lukeva jarru-/luistonesto-ohjaimen DTC-kattavuus
+  otsakkeilla `7B0`/`7B8` ja pyynnöllä `13B0`. Tutkimuskandidaatti on oletus-
+  DTC-luvussa pois käytöstä ja aktivoituu vain ostotarkastuksessa. Vain
+  kelvollinen `53`-vastaus hyväksytään; vastaamattomuus merkitään
+  kattavuuspuutteeksi eikä koodittomaksi tulokseksi.
+- Usean ECU:n DTC-luku ryhmittelee pyynnöt atomisiin otsaketransaktioihin,
+  puhdistaa vastaanottosuodattimen ja palauttaa jokaisen CT-transaktion
+  jälkeen `ATSH7E0`-otsakkeen.
+- Lisätty tuoreusvaatimuksella toimiva HV-näytteenotto. Näyte hyväksytään vain,
+  kun kaikki 14 lohkojännitettä ja akkuvirta ovat saatavilla ja enintään
+  2,2 sekunnin ikäisiä. Automaattiset vaiheet ovat paikallaan, purku,
+  regenerointi ja tulokseen kuulumaton siirtymä.
+- Lisätty läpinäkyvä analyysi ilman akun kapasiteetti- tai SOH-prosenttia.
+  Raportti erottaa Flexin seulontarajat OEM-vikarajoista ja käsittelee
+  kattavuuden, readinessin, tuoreen nollauksen, lohkopoikkeaman, lämpötilan,
+  vastushajonnan sekä keskeiset hybridi-, jarru-, EGR- ja misfire-koodit.
+- Valmis kattavuus vaatii vähintään 10 minuutin testijakson. Raportin
+  muodostus lukee EOBD- ja hybridikoodit uudelleen koeajon jälkeen; puuttuva
+  uusintaluku jättää tuloksen keskeneräiseksi.
+- Lisätty viisi ostotarkastuksen regressiotestiä. Koko sarja sisältää 118
+  hyväksyttyä testiä.
+- Säilytetty pakettitunnus `fi.oliver.is220dobd`, aiempi allekirjoitus,
+  `minSdk 21` / `targetSdk 34`, internetoikeuden puuttuminen ja
+  `usesCleartextTraffic=false`.
+- Versionumero nostettu arvoihin `versionName 0.7.1` ja `versionCode 701`.
+
+## 0.7.0 · Lexus CT 200h Hybrid
+
+- Sovellus nimettiin Lexus OBD Flexiksi ja siihen lisättiin Lexus CT 200h /
+  ZWA10 sekä automaattinen ajoneuvotunnistus. IS220d säilyy oletusvalintana,
+  jotta nykyisen 0.6.8-asennuksen käyttäytyminen ei muutu päivityksessä.
+- Lisätty validoitu ja syväjäädytetty
+  `ct200h-zwa10-gen3-hybrid-readonly-v1`-profiili: hybridiohjain 7E2/7EA,
+  2ZR-FXE, 201,6 V NiMH, 14 lohkoa ja 28 moduulia.
+- Lisätty ZWA10-mallitunnisteen `21C1`-luku. Automaatti ei päättele CT:tä
+  pelkästä geneerisestä hybridivastauksesta.
+- Lisätty 52 suoraa CT-hybridimittaria komennoista `2101`, `2181`, `2187`,
+  `2195` ja `2198`: SOC, 14 lohkojännitettä ja yhteenveto, imuilma ja TB1–TB3,
+  14 sisäistä vastusta ja yhteenveto, akkuvirta, tehorajat ja SOC-arvot.
+  Johdettu akun teho nostaa CT-näkymän kokonaismäärän 53 mittariin.
+- Lisätty CT-ajonäkymä, ajoneuvokohtainen live-suodatus, dynaamiset raportit,
+  ajoneuvo/profiili CSV-metatiedot ja CT:tä koskeva analyysipyyntö.
+- Lisätty hybridiohjaimen pysyvien ja tallennettujen vikakoodien vain luku
+  -pyynnöt `0A` ja `13B0` sekä counted-DTC-parseri. P0A80 ja P3000 saavat
+  varovaiset kuvaukset, jotka ohjaavat tarkistamaan INF-lisäkoodit.
+- CT-tilassa vikakoodien poisto on estetty sekä käyttöliittymässä että
+  toimintopolussa. Profiilissa ei ole Mode 04-, Active Test-, `2E`-, `2F`-,
+  `31`-, koodaus-, turva-avain- tai pakkolatauskomentoja.
+- CT:n 7E2-transaktio palauttaa aina 7E0-otsakkeen. DTC-luku käyttää rajattua
+  7EA-vastaanottosuodatinta ja poistaa sen transaktion lopussa.
+- Lisätty CT-replay-fixture ja 12 uutta testiä. Koko sarja sisältää 113 testiä
+  profiileille, ISO-TP:lle, DTC:ille, kuljetuksille, pollaukselle,
+  Quicklynksille, tiedostovalitsimelle ja Android-lähteelle.
+- Sovellus säilyttää pakettitunnuksen `fi.oliver.is220dobd`, aiemman
+  allekirjoitusavaimen, `minSdk 21` / `targetSdk 34` -tasot,
+  internetoikeuden puuttumisen ja `usesCleartextTraffic=false`-asetuksen.
+- Versionumero nostettu arvoihin `versionName 0.7.0` ja `versionCode 700`.
 
 ## 0.6.8 · Adaptive Live
 

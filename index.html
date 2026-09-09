@@ -1,17 +1,32 @@
 <!doctype html>
-<html lang="fi">
+<html lang="fi" data-theme="lexus-dark" data-theme-preference="system">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-  <meta name="theme-color" content="#0b0f14">
-  <title>IS220d OBD Flex</title>
+  <meta id="themeColor" name="theme-color" content="#0b0f14">
+  <title>Lexus OBD Flex</title>
+  <script>
+    (() => {
+      const allowed = new Set(["system", "lexus-dark", "pearl-light", "oled-black", "hybrid-blue", "fsport-red", "high-contrast"]);
+      let preference = "system";
+      try {
+        const stored = localStorage.getItem("lexusObdThemePreference");
+        if (allowed.has(stored)) preference = stored;
+      } catch {}
+      const resolved = preference === "system"
+        ? (globalThis.matchMedia?.("(prefers-color-scheme: dark)").matches === false ? "pearl-light" : "lexus-dark")
+        : preference;
+      document.documentElement.dataset.theme = resolved;
+      document.documentElement.dataset.themePreference = preference;
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
     <div>
-      <div class="eyebrow">LEXUS 2AD-FHV · EOBD</div>
-      <h1>IS220d OBD Flex</h1>
+      <div id="appEyebrow" class="eyebrow">LEXUS XE20 / ZWA10 · EOBD</div>
+      <h1>Lexus OBD Flex</h1>
     </div>
     <button id="connectionBadge" class="status-badge offline" type="button" data-go="connection">
       <span class="status-dot"></span><span>Ei yhteyttä</span>
@@ -28,6 +43,34 @@
         </div>
       </div>
 
+      <details class="card theme-card">
+        <summary>
+          <span><span class="eyebrow">ULKOASU</span><strong>Sovelluksen teema</strong></span>
+          <span id="themeSummaryValue" class="theme-summary-value">Järjestelmä</span>
+        </summary>
+        <div class="theme-settings">
+          <label for="themeSelect">Teema</label>
+          <select id="themeSelect">
+            <option value="system">Järjestelmä</option>
+            <option value="lexus-dark">Lexus Dark</option>
+            <option value="pearl-light">Pearl Light</option>
+            <option value="oled-black">OLED Black</option>
+            <option value="hybrid-blue">Hybrid Blue</option>
+            <option value="fsport-red">F Sport Red</option>
+            <option value="high-contrast">Korkea kontrasti</option>
+          </select>
+          <div class="theme-palette" aria-hidden="true">
+            <span class="theme-palette-bg"></span>
+            <span class="theme-palette-surface"></span>
+            <span class="theme-palette-accent"></span>
+            <span class="theme-palette-info"></span>
+            <span class="theme-palette-warning"></span>
+          </div>
+          <p id="themeDescription" class="theme-description">Seuraa automaattisesti Androidin vaaleaa tai tummaa ulkoasua.</p>
+          <p id="themeResolvedState" class="theme-resolved-state" role="status" aria-live="polite">Käytössä Lexus Dark</p>
+        </div>
+      </details>
+
       <div class="card">
         <label for="deviceSelect">OBD-lukija</label>
         <div class="field-row">
@@ -37,6 +80,16 @@
         <p id="deviceHelp" class="hint">vLinker MC+: Classic paritetaan Androidissa, BLE valitaan suoraan Flexissä.</p>
         <div id="bleDiagnostic" class="inline-message diagnostic hidden"></div>
         <button id="copyBleDiagnostics" class="secondary full compact" type="button">Kopioi BLE-diagnostiikka</button>
+
+        <label for="vehicleSelect">Ajoneuvo</label>
+        <select id="vehicleSelect">
+          <option value="auto">Automaattinen tunnistus (suositus)</option>
+          <option value="is220d">Lexus IS220d · XE20 · 2AD-FHV</option>
+          <option value="ct200h">Lexus CT 200h · ZWA10 · 2ZR-FXE hybridi</option>
+        </select>
+        <p class="hint">Flex lukee yhteyden jälkeen VIN-tunnisteen ja vain lukevat Lexus-mallitunnisteet. Käsivalinta toimii varaprofiilina, jos auto ei vastaa tunnistukseen.</p>
+        <div id="vehicleDetection" class="inline-message hidden" aria-live="polite"></div>
+        <button id="detectVehicleButton" class="secondary full compact" type="button" disabled>Tunnista auto uudelleen</button>
 
         <label for="protocolSelect">OBD-protokolla</label>
         <select id="protocolSelect">
@@ -59,9 +112,9 @@
 
       <div id="elmDiagnosticCard" class="card hidden">
         <div class="section-title compact-title">
-          <div><div class="eyebrow">VLINKER / ELM327 / TOYOTA · VAIN LUKU</div><h3>Laaja vLinker-, ELM- ja Toyota-testi</h3></div>
+          <div><div class="eyebrow">VLINKER / ELM327 / TOYOTA · VAIN LUKU</div><h3>Laaja Lexus-, ELM- ja CAN-testi</h3></div>
         </div>
-        <p class="hint">Yksi ajo tunnistaa vLinker MC+:n ja sen ELM/ST-ytimen, tarkistaa Classic- tai BLE-kuljetuksen, CAN-yhteyden, osoitteet 7DF ja 7E0–7E7 sekä 20 sekunnin CAN-kuuntelun. Lopuksi se kokeilee Techstreamista varmennetut Toyota-lukupyynnöt <code>217E</code>, <code>217F</code> ja <code>212C</code> normaalisti, tarvittaessa 7E8-suodatuksella ja lopuksi raakana ISO-TP-yksikehyksenä. Testi jatkaa raporttiin asti myös <code>NO DATA</code>-vastauksen jälkeen. Se ei lähetä Active Test-, poisto-, kirjoitus- tai regenerointikomentoja.</p>
+        <p id="diagnosticProfileHint" class="hint">Valittu ajoneuvoprofiili määrittää vain lukevat Toyota-kyselyt.</p>
         <label for="diagnosticNote">Oire tai testin huomio</label>
         <textarea id="diagnosticNote" rows="3" placeholder="Esim. moottori käynnissä, vLinker MC+ Classic yhdistetty mutta ECU ei vastaa"></textarea>
         <label for="diagnosticEngineState">Moottorin tila testissä</label>
@@ -151,8 +204,8 @@
         <div><span class="label">Yhteystapa</span><strong id="transportIdentity">–</strong></div>
         <div><span class="label">Adapterituki</span><strong id="adapterSupportIdentity">Tunnistetaan yhdistettäessä</strong></div>
         <div><span class="label">Firmware / ydin</span><strong id="adapterFirmwareIdentity">Tunnistetaan yhdistettäessä</strong></div>
-        <div><span class="label">Auto</span><strong>Lexus IS220d 2008</strong></div>
-        <div><span class="label">Moottori</span><strong>2AD-FHV · 2,2 D-CAT</strong></div>
+        <div><span class="label">Auto</span><strong id="vehicleIdentity">–</strong></div>
+        <div><span class="label">Voimalinja</span><strong id="powertrainIdentity">–</strong></div>
         <div id="quicklynksRawRow" class="raw-data-row hidden"><span class="label">Quicklynks · vielä tulkitsemattomat kentät</span><strong id="quicklynksRaw">–</strong></div>
       </div>
 
@@ -163,6 +216,150 @@
         <p><span>3</span> Sulje Car Scanner, OBD Plus ja muut adapteria käyttävät sovellukset.</p>
         <p><span>4</span> vLinker MC+ Classic: paina mustaa painiketta, parita <strong>vLinker MC</strong> tai <strong>vLinker MC-Android</strong> PINillä 1234.</p>
         <p><span>5</span> vLinker MC+ BLE: valitse Flexissä <strong>vLinker MC-IOS</strong>; BLE:tä ei pariteta Androidin asetuksissa.</p>
+      </div>
+    </section>
+
+    <section id="page-ct-test" class="page" aria-labelledby="nav-ct-test">
+      <div class="section-title">
+        <div><div class="eyebrow">CT 200h · ZWA10 · VAIN LUKU</div><h2>Ostotarkastus</h2></div>
+        <span id="ctTestStatusBadge" class="ct-test-badge neutral">EI ALOITETTU</span>
+      </div>
+      <div class="drive-warning">Kuljettaja ei käytä puhelinta ajon aikana. Kiinnitä puhelin telineeseen tai anna se matkustajalle. Tee koeajo vain turvallisessa liikennetilanteessa.</div>
+      <div class="inline-message warning">
+        Tämä on OBD-pohjainen ostoseulonta, ei kuntotodistus eikä HV-akun kapasiteetti-/SOH-mittaus. Testi ei käytä Active Test-, vikakoodien poisto-, kirjoitus- tai pakkolatauskomentoja. Varmista jarrut ja alusta aina myös mekaanisesti.
+      </div>
+
+      <div class="card">
+        <h3>1 · Kohde ja havainnot</h3>
+        <div class="ct-form-grid">
+          <div><label for="ctModelYear">Vuosimalli</label><input id="ctModelYear" type="text" inputmode="numeric" placeholder="Esim. 2012"></div>
+          <div><label for="ctOdometer">Mittarilukema km</label><input id="ctOdometer" type="text" inputmode="numeric" placeholder="Esim. 185000"></div>
+        </div>
+        <label for="ctVinRegistration">VIN tai rekisteritunnus (valinnainen)</label>
+        <input id="ctVinRegistration" type="text" autocapitalize="characters" placeholder="Tunniste raporttiin">
+        <label for="ctColdStart">Kylmäkäynnistys</label>
+        <select id="ctColdStart">
+          <option value="not_checked">Ei vielä tarkistettu</option>
+          <option value="normal">Tasainen, ei ravistusta tai kolinaa</option>
+          <option value="rough">Ravistusta, nakutusta tai kolinaa</option>
+        </select>
+        <label for="ctWarningLamps">Varoitusvalot READY-tilassa</label>
+        <select id="ctWarningLamps">
+          <option value="not_checked">Ei vielä tarkistettu</option>
+          <option value="none">Ei palavia varoitusvaloja</option>
+          <option value="present">Master warning / ABS / VSC / brake / check engine palaa</option>
+        </select>
+        <label for="ctBrakePump">Jarrupumpun ääni ja käyntitiheys</label>
+        <select id="ctBrakePump">
+          <option value="not_checked">Ei vielä tarkistettu</option>
+          <option value="normal">Lyhyt käynti, ei jatkuvaa toistumista</option>
+          <option value="frequent">Käy usein, pitkään tai äänekkäästi</option>
+        </select>
+        <label for="ctServiceHistory">Huoltohistoria</label>
+        <select id="ctServiceHistory">
+          <option value="not_checked">Ei vielä tarkistettu</option>
+          <option value="documented">Dokumentoitu</option>
+          <option value="partial">Osittainen</option>
+          <option value="none">Ei saatu</option>
+        </select>
+        <label for="ctCandidateNote">Huomio</label>
+        <textarea id="ctCandidateNote" rows="3" placeholder="Kylmä auto, ulkolämpötila, poikkeavat äänet, huoltohistoria…"></textarea>
+      </div>
+
+      <div class="card">
+        <h3>2 · Paikallaan tehtävä esitarkastus</h3>
+        <p class="hint ct-hint">Auto READY-tilaan, vaihde P, ilmastointi maltilliselle. Flex lukee EOBD-valmiuden, moottorin koodit, ZWA10-tunnisteen, HV-akun arvot ja hybridikoodit. Jarru-ECU:n 7B0/7B8-luku on kokeellinen: vastaamattomuus näkyy kattavuuspuutteena.</p>
+        <button id="ctRunPreflight" class="primary full" type="button">Aja CT-esitarkastus</button>
+        <div id="ctPreflightResult" class="inline-message hidden" aria-live="polite"></div>
+      </div>
+
+      <div class="card">
+        <h3>3 · Ohjattu HV-akun koeajo</h3>
+        <ol class="ct-test-steps">
+          <li>Pidä auto ensin paikallaan P-asennossa noin 15 sekuntia.</li>
+          <li>Kiihdytä turvallisesti ja kohtalaisesti niin, että HV-akku purkautuu.</li>
+          <li>Hidasta regeneroivasti ilman voimakasta jarrutusta niin, että HV-akku latautuu.</li>
+        </ol>
+        <div class="ct-phase-grid">
+          <div><span>Paikallaan</span><strong id="ctBaselineSamples">0 / 3</strong></div>
+          <div><span>Purku</span><strong id="ctDischargeSamples">0 / 5</strong></div>
+          <div><span>Regenerointi</span><strong id="ctChargeSamples">0 / 5</strong></div>
+          <div><span>Testikesto</span><strong id="ctRoadDuration">00:00 / 10:00</strong></div>
+        </div>
+        <div id="ctRoadTestHint" class="inline-message">Aja esitarkastus ensin.</div>
+        <button id="ctToggleRoadTest" class="primary full" type="button" disabled>Aloita automaattinen näytteenotto</button>
+      </div>
+
+      <div class="card">
+        <h3>4 · Tulos ja raportti</h3>
+        <button id="ctFinalizeTest" class="secondary full" type="button" disabled>Muodosta ostotarkastusraportti</button>
+        <div id="ctFinalSummary" class="inline-message hidden" aria-live="polite"></div>
+        <div id="ctReportActions" class="diagnostic-actions hidden">
+          <button id="ctShareReport" class="primary full" type="button">Jaa raportti ChatGPT:lle</button>
+          <div class="button-row">
+            <button id="ctSaveReport" class="secondary" type="button">Tallenna .txt</button>
+            <button id="ctCopyReport" class="secondary" type="button">Kopioi raportti</button>
+          </div>
+        </div>
+        <div id="ctReportPreview" class="inline-message diagnostic hidden"></div>
+      </div>
+    </section>
+
+    <section id="page-injector-test" class="page hidden" data-vehicle-only="is220d" aria-labelledby="nav-injector-test">
+      <div class="section-title">
+        <div><div class="eyebrow">IS220d · 2AD-FHV · VAIN LUKU</div><h2>Suutinten tasapainotesti</h2></div>
+        <span id="injectorStatusBadge" class="ct-test-badge neutral">EI ALOITETTU</span>
+      </div>
+      <div class="inline-message warning">
+        Tämä on lämpimällä tyhjäkäynnillä tehtävä suutinten korjausarvojen tasapaino- ja vuotoepäilyseulonta. Se ei yksin todista polttoainevuotoa eikä korvaa paluuvirta-/leak-off-testiä. Flex ei suorita Active Test -toimintoja.
+      </div>
+      <div id="injectorProfileState" class="inline-message"></div>
+
+      <div class="card">
+        <h3>1 · Valmistelu</h3>
+        <ol class="ct-test-steps">
+          <li>Lämmitä moottori normaalilämpöön ja pysäköi ulos tai hyvin tuuletettuun tilaan.</li>
+          <li>Vaihde vapaalle, seisontajarru päälle, ilmastointi, valot ja muut lisälaitteet pois.</li>
+          <li>Anna moottorin käydä tyhjäkäyntiä. Älä paina kaasua noin 45 sekunnin mittauksen aikana.</li>
+        </ol>
+        <label class="switch-row"><input id="injectorConditionsConfirmed" type="checkbox"><span>Olosuhteet ovat turvalliset ja lisälaitteet pois</span></label>
+        <label for="injectorOdometer">Mittarilukema km (valinnainen)</label>
+        <input id="injectorOdometer" type="text" inputmode="numeric" placeholder="Esim. 285000">
+        <label for="injectorNote">Oire tai huomio</label>
+        <textarea id="injectorNote" rows="3" placeholder="Esim. kylmäkäynnistyksessä savuttaa, tyhjäkäynti epätasainen…"></textarea>
+      </div>
+
+      <div class="card">
+        <h3>2 · Mittaus</h3>
+        <div class="diagnostic-progress" aria-live="polite">
+          <div class="diagnostic-progress-track"><span id="injectorProgressBar"></span></div>
+          <div class="diagnostic-progress-meta"><span id="injectorProgressText">Ei ajettu</span><strong id="injectorSampleCount">0 kelvollista näytettä</strong></div>
+        </div>
+        <div class="injector-live-grid">
+          <div><span>SYLINTERI 1</span><strong id="injectorLive1">–</strong><small>mm³</small></div>
+          <div><span>SYLINTERI 2</span><strong id="injectorLive2">–</strong><small>mm³</small></div>
+          <div><span>SYLINTERI 3</span><strong id="injectorLive3">–</strong><small>mm³</small></div>
+          <div><span>SYLINTERI 4</span><strong id="injectorLive4">–</strong><small>mm³</small></div>
+        </div>
+        <div id="injectorConditionsLive" class="hint centered">RPM – · jäähdytysneste – · rail –</div>
+        <div id="injectorTestNotice" class="inline-message hidden" aria-live="polite"></div>
+        <div class="button-row">
+          <button id="startInjectorTest" class="primary" type="button">Aloita 45 s testi</button>
+          <button id="cancelInjectorTest" class="secondary" type="button" disabled>Keskeytä</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>3 · Tulos ja tekoälyraportti</h3>
+        <div id="injectorFinalSummary" class="inline-message hidden"></div>
+        <div id="injectorReportActions" class="diagnostic-actions hidden">
+          <button id="shareInjectorReport" class="primary full" type="button">Jaa raportti tekoälylle</button>
+          <div class="button-row">
+            <button id="saveInjectorReport" class="secondary" type="button">Tallenna .txt</button>
+            <button id="copyInjectorReport" class="secondary" type="button">Kopioi raportti</button>
+          </div>
+        </div>
+        <details id="injectorReportDetails" class="hidden"><summary>Näytä raportti</summary><div id="injectorReportPreview" class="inline-message diagnostic"></div></details>
       </div>
     </section>
 
@@ -179,13 +376,14 @@
       <div class="dtc-group"><h3>Tallennetut</h3><div id="storedDtc" class="dtc-list empty-state">Ei luettu</div></div>
       <div class="dtc-group"><h3>Odottavat</h3><div id="pendingDtc" class="dtc-list empty-state">Ei luettu</div></div>
       <div class="dtc-group"><h3>Pysyvät</h3><div id="permanentDtc" class="dtc-list empty-state">Ei luettu</div></div>
+      <div id="hybridDtcGroup" class="dtc-group hidden"><h3>CT 200h · hybridiohjain 7E2/7EA</h3><div id="hybridDtc" class="dtc-list empty-state">Ei luettu</div></div>
       <button id="clearDtcButton" class="danger full" type="button">Poista vikakoodit…</button>
-      <p class="hint centered">Poisto nollaa myös freeze frame -tietoja ja päästövalmiusmonitoreita.</p>
+      <p id="dtcClearHint" class="hint centered">Poisto nollaa myös freeze frame -tietoja ja päästövalmiusmonitoreita.</p>
     </section>
 
     <section id="page-live" class="page" aria-labelledby="nav-live">
       <div class="section-title">
-        <div><div class="eyebrow">MODE 01 + TECHSTREAM 21 · VAIN LUKU</div><h2>Live-data</h2></div>
+        <div><div id="liveEyebrow" class="eyebrow">MODE 01 + TECHSTREAM 21 · VAIN LUKU</div><h2>Live-data</h2></div>
         <button id="toggleLiveButton" class="primary compact" type="button">Aloita</button>
       </div>
       <div id="supportNotice" class="inline-message">Yhdistä autoon ja aloita. Sovellus kysyy ensin ECU:lta tuetut PIDit.</div>
@@ -200,7 +398,7 @@
       </div>
     </section>
 
-    <section id="page-dpnr" class="page" aria-labelledby="nav-dpnr">
+    <section id="page-dpnr" class="page hidden" data-vehicle-only="is220d" aria-labelledby="nav-dpnr">
       <div class="section-title">
         <div><div class="eyebrow">VGATE VLINKER · TOYOTA 21 · VAIN LUKU</div><h2>DPNR-tarkistus</h2></div>
         <button id="dpnrToggleLiveButton" class="primary compact" type="button">Aloita</button>
@@ -230,7 +428,7 @@
       <button id="dpnrRecordButton" class="primary jumbo" type="button">Aloita DPNR-loki</button>
       <label class="switch-row"><input id="dpnrKeepAwake" type="checkbox" checked><span>Pidä näyttö päällä mittauksen aikana</span></label>
       <div class="inline-message warning">
-        Techstreamin <strong>DPF Thermal Deteriorate</strong>, <strong>DPF PM Block</strong> ja <strong>DPF No Activate</strong> ovat ECU:n tilalippuja. Flex ei väitä mittaavansa niitä ennen kuin niiden Toyota-tunniste ja tavurakenne on varmennettu tästä autosta. Tämä näkymä mittaa nyt luotettavasti vertailukelpoiset paine-, lämpötila-, regenerointi- ja käyttöolosuhdearvot.
+        Techstreamin <strong>DPF Thermal Deteriorate</strong>, <strong>DPF PM Block</strong> ja <strong>DPF No Activate</strong> ovat ECU:n tilalippuja. Flex ei väitä mittaavansa niitä ennen kuin niiden Toyota-tunniste ja tavurakenne on varmennettu tästä autosta. Tämä näkymä mittaa nyt vertailukelpoiset paine-, lämpötila-, regenerointi- ja käyttöolosuhdearvot.
       </div>
     </section>
 
@@ -238,7 +436,7 @@
       <div class="drive-warning">Älä käytä sovellusta kädessä ajon aikana. Kiinnitä puhelin telineeseen.</div>
       <div id="dpfRegenBanner" class="dpf-banner unavailable" role="status" aria-live="polite">
         <span class="dpf-dot" aria-hidden="true"></span>
-        <div><span>DPNR / DPF -POLTON TILA</span><strong id="dpfRegenState">Ei tietoa</strong></div>
+        <div><span id="driveBannerLabel">DPNR / DPF -POLTON TILA</span><strong id="dpfRegenState">Ei tietoa</strong></div>
       </div>
       <div class="drive-values">
         <div class="drive-value"><span>KIERROKSET</span><strong id="driveRpm">–</strong><small>rpm</small></div>
@@ -255,6 +453,94 @@
       <label class="switch-row"><input id="keepAwake" type="checkbox" checked><span>Pidä näyttö päällä tallennuksen aikana</span></label>
     </section>
 
+    <section id="page-power" class="page" aria-labelledby="nav-power">
+      <div class="section-title">
+        <div><div class="eyebrow">GPS-PÄÄMITTAUS · OBD-VARMENNUS</div><h2>Tehotesti</h2></div>
+        <span id="powerStatusBadge" class="power-test-badge neutral">EI ALOITETTU</span>
+      </div>
+      <div class="drive-warning">Kuljettaja ei käytä puhelinta ajon aikana. Kiinnitä puhelin telineeseen tai anna se matkustajalle. Noudata nopeusrajoituksia; suuret nopeudet kuuluvat vain suljetulle alueelle.</div>
+      <div class="inline-message warning">
+        Kiihtyvyysaika mitataan puhelimen tarkalla GPS:llä. Teholuku on massaan, kiihtyvyyteen, ilmanvastukseen, vierintävastukseen ja tieprosenttiin perustuva arvio — ei dynamometrimittaus eikä moottorin kuntotodistus. Reittikoordinaatteja ei tallenneta.
+      </div>
+
+      <div class="card">
+        <h3>1 · Testi ja auton tiedot</h3>
+        <label for="powerPreset">Nopeusväli</label>
+        <select id="powerPreset">
+          <option value="zero100">0–100 km/h</option>
+          <option value="eighty120">80–120 km/h</option>
+          <option value="zero60mph">0–60 mph (96,6 km/h)</option>
+          <option value="sixty120">60–120 km/h</option>
+          <option value="custom">Mukautettu väli</option>
+        </select>
+        <div id="powerCustomRange" class="ct-form-grid hidden">
+          <div><label for="powerStartKmh">Alku km/h</label><input id="powerStartKmh" type="text" inputmode="decimal" value="0"></div>
+          <div><label for="powerEndKmh">Loppu km/h</label><input id="powerEndKmh" type="text" inputmode="decimal" value="100"></div>
+        </div>
+        <div class="ct-form-grid">
+          <div><label for="powerTotalMass">Kokonaismassa kg</label><input id="powerTotalMass" type="text" inputmode="decimal" value="1700"></div>
+          <div><label for="powerRoadGrade">Tieprosentti %</label><input id="powerRoadGrade" type="text" inputmode="decimal" value="0"></div>
+          <div><label for="powerTemperature">Ulkolämpötila °C</label><input id="powerTemperature" type="text" inputmode="decimal" value="15"></div>
+          <div><label for="powerPressure">Ilmanpaine kPa</label><input id="powerPressure" type="text" inputmode="decimal" value="101,3"></div>
+        </div>
+        <p id="powerVehicleReference" class="hint power-reference"></p>
+        <details class="power-advanced">
+          <summary>Aerodynamiikan ja häviöiden lisäasetukset</summary>
+          <div class="ct-form-grid">
+            <div><label for="powerCd">Ilmanvastus Cd</label><input id="powerCd" type="text" inputmode="decimal" value="0,27"></div>
+            <div><label for="powerFrontalArea">Otsapinta-ala m²</label><input id="powerFrontalArea" type="text" inputmode="decimal" value="2,15"></div>
+            <div><label for="powerCrr">Vierintävastus Crr</label><input id="powerCrr" type="text" inputmode="decimal" value="0,012"></div>
+            <div><label for="powerDrivetrainLoss">Voimansiirtohäviö %</label><input id="powerDrivetrainLoss" type="text" inputmode="decimal" value="15"></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <h3>2 · GPS ja automaattinen ajanotto</h3>
+        <div class="power-live-grid">
+          <div class="power-speed"><span>GPS-NOPEUS</span><strong id="powerGpsSpeed">–</strong><small>km/h</small></div>
+          <div><span>GPS-TARKKUUS</span><strong id="powerGpsAccuracy">–</strong><small>m / m/s</small></div>
+          <div><span>NÄYTETAAJUUS</span><strong id="powerGpsRate">–</strong><small>Hz</small></div>
+          <div><span>AJANOTTO</span><strong id="powerElapsed">0,000</strong><small>s</small></div>
+        </div>
+        <div id="powerTestStatus" class="inline-message">Täytä kokonaismassa ja valitse testi. OBD-yhteys on vapaaehtoinen; GPS tekee ajanoton.</div>
+        <div id="powerObdStatus" class="hint power-obd-status">OBD: ei yhteyttä — GPS-testi toimii silti.</div>
+        <button id="powerArmButton" class="primary jumbo" type="button">Valmistele ja viritä testi</button>
+        <button id="powerCancelButton" class="secondary full" type="button" disabled>Keskeytä</button>
+        <label class="switch-row"><input id="powerKeepAwake" type="checkbox" checked><span>Pidä näyttö päällä testin aikana</span></label>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-header"><span class="label">GPS-nopeus</span><strong id="powerTargetLabel">Tavoite –</strong></div>
+        <canvas id="powerChart" height="210" aria-label="Tehotestin GPS-nopeuskuvaaja"></canvas>
+      </div>
+
+      <div id="powerResultCard" class="card hidden">
+        <h3>3 · Tulos</h3>
+        <div class="power-result-hero">
+          <div><span>KIIHTYVYYSAIKA</span><strong id="powerResultTime">–</strong><small>s</small></div>
+          <div><span id="powerResultPowerLabel">TEHOARVIO</span><strong id="powerResultPower">–</strong><small>kW / hv</small></div>
+        </div>
+        <div id="powerQualitySummary" class="inline-message"></div>
+        <div id="powerSplitGrid" class="power-split-grid"></div>
+        <div id="powerComparison" class="inline-message hidden"></div>
+        <div id="powerWarnings" class="power-warning-list"></div>
+        <div class="diagnostic-actions">
+          <button id="powerShareReport" class="primary full" type="button">Jaa raportti ChatGPT:lle</button>
+          <div class="button-row">
+            <button id="powerSaveReport" class="secondary" type="button">Tallenna .txt</button>
+            <button id="powerCopyReport" class="secondary" type="button">Kopioi raportti</button>
+          </div>
+          <button id="powerSaveCsv" class="secondary full compact" type="button">Tallenna GPS/OBD-raakadata .csv</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Aiemmat saman auton vedot</h3>
+        <div id="powerHistory" class="session-list empty-state">Ei tallennettuja tehotestejä</div>
+      </div>
+    </section>
+
     <section id="page-sessions" class="page" aria-labelledby="nav-sessions">
       <div class="section-title"><div><div class="eyebrow">VAIN TÄLLÄ PUHELIMELLA</div><h2>Tallennetut ajot</h2></div></div>
       <div id="sessionList" class="session-list empty-state">Ei tallennettuja ajoja</div>
@@ -263,7 +549,7 @@
 
     <section id="page-terminal" class="page" aria-labelledby="nav-terminal">
       <div class="section-title"><div><div class="eyebrow">ASIANTUNTIJANÄKYMÄ</div><h2>Raakaterminaali</h2></div></div>
-      <div class="inline-message warning">Vain AT-komennot, lukevat OBD-moodit 01, 02, 03, 07, 09 ja 0A sekä Techstreamista varmennetut Toyota-lukukomennot 21 7E, 21 7F ja 21 2C sallitaan. Mode 04 toimii vain Vikakoodit-näkymän vahvistuksesta.</div>
+      <div id="terminalProfileWarning" class="inline-message warning">Vain valitun ajoneuvoprofiilin lukukomennot sallitaan.</div>
       <div class="terminal-presets" aria-label="Turvalliset pikakomennot">
         <button class="secondary compact" type="button" data-terminal-command="ATI">ATI</button>
         <button class="secondary compact" type="button" data-terminal-command="ATDP">ATDP</button>
@@ -272,9 +558,21 @@
         <button class="secondary compact" type="button" data-terminal-command="ATSH7E0">ATSH7E0</button>
         <button class="secondary compact" type="button" data-terminal-command="0100">0100</button>
         <button class="secondary compact" type="button" data-terminal-command="010C">010C</button>
-        <button class="secondary compact" type="button" data-terminal-command="217E">217E</button>
-        <button class="secondary compact" type="button" data-terminal-command="217F">217F</button>
-        <button class="secondary compact" type="button" data-terminal-command="212C">212C</button>
+        <button class="secondary compact" type="button" data-terminal-command="217E" data-vehicle-only="is220d">217E</button>
+        <button class="secondary compact" type="button" data-terminal-command="217F" data-vehicle-only="is220d">217F</button>
+        <button class="secondary compact" type="button" data-terminal-command="212C" data-vehicle-only="is220d">212C</button>
+        <button class="secondary compact" type="button" data-terminal-command="2193" data-vehicle-only="is220d">2193</button>
+        <button class="secondary compact" type="button" data-terminal-command="2196" data-vehicle-only="is220d">2196</button>
+        <button class="secondary compact" type="button" data-terminal-command="219C" data-vehicle-only="is220d">219C</button>
+        <button class="secondary compact" type="button" data-terminal-command="21AF" data-vehicle-only="is220d">21AF</button>
+        <button class="secondary compact hidden" type="button" data-terminal-command="ATSH7E2" data-vehicle-only="ct200h">ATSH7E2</button>
+        <button class="secondary compact hidden" type="button" data-terminal-command="21C1" data-vehicle-only="ct200h">21C1</button>
+        <button class="secondary compact hidden" type="button" data-terminal-command="2101" data-vehicle-only="ct200h">2101</button>
+        <button class="secondary compact hidden" type="button" data-terminal-command="2181" data-vehicle-only="ct200h">2181</button>
+        <button class="secondary compact hidden" type="button" data-terminal-command="2187" data-vehicle-only="ct200h">2187</button>
+        <button class="secondary compact hidden" type="button" data-terminal-command="2195" data-vehicle-only="ct200h">2195</button>
+        <button class="secondary compact hidden" type="button" data-terminal-command="2198" data-vehicle-only="ct200h">2198</button>
+        <button class="secondary compact hidden" type="button" data-terminal-command="13B0" data-vehicle-only="ct200h">13B0</button>
       </div>
       <div id="terminalLog" class="terminal" aria-live="polite"></div>
       <div class="terminal-input">
@@ -290,10 +588,13 @@
 
   <nav class="bottom-nav" aria-label="Päänavigaatio">
     <button id="nav-connection" class="nav-item active" data-page="connection"><span>⌁</span>Yhteys</button>
+    <button id="nav-ct-test" class="nav-item hidden" data-page="ct-test" data-vehicle-only="ct200h"><span>CT</span>Ostotesti</button>
+    <button id="nav-injector-test" class="nav-item hidden" data-page="injector-test" data-vehicle-only="is220d"><span>INJ</span>Suuttimet</button>
     <button id="nav-dtc" class="nav-item" data-page="dtc"><span>!</span>Koodit</button>
     <button id="nav-live" class="nav-item" data-page="live"><span>⌇</span>Live</button>
-    <button id="nav-dpnr" class="nav-item" data-page="dpnr"><span>DPF</span>DPNR</button>
+    <button id="nav-dpnr" class="nav-item hidden" data-page="dpnr" data-vehicle-only="is220d"><span>DPF</span>DPNR</button>
     <button id="nav-drive" class="nav-item" data-page="drive"><span>●</span>Koeajo</button>
+    <button id="nav-power" class="nav-item" data-page="power"><span>↗</span>Teho</button>
     <button id="nav-sessions" class="nav-item" data-page="sessions"><span>▤</span>Ajot</button>
     <button id="nav-terminal" class="nav-item" data-page="terminal"><span>&gt;_</span>Term.</button>
   </nav>

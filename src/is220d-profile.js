@@ -124,6 +124,88 @@ const engineProbes = [
   }
 ];
 
+const injectorScreeningProbes = [
+  {
+    id: "engine.fuel_temperature_screening",
+    service: 0x21,
+    responseService: 0x61,
+    identifier: 0x93,
+    identifierHex: "93",
+    command: "2193",
+    rawCommand: "0221930000000000",
+    expectedResponsePrefix: "6193",
+    label: "Polttoaineen lämpötila suutintestiä varten",
+    decoder: "toyota-2ad-fhv-2193-v1",
+    minPayloadLength: 1,
+    cacheMaxAgeMs: 1400,
+    evidence: "techstream-derived",
+    writable: false,
+    fields: [
+      { id: "toyotaFuelTemperature", valueKey: "fuelTemperatureC", label: "Polttoaineen lämpötila", unit: "°C", decimals: 0, plausibleRange: [-40, 150], evidence: "techstream-derived", writable: false }
+    ]
+  },
+  {
+    id: "engine.rail_pressure_screening",
+    service: 0x21,
+    responseService: 0x61,
+    identifier: 0x96,
+    identifierHex: "96",
+    command: "2196",
+    rawCommand: "0221960000000000",
+    expectedResponsePrefix: "6196",
+    label: "Common rail -paine suutintestiä varten",
+    decoder: "toyota-2ad-fhv-2196-v1",
+    minPayloadLength: 1,
+    cacheMaxAgeMs: 700,
+    evidence: "techstream-derived",
+    writable: false,
+    fields: [
+      { id: "toyotaRailPressure", valueKey: "railPressureMpa", label: "Common rail -paine", unit: "MPa", decimals: 0, plausibleRange: [0, 250], evidence: "techstream-derived", writable: false }
+    ]
+  },
+  {
+    id: "engine.injection_feedback_screening",
+    service: 0x21,
+    responseService: 0x61,
+    identifier: 0x9c,
+    identifierHex: "9C",
+    command: "219C",
+    rawCommand: "02219C0000000000",
+    expectedResponsePrefix: "619C",
+    label: "Suutinkorjaukset 1–4",
+    decoder: "toyota-2ad-fhv-219c-v1",
+    minPayloadLength: 4,
+    cacheMaxAgeMs: 700,
+    evidence: "techstream-derived",
+    writable: false,
+    fields: [
+      { id: "injectionFeedback1", valueKey: "injectionFeedback1Mm3", label: "Suutinkorjaus 1", unit: "mm³", decimals: 2, plausibleRange: [-10, 10], evidence: "techstream-derived", writable: false },
+      { id: "injectionFeedback2", valueKey: "injectionFeedback2Mm3", label: "Suutinkorjaus 2", unit: "mm³", decimals: 2, plausibleRange: [-10, 10], evidence: "techstream-derived", writable: false },
+      { id: "injectionFeedback3", valueKey: "injectionFeedback3Mm3", label: "Suutinkorjaus 3", unit: "mm³", decimals: 2, plausibleRange: [-10, 10], evidence: "techstream-derived", writable: false },
+      { id: "injectionFeedback4", valueKey: "injectionFeedback4Mm3", label: "Suutinkorjaus 4", unit: "mm³", decimals: 2, plausibleRange: [-10, 10], evidence: "techstream-derived", writable: false }
+    ]
+  },
+  {
+    id: "engine.injection_timing_screening",
+    service: 0x21,
+    responseService: 0x61,
+    identifier: 0xaf,
+    identifierHex: "AF",
+    command: "21AF",
+    rawCommand: "0221AF0000000000",
+    expectedResponsePrefix: "61AF",
+    label: "Ruiskutusajoitus suutintestiä varten",
+    decoder: "toyota-2ad-fhv-21af-v1",
+    minPayloadLength: 2,
+    cacheMaxAgeMs: 1400,
+    evidence: "techstream-derived",
+    writable: false,
+    fields: [
+      { id: "toyotaInjectionTiming", valueKey: "injectionTimingDegCa", label: "Ruiskutusajoitus", unit: "°CA", decimals: 1, plausibleRange: [-90, 90], evidence: "techstream-derived", writable: false }
+    ]
+  }
+];
+
 export const IS220D_DIAGNOSTIC_PROFILE = deepFreeze({
   schemaVersion: 1,
   profileVersion: "is220d-xe20-2ad-fhv-readonly-v1",
@@ -133,7 +215,9 @@ export const IS220D_DIAGNOSTIC_PROFILE = deepFreeze({
     platform: "XE20",
     modelYear: 2008,
     engine: "2AD-FHV",
-    market: "Europe"
+    market: "Europe",
+    displayName: "Lexus IS220d · XE20",
+    shortName: "IS220d"
   },
   evidencePolicy: {
     publishMinimum: "vehicle-verified",
@@ -180,8 +264,16 @@ export const TOYOTA_READ_DATA_PROBES = Object.freeze(
   }))
 );
 
+export const IS220D_INJECTOR_SCREENING_PROBES = deepFreeze(
+  injectorScreeningProbes.map(probe => ({
+    ...probe,
+    requestHeader: IS220D_ENGINE_ECU_PROFILE.requestHeader,
+    responseHeader: IS220D_ENGINE_ECU_PROFILE.responseHeader
+  }))
+);
+
 export const TOYOTA_READ_DATA_ALLOWED_COMMANDS = Object.freeze(
-  TOYOTA_READ_DATA_PROBES.flatMap(probe => [probe.command, probe.rawCommand])
+  [...TOYOTA_READ_DATA_PROBES, ...IS220D_INJECTOR_SCREENING_PROBES].flatMap(probe => [probe.command, probe.rawCommand])
 );
 
 export function validateDiagnosticProfile(profile = IS220D_DIAGNOSTIC_PROFILE) {
@@ -252,12 +344,13 @@ export function assertValidDiagnosticProfile(profile = IS220D_DIAGNOSTIC_PROFILE
 }
 
 export function getToyotaReadDataProbe(commandOrIdentifier) {
+  const allProbes = [...TOYOTA_READ_DATA_PROBES, ...IS220D_INJECTOR_SCREENING_PROBES];
   if (Number.isInteger(commandOrIdentifier)) {
     const identifier = Number(commandOrIdentifier) & 0xff;
-    return TOYOTA_READ_DATA_PROBES.find(probe => probe.identifier === identifier) || null;
+    return allProbes.find(probe => probe.identifier === identifier) || null;
   }
   const command = String(commandOrIdentifier || "").replace(/\s+/g, "").toUpperCase();
-  return TOYOTA_READ_DATA_PROBES.find(probe => probe.command === command || probe.rawCommand === command) || null;
+  return allProbes.find(probe => probe.command === command || probe.rawCommand === command) || null;
 }
 
 export function isProfileReadOnlyCommand(command) {
