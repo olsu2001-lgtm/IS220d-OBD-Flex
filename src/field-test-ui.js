@@ -2,7 +2,7 @@ const STYLE_ID = "field-test-ui-style";
 const ROOT_ID = "ecuSurveyFieldTestMode";
 const EVENT_NAME = "is220d:ecu-survey-history-updated";
 const ENGINE_STATE_KEY = "is220d-obd:field-test-engine-state:v1";
-const REQUIRED_RUNS = 3;
+export const FIELD_TEST_REQUIRED_RUNS = 3;
 
 const styles = `
 .field-test-mode{margin:0 0 11px;padding:10px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
@@ -72,17 +72,18 @@ function matchingRuns(historyResult, buildSha, engineState) {
   );
 }
 
-function fieldTestState(historyResult, engineState) {
-  const buildSha = runtimeBuildSha(historyResult);
-  const runs = matchingRuns(historyResult, buildSha, engineState);
-  const latestThree = runs.slice(-REQUIRED_RUNS);
+export function buildFieldTestState(historyResult, engineState, buildShaOverride = "") {
+  const normalizedState = engineState === "stopped" ? "stopped" : "running";
+  const buildSha = String(buildShaOverride || runtimeBuildSha(historyResult)).trim();
+  const runs = matchingRuns(historyResult, buildSha, normalizedState);
+  const latestThree = runs.slice(-FIELD_TEST_REQUIRED_RUNS);
   const validation = historyResult?.fieldValidation || null;
-  const sameCurrentGroup = String(validation?.buildSha || "") === buildSha && String(validation?.engineState || "") === engineState;
+  const sameCurrentGroup = String(validation?.buildSha || "") === buildSha && String(validation?.engineState || "") === normalizedState;
   const ready = sameCurrentGroup && validation?.readyForTechstream === true;
   const attention = sameCurrentGroup && validation?.status === "needs-attention";
   return Object.freeze({
     buildSha,
-    engineState,
+    engineState: normalizedState,
     observedRuns: latestThree.length,
     totalMatchingRuns: runs.length,
     ready,
@@ -91,16 +92,16 @@ function fieldTestState(historyResult, engineState) {
   });
 }
 
-function statusLabel(state) {
-  if (state.ready) return Object.freeze({ text: "3/3 valmis", className: "ready" });
-  if (state.attention) return Object.freeze({ text: "3/3 tarkistettava", className: "attention" });
-  return Object.freeze({ text: `${state.observedRuns}/${REQUIRED_RUNS} kerätty`, className: "" });
+export function fieldTestStatusLabel(state) {
+  if (state?.ready) return Object.freeze({ text: "3/3 valmis", className: "ready" });
+  if (state?.attention) return Object.freeze({ text: "3/3 tarkistettava", className: "attention" });
+  return Object.freeze({ text: `${Number(state?.observedRuns || 0)}/${FIELD_TEST_REQUIRED_RUNS} kerätty`, className: "" });
 }
 
-function buttonLabel(state) {
-  if (state.ready) return "Aja lisävarmennusajo";
-  if (state.attention) return "Aja korvaava kenttäajo";
-  return `Aja kenttäajo ${Math.min(state.observedRuns + 1, REQUIRED_RUNS)}/${REQUIRED_RUNS}`;
+export function fieldTestButtonLabel(state) {
+  if (state?.ready) return "Aja lisävarmennusajo";
+  if (state?.attention) return "Aja korvaava kenttäajo";
+  return `Aja kenttäajo ${Math.min(Number(state?.observedRuns || 0) + 1, FIELD_TEST_REQUIRED_RUNS)}/${FIELD_TEST_REQUIRED_RUNS}`;
 }
 
 function render(historyResult, loadHistory) {
@@ -110,8 +111,8 @@ function render(historyResult, loadHistory) {
   root.replaceChildren();
 
   const selectedState = loadEngineState();
-  let state = fieldTestState(historyResult, selectedState);
-  const badgeState = statusLabel(state);
+  let state = buildFieldTestState(historyResult, selectedState);
+  const badgeState = fieldTestStatusLabel(state);
 
   const header = create("div", "field-test-header");
   header.append(create("strong", "", "Field Test Mode · ECU Survey 3×"), create("span", `field-test-status ${badgeState.className}`, badgeState.text));
@@ -121,7 +122,7 @@ function render(historyResult, loadHistory) {
   for (const [label, value] of [
     ["Build", state.buildSha || "–"],
     ["Moottori", state.engineState === "running" ? "käy" : "ei käy"],
-    ["Saman ryhmän ajot", `${state.observedRuns}/${REQUIRED_RUNS}`]
+    ["Saman ryhmän ajot", `${state.observedRuns}/${FIELD_TEST_REQUIRED_RUNS}`]
   ]) {
     const cell = create("div");
     cell.append(create("span", "", label), create("strong", "", value));
@@ -138,7 +139,7 @@ function render(historyResult, loadHistory) {
     option.selected = value === selectedState;
     select.append(option);
   }
-  const run = create("button", "primary", buttonLabel(state));
+  const run = create("button", "primary", fieldTestButtonLabel(state));
   run.type = "button";
   const message = create("p", "field-test-message", "");
 
@@ -149,7 +150,7 @@ function render(historyResult, loadHistory) {
 
   run.addEventListener("click", () => {
     const currentHistory = typeof loadHistory === "function" ? loadHistory() : historyResult;
-    state = fieldTestState(currentHistory, select.value);
+    state = buildFieldTestState(currentHistory, select.value);
     const diagnosticState = document.getElementById("diagnosticEngineState");
     const diagnosticButton = document.getElementById("runGekoTest");
     if (!diagnosticState || !diagnosticButton) {
@@ -166,7 +167,7 @@ function render(historyResult, loadHistory) {
     diagnosticState.value = select.value;
     diagnosticState.dispatchEvent(new Event("change", { bubbles: true }));
     message.className = "field-test-message ok";
-    message.textContent = `Käynnistetään nykyinen laaja testi kenttäajona ${Math.min(state.observedRuns + 1, REQUIRED_RUNS)}/${REQUIRED_RUNS} · moottori ${select.value === "running" ? "käy" : "ei käy"}.`;
+    message.textContent = `Käynnistetään nykyinen laaja testi kenttäajona ${Math.min(state.observedRuns + 1, FIELD_TEST_REQUIRED_RUNS)}/${FIELD_TEST_REQUIRED_RUNS} · moottori ${select.value === "running" ? "käy" : "ei käy"}.`;
     diagnosticButton.click();
     document.getElementById("diagnosticProgressText")?.scrollIntoView?.({ block: "center", behavior: "smooth" });
   });
