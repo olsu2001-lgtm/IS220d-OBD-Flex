@@ -9,7 +9,9 @@ This directory separates the **active development contract** from historical Dri
 3. [`PROTOCOL.md`](PROTOCOL.md) — current verified IS220d production protocol profile and Toyota allowlist.
 4. [`ECU_SURVEY.md`](ECU_SURVEY.md) — current read-only ECU Survey policy/data-model foundation and integration boundary.
 5. [`MODE09_IDENTITY.md`](MODE09_IDENTITY.md) — parsing and evidence-comparison boundary for VIN, Calibration ID, CVN and ECU-name results already collected by the wide diagnostic.
-6. Executable source and regression tests — the final source of truth for shipped behavior.
+6. [`FIELD_VALIDATION.md`](FIELD_VALIDATION.md) — commit-traceable three-run real-car validation gate before a 0.7.0 release decision.
+7. [`TECHSTREAM_REFERENCE.md`](TECHSTREAM_REFERENCE.md) — neutral external-reference schema and explicit Techstream/ECU Survey comparison boundary.
+8. Executable source and regression tests — the final source of truth for shipped behavior.
 
 Historical documents never expand the active command allowlist by themselves.
 
