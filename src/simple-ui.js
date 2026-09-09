@@ -2,11 +2,13 @@ const STYLE_ID = "simple-ui-style";
 const ROOT_ID = "simpleUseCard";
 const ADVANCED_ID = "advancedDiagnostics";
 const PROTOCOL_KEY = "obdProtocol";
+const TRANSPORT_STATUS_EVENT = "is220d:classic-transport-status";
+let transportActivity = null;
 
 const styles = `
 .simple-use-card{margin-top:12px}.simple-use-card h3{margin:0 0 5px}.simple-use-card p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}
 .simple-use-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}.simple-use-actions button{min-height:44px}
-.simple-use-status{margin-top:8px;color:var(--muted);font-size:10px}.simple-use-status.ready{color:var(--green)}
+.simple-use-status{margin-top:8px;color:var(--muted);font-size:10px}.simple-use-status.ready{color:var(--green)}.simple-use-status.busy{color:var(--yellow)}
 .advanced-diagnostics{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}.advanced-diagnostics>summary{cursor:pointer;padding:12px 13px;color:#cbd5df;font-size:11px;font-weight:800;list-style:none}.advanced-diagnostics>summary::-webkit-details-marker{display:none}.advanced-diagnostics>summary::after{content:"+";float:right;color:var(--muted)}.advanced-diagnostics[open]>summary::after{content:"−"}.advanced-diagnostics-body{padding:0 10px 10px}.advanced-connection-settings{margin:0 0 10px;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0a0e13}.advanced-connection-settings label{margin-top:0}.advanced-connection-settings .hint{margin-bottom:0}
 body.simple-user-mode #nav-terminal{display:none}
 body.simple-user-mode.advanced-user-mode #nav-terminal{display:flex}
@@ -91,6 +93,14 @@ function connectionReady() {
 function updateSimpleStatus(root) {
   const status = root?.querySelector(".simple-use-status");
   if (!status) return;
+  if (transportActivity?.active) {
+    const seconds = Math.max(1, Math.ceil(Number(transportActivity.maxWaitMs || 0) / 1000));
+    status.className = "simple-use-status busy";
+    status.textContent = transportActivity.kind === "connect"
+      ? `Yhdistetään adapteriin… aikaraja ${seconds} s. Sovellus pysyy käytettävissä.`
+      : `Adapteri vastaa… tämän vaiheen aikaraja ${seconds} s. Sovellus pysyy käytettävissä.`;
+    return;
+  }
   const ready = connectionReady();
   status.className = `simple-use-status${ready ? " ready" : ""}`;
   status.textContent = ready
@@ -132,6 +142,15 @@ function observeConnection(root) {
   observer.observe(stage, { attributes: true, childList: true, subtree: true, characterData: true });
 }
 
+function observeTransportStatus(root) {
+  if (document.documentElement.dataset.simpleTransportObserved === "true") return;
+  document.documentElement.dataset.simpleTransportObserved = "true";
+  document.addEventListener(TRANSPORT_STATUS_EVENT, event => {
+    transportActivity = event?.detail?.active ? { ...event.detail } : null;
+    updateSimpleStatus(root || document.getElementById(ROOT_ID));
+  });
+}
+
 export function installSimpleUi() {
   if (typeof document === "undefined") return false;
   const mount = () => {
@@ -144,6 +163,7 @@ export function installSimpleUi() {
     const advanced = ensureAdvanced(connectionPage);
     if (advanced?.open) document.body.classList.add("advanced-user-mode");
     observeConnection(root);
+    observeTransportStatus(root);
     return true;
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount, { once: true });
