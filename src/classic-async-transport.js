@@ -1,6 +1,7 @@
 import { NativeElmTransport } from "./core.js";
 
 const CALLBACK_NAME = "__IS220D_OBD_ASYNC_RESULT__";
+const STATUS_EVENT = "is220d:classic-transport-status";
 const PATCH_FLAG = Symbol.for("is220d.native-elm-async-patched");
 const CONNECT_WATCHDOG_MS = 12000;
 const SEND_WATCHDOG_MARGIN_MS = 1250;
@@ -17,6 +18,11 @@ function decodeBase64Utf8(value) {
   const binary = atob(encoded);
   const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
   return new TextDecoder("utf-8").decode(bytes);
+}
+
+function notifyTransportStatus(detail) {
+  if (typeof document === "undefined" || typeof CustomEvent === "undefined") return;
+  try { document.dispatchEvent(new CustomEvent(STATUS_EVENT, { detail: { ...detail } })); } catch {}
 }
 
 function finishPending(requestId, error, raw) {
@@ -121,30 +127,41 @@ export function installClassicAsyncTransport() {
   prototype.connect = async function connectNonBlocking(address) {
     if (!isClassicAsyncAvailable(this, "connectAsync")) return originalConnect.call(this, address);
     if (!this.available()) throw new Error("Androidin Bluetooth-silta ei ole käytettävissä");
-    const result = await startAsyncRequest(
-      this,
-      "connectAsync",
-      [String(address)],
-      CONNECT_WATCHDOG_MS,
-      "Bluetooth-yhteyden muodostus ei valmistunut 12 sekunnissa",
-      true
-    );
-    return parseClassicConnectResult(result);
+    notifyTransportStatus({ active: true, kind: "connect", maxWaitMs: CONNECT_WATCHDOG_MS });
+    try {
+      const result = await startAsyncRequest(
+        this,
+        "connectAsync",
+        [String(address)],
+        CONNECT_WATCHDOG_MS,
+        "Bluetooth-yhteyden muodostus ei valmistunut 12 sekunnissa",
+        true
+      );
+      return parseClassicConnectResult(result);
+    } finally {
+      notifyTransportStatus({ active: false, kind: "connect", maxWaitMs: CONNECT_WATCHDOG_MS });
+    }
   };
 
   prototype.send = async function sendNonBlocking(command, timeoutMs = 2500) {
     if (!isClassicAsyncAvailable(this, "sendAsync")) return originalSend.call(this, command, timeoutMs);
     if (!this.available()) throw new Error("Androidin Bluetooth-silta ei ole käytettävissä");
     const timeout = Math.max(1, Number(timeoutMs) || 2500);
-    const result = await startAsyncRequest(
-      this,
-      "sendAsync",
-      [String(command), timeout],
-      timeout + SEND_WATCHDOG_MARGIN_MS,
-      `Bluetooth-komento ei valmistunut ${timeout + SEND_WATCHDOG_MARGIN_MS} ms aikarajassa`,
-      true
-    );
-    return parseClassicSendResult(result, command);
+    const maxWaitMs = timeout + SEND_WATCHDOG_MARGIN_MS;
+    notifyTransportStatus({ active: true, kind: "send", maxWaitMs });
+    try {
+      const result = await startAsyncRequest(
+        this,
+        "sendAsync",
+        [String(command), timeout],
+        maxWaitMs,
+        `Bluetooth-komento ei valmistunut ${maxWaitMs} ms aikarajassa`,
+        true
+      );
+      return parseClassicSendResult(result, command);
+    } finally {
+      notifyTransportStatus({ active: false, kind: "send", maxWaitMs });
+    }
   };
 
   Object.defineProperty(prototype, PATCH_FLAG, { value: true, configurable: false });
