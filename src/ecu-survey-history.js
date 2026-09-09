@@ -9,6 +9,7 @@ import { installTechstreamReferenceUi } from "./techstream-reference-ui.js";
 import { installEvidenceSupportUi } from "./evidence-support-ui.js";
 import { installFieldTestUi } from "./field-test-ui.js";
 import { installSimpleUi } from "./simple-ui.js";
+import { installClassicAsyncTransport } from "./classic-async-transport.js";
 
 export const ECU_SURVEY_HISTORY_KEY = "is220d-obd:ecu-survey-history:v1";
 export const ECU_SURVEY_HISTORY_LIMIT = 10;
@@ -235,6 +236,8 @@ export function clearEcuSurveyHistory(storage = undefined) {
     return false;
   }
 }
+
+installClassicAsyncTransport();
 
 if (typeof document !== "undefined") {
   const loadHistory = () => summarizeEcuSurveyHistory();
