@@ -157,9 +157,14 @@
 
     invoke-virtual {v1, v2}, Landroid/webkit/WebView;->post(Ljava/lang/Runnable;)Z
     :try_end_0
-    .catch Ljava/lang/Exception; {:try_start_0 .. :try_end_0} :done
+    .catch Ljava/lang/Exception; {:try_start_0 .. :try_end_0} :catch_callback
 
     :done
+    return-void
+
+    :catch_callback
+    move-exception v0
+
     return-void
 .end method
 
