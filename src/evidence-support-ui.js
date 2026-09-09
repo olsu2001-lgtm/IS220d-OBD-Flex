@@ -1,4 +1,7 @@
-import { stringifyEvidenceSupportBundle } from "./evidence-support-bundle.js";
+import {
+  buildEvidenceSupportBundle,
+  stringifyEvidenceSupportBundle
+} from "./evidence-support-bundle.js";
 
 const STYLE_ID = "evidence-support-ui-style";
 const ROOT_ID = "ecuSurveyEvidenceSupport";
@@ -7,7 +10,7 @@ const EVENT_NAME = "is220d:ecu-survey-history-updated";
 const styles = `
 .evidence-support{margin:0 0 11px;padding:10px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
 .evidence-support-header{display:flex;align-items:center;justify-content:space-between;gap:8px}.evidence-support-header strong{font-size:11px}.evidence-support-header span{color:var(--muted);font-size:9px}
-.evidence-support p{margin:7px 0 0;color:var(--muted);font-size:9px;line-height:1.4}.evidence-support button{width:100%;min-height:36px;margin-top:8px;padding:0 10px;font-size:10px;font-weight:800}.evidence-support textarea{width:100%;min-height:150px;margin-top:8px;padding:9px;border:1px solid var(--line);border-radius:9px;background:#080c11;color:#c5d5e6;resize:vertical;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.evidence-support-message{margin-top:6px!important}.evidence-support-message.ok{color:var(--green)!important}.evidence-support-message.error{color:#ffb4b4!important}
+.evidence-support p{margin:7px 0 0;color:var(--muted);font-size:9px;line-height:1.4}.evidence-support button{width:100%;min-height:36px;margin-top:8px;padding:0 10px;font-size:10px;font-weight:800}.evidence-support textarea{width:100%;min-height:150px;margin-top:8px;padding:9px;border:1px solid var(--line);border-radius:9px;background:#080c11;color:#c5d5e6;resize:vertical;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.evidence-support-message{margin-top:6px!important}.evidence-support-message.ok{color:var(--green)!important}.evidence-support-message.error{color:#ffb4b4!important}.evidence-support-readiness{font-weight:700}.evidence-support-readiness.ready{color:var(--green)!important}.evidence-support-readiness.attention{color:#ffb4b4!important}
 `;
 
 function create(tag, className = "", text = "") {
@@ -36,17 +39,37 @@ function ensureRoot() {
   return root;
 }
 
+function readinessLabel(readiness) {
+  const status = String(readiness?.status || "collecting-field-evidence");
+  const labels = {
+    "collecting-field-evidence": "0.7.0: kenttäevidenssiä kerätään",
+    "field-evidence-needs-attention": "0.7.0: kenttäevidenssi tarkistettava",
+    "awaiting-techstream": "0.7.0: odottaa Techstream-vertailua",
+    "techstream-needs-attention": "0.7.0: Techstream-vertailu tarkistettava",
+    "ready-for-release-review": "0.7.0: valmis julkaisu-review’hun"
+  };
+  return labels[status] || `0.7.0: ${status}`;
+}
+
 function render(historyResult, loadHistory) {
   ensureStyles();
   const root = ensureRoot();
   if (!root) return;
   root.replaceChildren();
+  const bundle = buildEvidenceSupportBundle(historyResult);
   const runs = Number(historyResult?.fieldValidation?.observedRuns || 0);
   const buildSha = String(historyResult?.fieldValidation?.buildSha || historyResult?.latestSnapshot?.buildSha || "");
+  const readiness = bundle.releaseReadiness;
 
   const header = create("div", "evidence-support-header");
   header.append(create("strong", "", "Evidence Support Bundle v1"), create("span", "", `${runs}/3 ajoa`));
   root.append(header);
+  const readinessClass = readiness?.readyForReleaseReview
+    ? "evidence-support-readiness ready"
+    : String(readiness?.status || "").includes("needs-attention")
+      ? "evidence-support-readiness attention"
+      : "evidence-support-readiness";
+  root.append(create("p", readinessClass, readinessLabel(readiness)));
   root.append(create("p", "", `Kompakti read-only JSON analyysiin. Build ${buildSha || "ei vielä kirjattu"}. Raaka CAN/ELM-data, adapteritunnisteet, Bluetooth-osoitteet ja ajoneuvon identiteettiarvot eivät kuulu pakettiin.`));
 
   const copy = create("button", "primary", "Kopioi evidenssipaketti");
