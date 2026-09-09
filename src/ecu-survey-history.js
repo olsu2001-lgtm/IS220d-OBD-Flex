@@ -7,6 +7,7 @@ import {
 import { installEcuSurveyUi, notifyEcuSurveyUi } from "./ecu-survey-ui-runtime.js";
 import { installTechstreamReferenceUi } from "./techstream-reference-ui.js";
 import { installEvidenceSupportUi } from "./evidence-support-ui.js";
+import { installFieldTestUi } from "./field-test-ui.js";
 
 export const ECU_SURVEY_HISTORY_KEY = "is220d-obd:ecu-survey-history:v1";
 export const ECU_SURVEY_HISTORY_LIMIT = 10;
@@ -239,4 +240,5 @@ if (typeof document !== "undefined") {
   installEcuSurveyUi({ loadHistory });
   installTechstreamReferenceUi({ loadHistory });
   installEvidenceSupportUi({ loadHistory });
+  installFieldTestUi({ loadHistory });
 }
