@@ -24,10 +24,12 @@ Lexus IS220d / XE20 / 2AD-FHV European profile.
 The executable source of truth is `src/is220d-profile.js`. These are the
 normal production live-data requests.
 
-The separate user-started injector screening workflow may also read `2193`
-(fuel temperature), `2196` (rail pressure) and `219C` (injection feedback).
-Those values are Techstream-derived, remain outside normal live polling and are
-reported with raw responses and an explicit validation warning.
+`2193` (fuel temperature), `2196` (rail pressure) and `21AF` (injection
+timing) remain Techstream-derived screening candidates outside normal live
+polling. The `219C` injection-feedback candidate is field-disabled: it returned
+`NO DATA` in three repeatable runs on calibration `35360000`. Flex must reject
+`219C` before transport until an independently captured Techstream Data List
+transaction verifies the correct request and response layout for this vehicle.
 
 ## Current conversions
 
