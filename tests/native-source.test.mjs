@@ -329,7 +329,7 @@ test("automaattinen ELM/CAN-diagnostiikka jatkaa NO DATA -tilanteesta raporttiin
   assert.match(main, /saveOrShareFullDiagnostic/);
 });
 
-test("0.7.7 sisältää vain lukevan IS220d-suutintestin ja tekoälyraportin", async () => {
+test("0.8.1 säilyttää suutintestiraportin mutta estää kentässä vastaamattoman 219C:n", async () => {
   const [main, html, injector, profile] = await Promise.all([
     read("src/main.js"),
     read("index.html"),
@@ -344,6 +344,8 @@ test("0.7.7 sisältää vain lukevan IS220d-suutintestin ja tekoälyraportin", a
   assert.match(profile, /command: "2193"/);
   assert.match(profile, /command: "2196"/);
   assert.match(profile, /command: "219C"/);
+  assert.match(profile, /IS220D_FIELD_DISABLED_COMMANDS/);
+  assert.match(main, /INJECTOR_TEST_AVAILABILITY\.supported/);
   assert.match(injector, /paluuvirta-\/leak-off-testi/);
   assert.doesNotMatch(injector, /command:\s*["'](?:04|2E|2F|31|34|36)/i);
 });
