@@ -133,8 +133,8 @@ async function buildVariant(label, minify, filename) {
   return output;
 }
 
-const debugOutput = await buildVariant("debug", false, "Lexus_OBD-Flex-0.7.8-debug.apk");
-const releaseOutput = await buildVariant("release", true, "Lexus_OBD-Flex-0.7.8-release.apk");
+const debugOutput = await buildVariant("debug", false, "Lexus_OBD-Flex-0.8.0-debug.apk");
+const releaseOutput = await buildVariant("release", true, "Lexus_OBD-Flex-0.8.0-release.apk");
 const buildInfo = {
   schemaVersion: 1,
   appVersion,

@@ -21,8 +21,13 @@ Lexus IS220d / XE20 / 2AD-FHV European profile.
 | DPNR inlet and outlet temperatures | `217F` | `02217F0000000000` | `617F` |
 | EGR position | `212C` | `02212C0000000000` | `612C` |
 
-The executable source of truth is `src/is220d-profile.js`. Tests must assert
-that the allowlist contains exactly these six command strings.
+The executable source of truth is `src/is220d-profile.js`. These are the
+normal production live-data requests.
+
+The separate user-started injector screening workflow may also read `2193`
+(fuel temperature), `2196` (rail pressure) and `219C` (injection feedback).
+Those values are Techstream-derived, remain outside normal live polling and are
+reported with raw responses and an explicit validation warning.
 
 ## Current conversions
 

@@ -7,16 +7,18 @@ read-only Android diagnostic application for a Lexus IS220d / XE20 / 2AD-FHV.
 
 - Application name: `IS220d OBD Flex`
 - Package ID: `fi.oliver.is220dobd`
-- Current baseline: `0.6.9` / versionCode `609`
+- Current baseline: `0.8.0` / versionCode `800`
 - `IS220d OBD Classic` is a separate project. Never import, merge or synchronize
   Classic code, transports, versioning or lifecycle into this repository.
 
 ## Non-negotiable safety boundary
 
 - Vehicle communication is read-only and fail-closed.
-- The only Toyota Read Data requests currently allowed are `217E`, `217F` and
-  `212C`, plus their exact raw ISO-TP single-frame forms defined in
-  `src/is220d-profile.js`.
+- Normal IS220d production live data allows `217E`, `217F` and `212C`,
+  plus their exact raw ISO-TP single-frame forms in `src/is220d-profile.js`.
+- The dedicated, user-started injector screen may additionally use the
+  evidence-labelled read-only requests `2193`, `2196` and `219C`. They
+  remain outside normal live polling and are not Active Test commands.
 - Never add guessed PIDs, identifiers, byte layouts or conversion formulas.
 - Never add Mode 04, DTC clearing, Active Test, forced DPF/DPNR regeneration,
   immobilizer/key functions, security access, coding, programming or ECU writes.
@@ -45,10 +47,9 @@ builds or vehicle identity matter to a task.
   architecture and roadmap.
 
 Historical evidence never overrides this contract, `docs/SAFETY.md`,
-`docs/PROTOCOL.md`, current source or current regression tests. In particular,
-commands from the historical 0.7.x CT 200h or injector experiments are not in
-the active IS220d transmit allowlist unless they are separately reintroduced
-through a reviewed profile change with matching evidence and tests.
+`docs/PROTOCOL.md`, current source or current regression tests. The 0.8.0
+baseline reintroduces reviewed read-only multi-vehicle and injector workflows
+with explicit profile separation, evidence labels and matching tests.
 
 ## Change workflow
 

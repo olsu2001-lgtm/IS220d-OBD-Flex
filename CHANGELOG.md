@@ -1,5 +1,24 @@
 # Muutoshistoria
 
+## 0.8.0 · Yhdistetty kenttätestiversio
+
+- Palautettu 0.6.9-kehityslinjan Field Test Mode, kolmen ajon ECU Survey
+  -historia, Techstream-vertailu ja Evidence Support Bundle v1 nykyisen
+  moniajoneuvoisen käyttöliittymän päälle.
+- Säilytetty 0.7.5:n teemat, alanavigaatio, Bluetooth-korjaukset ja paketoidun
+  WebView-käyttöliittymän savutesti.
+- Säilytetty 0.7.7:n noin 45 sekunnin vain lukeva suutinten tasapainoseulonta
+  sekä tekoälylle jaettava TXT-raportti.
+- Korjattu suutintestin näennäinen jäätyminen: `219C` tarkistetaan ennen koko
+  testiä, eteneminen näytetään komentokohtaisesti ja toistuviin puuttuviin
+  vastauksiin katkaistaan hallitusti virheilmoituksella.
+- Korjattu Live-kuvaajan korkeus, joka kertautui laitteen pikselitiheyden
+  mukaan jokaisella uudelleenpiirrolla.
+- Laaja diagnostiikka kokeilee nykyisen yhteyden `0100`-lukua ennen adapterin
+  capability-kyselyjä ja mahdollista nollausta.
+- Pakettitunnus ja allekirjoitusidentiteetti säilyvät ennallaan. Versio on
+  `0.8.0` / `versionCode 800`, jotta APK asentuu Flex 0.7.7:n päälle.
+
 ## 0.7.8 · DPNR-tarkistus ja asennusjärjestyksen korjaus
 
 - Lisätty IS220d-profiilille oma DPNR-tarkistusnäkymä, joka näyttää Toyota

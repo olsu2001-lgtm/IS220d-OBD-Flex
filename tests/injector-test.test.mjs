@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   INJECTOR_TEST_COMMANDS,
   INJECTOR_TEST_LIMITS,
@@ -86,4 +87,14 @@ test("tekoälyraportti sisältää rajat, raakavastaukset ja diagnoosirajoitukse
   assert.match(report, /ei yksin osoita suuttimen sisäistä tai ulkoista polttoainevuotoa/i);
   assert.match(prompt, /Älä päättele pelkästä korjausarvosta/);
   assert.equal(INJECTOR_TEST_LIMITS.minimumValidSamples, 8);
+});
+
+test("0.8.0 tekee nopean 219C-esitarkistuksen ja näyttää komentokohtaisen etenemisen", async () => {
+  const source = await readFile(new URL("../src/main.js", import.meta.url), "utf8");
+  assert.match(source, /Tarkistetaan ensin Toyota 219C/);
+  assert.match(source, /INJECTOR_TEST_TOYOTA_TIMEOUT_MS = 7000/);
+  assert.match(source, /219C ei palauttanut kelvollisia neljän sylinterin arvoja 7 sekunnissa/);
+  assert.match(source, /Näyte \$\{sequence\}\/\$\{INJECTOR_TEST_MAX_SAMPLES\} · suutinkorjaukset/);
+  assert.match(source, /INJECTOR_TEST_MAX_CONSECUTIVE_MISSES = 2/);
+  assert.match(source, /Palautetaan normaali ELM\/CAN-yhteys/);
 });

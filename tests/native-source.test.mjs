@@ -56,12 +56,12 @@ test("Bluetooth Classic SPP ja tavallinen ASCII-ELM327 säilyvät lähteessä", 
   assert.match(core, /this\.command\("ATL0"/);
 });
 
-test("0.7.8 ei pyydä internetoikeutta ja säilyttää Flex-pakettitunnuksen", async () => {
+test("0.8.0 ei pyydä internetoikeutta ja säilyttää Flex-pakettitunnuksen", async () => {
   const app = await read("app.js");
 
   assert.match(app, /packageId:\s*"fi\.oliver\.is220dobd"/);
   assert.match(app, /name:\s*"Lexus OBD Flex"/);
-  assert.match(app, /version:\s*"0\.7\.8"/);
+  assert.match(app, /version:\s*"0\.8\.0"/);
   assert.equal(app.includes("android.permission.INTERNET"), false);
 });
 
