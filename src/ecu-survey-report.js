@@ -1,6 +1,7 @@
 import { ecuSurveyTopologySignature } from "./ecu-survey.js";
 import { buildFieldValidationTextReport } from "./field-validation.js";
 import { buildTechstreamReferenceTextReport } from "./techstream-reference-report.js";
+import { buildIs220dComponentDiagnosticTextReport } from "./is220d-component-diagnostics.js";
 
 const clean = value => String(value ?? "").replace(/[\r\n\t]+/g, " ").trim();
 
@@ -73,6 +74,9 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
   if (historyResult?.techstreamComparison?.loaded) {
     lines.push("", buildTechstreamReferenceTextReport(historyResult.techstreamComparison).trimEnd());
   }
+  if (snapshot.componentDiagnostics?.applicable) {
+    lines.push("", buildIs220dComponentDiagnosticTextReport(snapshot.componentDiagnostics).trimEnd());
+  }
   lines.push("", "Nodes:");
 
   for (const node of snapshot.nodes) {
@@ -99,6 +103,7 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
     "- A stable response topology is repeatability evidence, not proof of ECU identity.",
     "- Mode 09 match/mismatch compares observed read-only identity data to repository vehicle evidence; mismatch is an evidence flag, not an ECU fault verdict.",
     "- The field-validation gate summarizes stored diagnostic evidence; Techstream cross-check remains independent external evidence.",
+    "- BOM component diagnostics map already collected Flex signals to DIRECT/INDIRECT inspection targets; they do not diagnose a physical component by themselves.",
     "- Imported Techstream reference evidence uses a neutral Flex JSON schema; system names never create CAN mappings automatically.",
     "- Unmapped responders stay unidentified until independent vehicle/Techstream evidence exists.",
     "- Expected-no-response is an inspection flag, not an automatic ECU fault verdict.",
@@ -107,5 +112,3 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
 
   return `${lines.join("\n")}\n`;
 }
-
-
