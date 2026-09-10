@@ -1,5 +1,15 @@
 # Muutoshistoria
 
+## 0.8.1 · Suutintestin fail-closed-korjaus
+
+- Estää kentässä vastaamattoman Toyota `219C` -pyynnön ennen kuljetusta
+  kalibroinnilla `35360000`.
+- Näyttää selkeän `EI TUETTU`-tilan 45 sekunnin suutintestin sijaan, kunnes
+  oikea Techstream Data List -tunniste on varmennettu.
+- Vapauttaa testiraportin ja käyttöliittymän ennen lyhyeksi rajattua
+  ELM/CAN-palautusta, jotta virhepolku ei jää näyttämään käynnissä olevalta.
+- Päivittää version arvoihin `0.8.1` / `versionCode 801`.
+
 ## 0.8.0 · Yhdistetty kenttätestiversio
 
 - Palautettu 0.6.9-kehityslinjan Field Test Mode, kolmen ajon ECU Survey
