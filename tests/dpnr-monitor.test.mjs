@@ -4,10 +4,10 @@ import { readFile } from "node:fs/promises";
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("0.8.0 muodostaa yhdistetyn lähtötason 0.7.7:n jälkeen", async () => {
+test("0.8.1 muodostaa yhdistetyn lähtötason 0.7.7:n jälkeen", async () => {
   const [app, pkg] = await Promise.all([read("app.js"), read("package.json")]);
-  assert.match(app, /version:\s*"0\.8\.0"/);
-  assert.equal(JSON.parse(pkg).version, "0.8.0");
+  assert.match(app, /version:\s*"0\.8\.1"/);
+  assert.equal(JSON.parse(pkg).version, "0.8.1");
 });
 
 test("DPNR-näkymä näyttää tulkitut arvot, raakavasteet ja lokituksen", async () => {
