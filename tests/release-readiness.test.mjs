@@ -145,7 +145,7 @@ test("release readiness text report is compact, review-only and contains no raw 
     techstreamComparison: techstreamComparison()
   });
   const report = buildReleaseReadinessTextReport(readiness);
-  assert.match(report, /Target version: 0\.8\.0/);
+  assert.match(report, /Target version: 0\.8\.1/);
   assert.match(report, /Ready for release review: yes/);
   assert.match(report, /Release approved automatically: no/);
   assert.match(report, /Candidate mappings never satisfy a verified release gate/);
