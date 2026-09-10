@@ -1,4 +1,4 @@
-# 0.8.0 release readiness
+# 0.8.1 release readiness
 
 Tämä portti kokoaa jo tallennetun read-only-evidenssin yhdeksi deterministiseksi julkaisuarvioksi. Se ei hyväksy julkaisua automaattisesti eikä lähetä ajoneuvolle komentoja.
 
@@ -31,6 +31,6 @@ Se ei käytä transporttia, ELM-komentoja, Bluetoothia, tiedostovientiä tai ver
 
 Evidence Support Bundle v1 sisältää julkaisuarvion kompaktina `releaseReadiness`-osiona. Bundle ei tämän muutoksen vuoksi ala sisältää raakaa CAN/ELM-dataa, Bluetooth-osoitetta, adapterin identiteettiä tai VIN/CALID/CVN-arvoja.
 
-## Nykyinen 0.8.0-tilanne
+## Nykyinen 0.8.1-tilanne
 
 Ennen oikean auton kolmea yhteensopivaa kenttäajoa odotettu tila on `collecting-field-evidence`. Testiaineiston puuttuminen ei estä muun sovelluskehityksen jatkamista, mutta se estää portin etenemisen `ready-for-release-review`-tilaan.
