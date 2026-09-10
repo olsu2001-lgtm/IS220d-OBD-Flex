@@ -1,6 +1,14 @@
 export const INJECTOR_TEST_SCHEMA_VERSION = 1;
 export const INJECTOR_TEST_PROFILE_VERSION = "is220d-2ad-fhv-injector-balance-readonly-v1";
 
+export const INJECTOR_TEST_AVAILABILITY = Object.freeze({
+  supported: false,
+  blockedCommand: "219C",
+  calibrationId: "35360000",
+  evidenceRuns: 3,
+  reason: "Toyota 219C palautti NO DATA -vastauksen kolmessa toistettavassa ajossa tällä ECU-kalibroinnilla."
+});
+
 export const INJECTOR_TEST_LIMITS = Object.freeze({
   typicalAbsoluteMm3: 3.0,
   serviceAbsoluteMm3: 4.9,
@@ -15,7 +23,7 @@ export const INJECTOR_TEST_LIMITS = Object.freeze({
 
 export const INJECTOR_TEST_COMMANDS = Object.freeze({
   setup: Object.freeze(["ATSP6", "ATCAF1", "ATCFC1", "ATAL", "ATH1", "ATS1", "ATSTFF", "ATSH7E0", "ATCRA7E8"]),
-  read: Object.freeze(["010C", "0105", "2193", "2196", "219C"]),
+  read: Object.freeze(["010C", "0105", "2193", "2196"]),
   restore: Object.freeze(["ATCRA", "ATAR", "ATH0", "ATS0", "ATAT1", "ATST32", "ATSH7E0"])
 });
 
