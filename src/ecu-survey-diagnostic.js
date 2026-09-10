@@ -5,6 +5,7 @@ import {
 } from "./ecu-survey.js";
 import { extractMode09IdentityFromDiagnosticRun } from "./mode09-identity.js";
 import { extractFieldValidationEvidenceFromDiagnosticRun } from "./field-validation.js";
+import { buildIs220dComponentDiagnosticCoverage } from "./is220d-component-diagnostics.js";
 
 const normalizeHex = value => String(value || "").replace(/\s+/g, "").toUpperCase();
 
@@ -90,8 +91,7 @@ export function ecuSurveySnapshotFromDiagnosticRun(
     ...survey,
     buildSha: runtimeBuildSha(),
     identity: extractMode09IdentityFromDiagnosticRun(run),
-    validation: extractFieldValidationEvidenceFromDiagnosticRun(run)
+    validation: extractFieldValidationEvidenceFromDiagnosticRun(run),
+    componentDiagnostics: buildIs220dComponentDiagnosticCoverage(run)
   });
 }
-
-
