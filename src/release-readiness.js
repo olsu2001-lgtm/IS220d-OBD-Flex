@@ -1,5 +1,5 @@
 export const RELEASE_READINESS_SCHEMA_VERSION = 1;
-export const RELEASE_READINESS_TARGET_VERSION = "0.8.0";
+export const RELEASE_READINESS_TARGET_VERSION = "0.8.1";
 
 const clean = value => String(value ?? "").replace(/[\r\n\t]+/g, " ").trim();
 
