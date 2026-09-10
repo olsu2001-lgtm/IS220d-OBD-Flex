@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  INJECTOR_TEST_AVAILABILITY,
   INJECTOR_TEST_COMMANDS,
   INJECTOR_TEST_LIMITS,
   analyzeInjectorTest,
@@ -43,8 +44,12 @@ function runWith(feedbackFactory, overridesFactory = () => ({})) {
   };
 }
 
-test("suutintesti pysyy vain lukevassa komentojoukossa", () => {
-  assert.deepEqual(INJECTOR_TEST_COMMANDS.read, ["010C", "0105", "2193", "2196", "219C"]);
+test("suutintesti pysyy vain lukevassa komentojoukossa ja kentässä hylätty 219C on estetty", () => {
+  assert.deepEqual(INJECTOR_TEST_COMMANDS.read, ["010C", "0105", "2193", "2196"]);
+  assert.equal(INJECTOR_TEST_COMMANDS.read.includes("219C"), false);
+  assert.equal(INJECTOR_TEST_AVAILABILITY.supported, false);
+  assert.equal(INJECTOR_TEST_AVAILABILITY.blockedCommand, "219C");
+  assert.equal(INJECTOR_TEST_AVAILABILITY.calibrationId, "35360000");
   assert.equal([...INJECTOR_TEST_COMMANDS.setup, ...INJECTOR_TEST_COMMANDS.read, ...INJECTOR_TEST_COMMANDS.restore]
     .some(command => /^(04|2E|2F|31|34|36)/.test(command)), false);
 });
@@ -89,12 +94,15 @@ test("tekoälyraportti sisältää rajat, raakavastaukset ja diagnoosirajoitukse
   assert.equal(INJECTOR_TEST_LIMITS.minimumValidSamples, 8);
 });
 
-test("0.8.0 tekee nopean 219C-esitarkistuksen ja näyttää komentokohtaisen etenemisen", async () => {
+test("0.8.1 estää 219C:n ennen kuljetusta ja rajaa palautuksen odotusajat", async () => {
   const source = await readFile(new URL("../src/main.js", import.meta.url), "utf8");
-  assert.match(source, /Tarkistetaan ensin Toyota 219C/);
-  assert.match(source, /INJECTOR_TEST_TOYOTA_TIMEOUT_MS = 7000/);
-  assert.match(source, /219C ei palauttanut kelvollisia neljän sylinterin arvoja 7 sekunnissa/);
-  assert.match(source, /Näyte \$\{sequence\}\/\$\{INJECTOR_TEST_MAX_SAMPLES\} · suutinkorjaukset/);
-  assert.match(source, /INJECTOR_TEST_MAX_CONSECUTIVE_MISSES = 2/);
-  assert.match(source, /Palautetaan normaali ELM\/CAN-yhteys/);
+  const guardIndex = source.indexOf("if (!INJECTOR_TEST_AVAILABILITY.supported)");
+  const setupIndex = source.indexOf("for (const command of INJECTOR_TEST_COMMANDS.setup)", guardIndex);
+  assert.ok(guardIndex >= 0);
+  assert.ok(setupIndex > guardIndex);
+  assert.match(source, /Suutintestiä ei käynnistetty eikä/);
+  assert.match(source, /INJECTOR_RESTORE_COMMAND_TIMEOUT_MS = 900/);
+  assert.match(source, /INJECTOR_RESTORE_PROBE_TIMEOUT_MS = 1800/);
+  assert.match(source, /state\.injectorTestRunning = false;[\s\S]*finishInjectorTestUi\(\);[\s\S]*await restoreAfterInjectorTest\(restoreClient\)/);
+  assert.match(source, /Raportti valmis · palautetaan normaali ELM\/CAN-yhteys/);
 });
