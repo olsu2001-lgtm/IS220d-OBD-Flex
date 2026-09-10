@@ -41,8 +41,8 @@ jobs:
       - name: Verify APK structure, version, signature and provenance
         run: |
           set -euo pipefail
-          DEBUG_APK=dist/Lexus_OBD-Flex-0.8.0-debug.apk
-          RELEASE_APK=dist/Lexus_OBD-Flex-0.8.0-release.apk
+          DEBUG_APK=dist/Lexus_OBD-Flex-0.8.1-debug.apk
+          RELEASE_APK=dist/Lexus_OBD-Flex-0.8.1-release.apk
           test -s "$DEBUG_APK"
           test -s "$RELEASE_APK"
           test -s dist/build-info.json
@@ -54,8 +54,8 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$RELEASE_APK"
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
           test -x "$AAPT"
-          "$AAPT" dump badging "$RELEASE_APK" | grep -F "package: name='fi.oliver.is220dobd' versionCode='800' versionName='0.8.0'"
-          node -e 'const fs=require("fs"); const info=JSON.parse(fs.readFileSync("dist/build-info.json","utf8")); if(info.gitSha!==process.env.GITHUB_SHA) throw new Error(`build-info SHA ${info.gitSha} != ${process.env.GITHUB_SHA}`); if(info.appVersion!=="0.8.0") throw new Error(`unexpected appVersion ${info.appVersion}`);'
+          "$AAPT" dump badging "$RELEASE_APK" | grep -F "package: name='fi.oliver.is220dobd' versionCode='801' versionName='0.8.1'"
+          node -e 'const fs=require("fs"); const info=JSON.parse(fs.readFileSync("dist/build-info.json","utf8")); if(info.gitSha!==process.env.GITHUB_SHA) throw new Error(`build-info SHA ${info.gitSha} != ${process.env.GITHUB_SHA}`); if(info.appVersion!=="0.8.1") throw new Error(`unexpected appVersion ${info.appVersion}`);'
           SHORT_SHA="${GITHUB_SHA:0:12}"
           unzip -p "$DEBUG_APK" assets/app.bundle.js | grep -Fq "$SHORT_SHA"
           unzip -p "$RELEASE_APK" assets/app.bundle.js | grep -Fq "$SHORT_SHA"
@@ -63,10 +63,10 @@ jobs:
       - name: Upload field-validation APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Lexus-OBD-Flex-0.8.0-${{ github.sha }}
+          name: Lexus-OBD-Flex-0.8.1-${{ github.sha }}
           path: |
-            dist/Lexus_OBD-Flex-0.8.0-debug.apk
-            dist/Lexus_OBD-Flex-0.8.0-release.apk
+            dist/Lexus_OBD-Flex-0.8.1-debug.apk
+            dist/Lexus_OBD-Flex-0.8.1-release.apk
             dist/build-info.json
           if-no-files-found: error
           retention-days: 14
