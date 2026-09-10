@@ -87,6 +87,7 @@ import {
   vehiclePowerDefaults
 } from "./power-test.js";
 import {
+  INJECTOR_TEST_AVAILABILITY,
   INJECTOR_TEST_COMMANDS,
   INJECTOR_TEST_LIMITS,
   analyzeInjectorTest,
@@ -101,7 +102,7 @@ import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const APP_VERSION = "0.8.0";
+const APP_VERSION = "0.8.1";
 const DPNR_MONITOR_METRIC_IDS = Object.freeze([
   "dpnrDifferentialPressure",
   "dpnrInletTemperature",
@@ -179,6 +180,7 @@ const state = {
   injectorTestAnalysis: null,
   injectorTestReport: "",
   injectorTestRunning: false,
+  injectorTestRestoring: false,
   injectorTestAbortRequested: false,
   powerTestRun: null,
   powerTestReport: "",
@@ -341,14 +343,14 @@ function applyVehicleProfileUi() {
   }
   if ($("#injectorProfileState")) {
     $("#injectorProfileState").textContent = isIs220d
-      ? "IS220d / 2AD-FHV -profiili aktiivinen · testi käyttää vain lukevia 010C/0105/2193/2196/219C-kyselyitä."
+      ? "IS220d / 2AD-FHV -profiili aktiivinen · 45 s suutintesti ei ole käytettävissä: 219C palautti NO DATA -vastauksen kolmessa kenttäajossa kalibroinnilla 35360000."
       : "Valitse ja tunnista Lexus IS220d ennen suutintestiä.";
-    $("#injectorProfileState").className = `inline-message ${isIs220d ? "" : "warning"}`.trim();
+    $("#injectorProfileState").className = "inline-message warning";
   }
   if ($("#terminalProfileWarning")) {
     $("#terminalProfileWarning").textContent = isCt
       ? "Vain AT-komennot, lukevat OBD-moodit ja CT-profiilin vain lukevat 21C1/2101/2181/2187/2195/2198/13B0-komennot sallitaan. Mode 04 toimii vain Vikakoodit-näkymän vahvistuksesta."
-      : "Vain AT-komennot, lukevat OBD-moodit 01, 02, 03, 07, 09 ja 0A sekä IS220d-profiilin 217E/217F/212C/2193/2196/219C/21AF-lukukomennot sallitaan. Mode 04 toimii vain Vikakoodit-näkymän vahvistuksesta.";
+      : "Vain AT-komennot, lukevat OBD-moodit 01, 02, 03, 07, 09 ja 0A sekä IS220d-profiilin 217E/217F/212C/2193/2196/21AF-lukukomennot sallitaan. Kentässä vastaamaton 219C on estetty. Mode 04 toimii vain Vikakoodit-näkymän vahvistuksesta.";
   }
   $$("[data-vehicle-only]").forEach(element => {
     element.classList.toggle("hidden", element.dataset.vehicleOnly !== state.vehicleKey);
@@ -642,7 +644,7 @@ function showConnectionError(message = "") {
 }
 
 function updateConnectionButtons() {
-  const injectorBusy = state.injectorTestRunning;
+  const injectorBusy = state.injectorTestRunning || state.injectorTestRestoring;
   $("#connectButton").disabled = state.connected || state.connecting || state.reconnecting || injectorBusy;
   $("#disconnectButton").disabled = injectorBusy || (!state.connected && !state.connecting && !state.reconnecting);
   $("#deviceSelect").disabled = state.connected || state.connecting || state.reconnecting || injectorBusy;
@@ -650,8 +652,15 @@ function updateConnectionButtons() {
   $("#vehicleSelect").disabled = state.connected || state.connecting || state.reconnecting || injectorBusy;
   $("#detectVehicleButton").disabled = !state.connected || state.connecting || state.reconnecting || state.quicklynks ||
     !(state.client instanceof Elm327Client) || state.vehicleDetection.status === "testing" || injectorBusy;
-  if ($("#startInjectorTest")) $("#startInjectorTest").disabled = injectorBusy || !state.connected || state.quicklynks ||
-    !(state.client instanceof Elm327Client) || state.vehicleKey !== VEHICLE_KEYS.IS220D;
+  if ($("#startInjectorTest")) {
+    $("#startInjectorTest").disabled = injectorBusy || !INJECTOR_TEST_AVAILABILITY.supported || !state.connected || state.quicklynks ||
+      !(state.client instanceof Elm327Client) || state.vehicleKey !== VEHICLE_KEYS.IS220D;
+    if (!injectorBusy) {
+      $("#startInjectorTest").textContent = INJECTOR_TEST_AVAILABILITY.supported
+        ? "Aloita uusi 45 s testi"
+        : "Ei tuettu tällä ECU-kalibroinnilla";
+    }
+  }
 }
 
 function yesNo(value) {
@@ -1621,15 +1630,18 @@ function finishInjectorTestUi() {
   renderInjectorProgress(run.cancelled ? "Keskeytetty hallitusti · raportti valmis" : "Valmis · tekoälyraportti muodostettu");
 }
 
-async function restoreAfterInjectorTest() {
-  if (!state.connected || !state.client) return;
+const INJECTOR_RESTORE_COMMAND_TIMEOUT_MS = 900;
+const INJECTOR_RESTORE_PROBE_TIMEOUT_MS = 1800;
+
+async function restoreAfterInjectorTest(client = state.client) {
+  if (!state.connected || !client) return;
   for (const command of INJECTOR_TEST_COMMANDS.restore) {
-    try { await state.client.command(command, 4500); } catch {}
+    try { await client.command(command, INJECTOR_RESTORE_COMMAND_TIMEOUT_MS); } catch {}
   }
   try {
-    const raw = await state.client.command("0100", 7000);
+    const raw = await client.command("0100", INJECTOR_RESTORE_PROBE_TIMEOUT_MS);
     state.ecuConnected = hasModePidResponse(raw, 0x41, 0x00);
-    state.client.ecuConnected = state.ecuConnected;
+    client.ecuConnected = state.ecuConnected;
   } catch {}
 }
 
@@ -1641,6 +1653,17 @@ async function runInjectorTest() {
   }
   if (state.quicklynks || !(state.client instanceof Elm327Client)) {
     setNotice("injectorTestNotice", "Suutintesti vaatii vLinker- tai muun ASCII-ELM327-adapterin. Quicklynksin binääripolku ei voi lähettää Toyota 219C -lukupyyntöä.", "warning");
+    return;
+  }
+  if (!INJECTOR_TEST_AVAILABILITY.supported) {
+    $("#injectorStatusBadge").className = "ct-test-badge incomplete";
+    $("#injectorStatusBadge").textContent = "EI TUETTU";
+    setNotice(
+      "injectorTestNotice",
+      `Suutintestiä ei käynnistetty eikä ${INJECTOR_TEST_AVAILABILITY.blockedCommand}-komentoa lähetetty. ${INJECTOR_TEST_AVAILABILITY.reason} Tarvitaan Techstreamillä varmennettu oikea Data List -tunniste.`,
+      "warning"
+    );
+    updateConnectionButtons();
     return;
   }
   if (!$("#injectorConditionsConfirmed").checked) {
@@ -1782,18 +1805,22 @@ async function runInjectorTest() {
     state.injectorTestRun.internalError = error?.message || String(error);
     setNotice("injectorTestNotice", `Testi keskeytyi: ${state.injectorTestRun.internalError}. Jo saaduista tiedoista muodostetaan raportti.`, "error");
   } finally {
+    const restoreClient = state.client;
     state.injectorTestRun.cancelled = state.injectorTestAbortRequested;
     state.injectorTestRun.endedAt = Date.now();
-    renderInjectorProgress("Palautetaan normaali ELM/CAN-yhteys…");
-    await restoreAfterInjectorTest();
-    finishInjectorTestUi();
     state.injectorTestRunning = false;
+    state.injectorTestRestoring = true;
     state.injectorTestAbortRequested = false;
-    $("#startInjectorTest").disabled = false;
-    $("#startInjectorTest").textContent = "Aloita uusi 45 s testi";
+    finishInjectorTestUi();
+    renderInjectorProgress("Raportti valmis · palautetaan normaali ELM/CAN-yhteys…");
+    $("#startInjectorTest").textContent = "Palautetaan yhteyttä…";
     $("#cancelInjectorTest").disabled = true;
     updateConnectionButtons();
     setKeepAwake(false);
+    await delay(0);
+    await restoreAfterInjectorTest(restoreClient);
+    state.injectorTestRestoring = false;
+    updateConnectionButtons();
   }
 }
 
