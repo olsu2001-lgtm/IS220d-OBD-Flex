@@ -6,7 +6,7 @@ import {
 import { extractMode09IdentityFromDiagnosticRun } from "./mode09-identity.js";
 import { extractFieldValidationEvidenceFromDiagnosticRun } from "./field-validation.js";
 import { buildIs220dComponentDiagnosticCoverage } from "./is220d-component-diagnostics.js";
-import { publishIs220dComponentDiagnosticCoverage } from "./component-diagnostics-page.js";
+import { publishIs220dComponentDiagnosticCoverageToUi } from "./component-diagnostics-publisher.js";
 
 const normalizeHex = value => String(value || "").replace(/\s+/g, "").toUpperCase();
 
@@ -88,7 +88,7 @@ export function ecuSurveySnapshotFromDiagnosticRun(
     }
   });
   const componentDiagnostics = buildIs220dComponentDiagnosticCoverage(run);
-  publishIs220dComponentDiagnosticCoverage(componentDiagnostics, {
+  publishIs220dComponentDiagnosticCoverageToUi(componentDiagnostics, {
     runId: meta.reportId || "",
     startedAt: run.startedAt,
     endedAt: run.endedAt
