@@ -72,7 +72,7 @@
     :store_result
     iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->results:Ljava/util/concurrent/ConcurrentHashMap;
     invoke-virtual {v0, p2, v1}, Ljava/util/concurrent/ConcurrentHashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-    pop
+    move-result-object v2
     :try_end_0
     .catch Ljava/lang/Throwable; {:try_start_0 .. :try_end_0} :catch_0
 
@@ -94,7 +94,7 @@
     move-result-object v1
     iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->results:Ljava/util/concurrent/ConcurrentHashMap;
     invoke-virtual {v0, p2, v1}, Ljava/util/concurrent/ConcurrentHashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-    pop
+    move-result-object v2
     return-void
 .end method
 
