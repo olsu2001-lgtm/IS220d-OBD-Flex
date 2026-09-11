@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
 import { build as bundle } from "esbuild";
+import { patchCoreForAsyncNativeBridge } from "./async-native-core-transform.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const buildRoot = path.join(root, ".build");
@@ -29,6 +30,16 @@ function resolveBuildSha() {
 const buildSha = resolveBuildSha();
 const buildShortSha = buildSha === "local" ? "local" : buildSha.slice(0, 12);
 const appVersion = String(packageMeta.version || "0.0.0");
+
+const asyncNativeBridgePlugin = {
+  name: "async-native-obd-bridge",
+  setup(build) {
+    build.onLoad({ filter: /[\\/]src[\\/]core\.js$/ }, args => ({
+      contents: patchCoreForAsyncNativeBridge(fs.readFileSync(args.path, "utf8")),
+      loader: "js"
+    }));
+  }
+};
 
 for (const required of [apktoolJar, templateApk, cliPath, bundledAapt2]) {
   if (!fs.existsSync(required)) throw new Error(`Puuttuva rakennusriippuvuus: ${required}. Suorita ensin npm install.`);
@@ -96,6 +107,7 @@ async function buildVariant(label, minify, filename) {
     platform: "browser",
     target: ["chrome90"],
     minify,
+    plugins: [asyncNativeBridgePlugin],
     banner: { js: `globalThis.__IS220D_BUILD_SHA__=${JSON.stringify(buildShortSha)};` },
     outfile: path.join(nitronProject, "app.bundle.js")
   });
@@ -130,6 +142,7 @@ async function buildVariant(label, minify, filename) {
   }
   const bundleText = finalZip.readAsText("assets/app.bundle.js");
   if (!bundleText.includes(buildShortSha)) throw new Error(`${label}-APK:sta puuttuu build-SHA ${buildShortSha}`);
+  if (!bundleText.includes("__PENDING__")) throw new Error(`${label}-APK:sta puuttuu asynkroninen OBD-silta`);
   return output;
 }
 
