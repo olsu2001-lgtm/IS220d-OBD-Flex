@@ -29,7 +29,7 @@
 .end method
 
 .method private start(Ljava/lang/String;Ljava/lang/String;I)Ljava/lang/String;
-    .locals 4
+    .locals 5
 
     iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->sequence:Ljava/util/concurrent/atomic/AtomicInteger;
     invoke-virtual {v0}, Ljava/util/concurrent/atomic/AtomicInteger;->incrementAndGet()I
@@ -38,8 +38,23 @@
     invoke-static {v0}, Ljava/lang/Integer;->toString(I)Ljava/lang/String;
     move-result-object v1
 
+    const-string v4, "ble"
+    invoke-virtual {v4, p1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :classic_prefix
+
+    const-string v4, "b"
+    goto :prefix_ready
+
+    :classic_prefix
+    const-string v4, "c"
+
+    :prefix_ready
+    invoke-virtual {v4, v1}, Ljava/lang/String;->concat(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v1
+
     new-instance v2, Lcom/nicron/webview/AsyncObdSendRunnable;
-    invoke-direct {v2, p0, p1, v1, p2, p3}, Lcom/nicron/webview/AsyncObdSendRunnable;-><init>(Lcom/nicron/webview/AsyncObdBridge;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V
+    invoke-direct {v2, p0, v1, p2, p3}, Lcom/nicron/webview/AsyncObdSendRunnable;-><init>(Lcom/nicron/webview/AsyncObdBridge;Ljava/lang/String;Ljava/lang/String;I)V
 
     new-instance v3, Ljava/lang/Thread;
     invoke-direct {v3, v2}, Ljava/lang/Thread;-><init>(Ljava/lang/Runnable;)V
@@ -49,29 +64,29 @@
 .end method
 
 # virtual methods
-.method public execute(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V
+.method public execute(Ljava/lang/String;Ljava/lang/String;I)V
     .locals 3
 
     :try_start_0
-    const-string v0, "ble"
-    invoke-virtual {v0, p1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    const-string v0, "b"
+    invoke-virtual {p1, v0}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
     move-result v0
 
     if-eqz v0, :classic_send
 
     iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->ble:Lcom/nicron/webview/BleObdBridge;
-    invoke-virtual {v0, p3, p4}, Lcom/nicron/webview/BleObdBridge;->send(Ljava/lang/String;I)Ljava/lang/String;
+    invoke-virtual {v0, p2, p3}, Lcom/nicron/webview/BleObdBridge;->send(Ljava/lang/String;I)Ljava/lang/String;
     move-result-object v1
     goto :store_result
 
     :classic_send
     iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->classic:Lcom/nicron/webview/ObdBridge;
-    invoke-virtual {v0, p3, p4}, Lcom/nicron/webview/ObdBridge;->send(Ljava/lang/String;I)Ljava/lang/String;
+    invoke-virtual {v0, p2, p3}, Lcom/nicron/webview/ObdBridge;->send(Ljava/lang/String;I)Ljava/lang/String;
     move-result-object v1
 
     :store_result
     iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->results:Ljava/util/concurrent/ConcurrentHashMap;
-    invoke-virtual {v0, p2, v1}, Ljava/util/concurrent/ConcurrentHashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+    invoke-virtual {v0, p1, v1}, Ljava/util/concurrent/ConcurrentHashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
     move-result-object v2
     :try_end_0
     .catch Ljava/lang/Throwable; {:try_start_0 .. :try_end_0} :catch_0
@@ -93,7 +108,7 @@
     invoke-virtual {v2, v1}, Ljava/lang/String;->concat(Ljava/lang/String;)Ljava/lang/String;
     move-result-object v1
     iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->results:Ljava/util/concurrent/ConcurrentHashMap;
-    invoke-virtual {v0, p2, v1}, Ljava/util/concurrent/ConcurrentHashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+    invoke-virtual {v0, p1, v1}, Ljava/util/concurrent/ConcurrentHashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
     move-result-object v2
     return-void
 .end method
