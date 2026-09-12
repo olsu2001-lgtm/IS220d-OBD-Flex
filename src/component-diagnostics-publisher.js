@@ -48,7 +48,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
     ?.then(module => module.publishIs220dDiagnosticGroupOverview(coverage, meta))
     .catch(() => {});
   nextInspectionPromise
-    ?.then(module => module.publishPhysicalInspectionNextTask(coverage))
+    ?.then(module => module.publishPhysicalInspectionNextTask(coverage, meta))
     .catch(() => {});
 }
 
