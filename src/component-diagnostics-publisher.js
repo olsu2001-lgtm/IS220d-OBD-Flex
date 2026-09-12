@@ -11,6 +11,7 @@ const hasFullBrowserDom = () => {
 let pageModulePromise = null;
 let groupOverviewModulePromise = null;
 let guidedSessionModulePromise = null;
+let operatingStateModulePromise = null;
 let nextInspectionModulePromise = null;
 
 function loadPageModule() {
@@ -37,6 +38,15 @@ function loadGuidedSessionModule() {
   return guidedSessionModulePromise;
 }
 
+function loadOperatingStateModule() {
+  const guidedPromise = loadGuidedSessionModule();
+  if (!guidedPromise) return null;
+  if (!operatingStateModulePromise) {
+    operatingStateModulePromise = guidedPromise.then(() => import("./is220d-operating-state-guidance.js"));
+  }
+  return operatingStateModulePromise;
+}
+
 function loadNextInspectionModule() {
   const overviewPromise = loadGroupOverviewModule();
   if (!overviewPromise) return null;
@@ -51,6 +61,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   if (!pagePromise) return;
   const overviewPromise = loadGroupOverviewModule();
   const guidedSessionPromise = loadGuidedSessionModule();
+  const operatingStatePromise = loadOperatingStateModule();
   const nextInspectionPromise = loadNextInspectionModule();
   pagePromise
     .then(module => module.publishIs220dComponentDiagnosticCoverage(coverage, meta))
@@ -61,6 +72,9 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   guidedSessionPromise
     ?.then(module => module.publishIs220dGuidedDiagnosticSession(coverage, meta))
     .catch(() => {});
+  operatingStatePromise
+    ?.then(module => module.publishIs220dOperatingStateGuidance())
+    .catch(() => {});
   nextInspectionPromise
     ?.then(module => module.publishPhysicalInspectionNextTask(coverage, meta))
     .catch(() => {});
@@ -69,4 +83,5 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
 loadPageModule();
 loadGroupOverviewModule();
 loadGuidedSessionModule();
+loadOperatingStateModule();
 loadNextInspectionModule();
