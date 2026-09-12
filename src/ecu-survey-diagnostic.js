@@ -9,6 +9,7 @@ import { buildIs220dComponentDiagnosticCoverage } from "./is220d-component-diagn
 import { IS220D_DIAGNOSTIC_GROUPS } from "./is220d-diagnostic-groups.js";
 import { buildIs220dDiagnosticGroupPlan } from "./is220d-diagnostic-plan.js";
 import { publishIs220dComponentDiagnosticCoverageToUi } from "./component-diagnostics-publisher.js";
+import { buildImReadinessSnapshot } from "./im-readiness.js";
 
 const normalizeHex = value => String(value || "").replace(/\s+/g, "").toUpperCase();
 
@@ -63,6 +64,24 @@ export function ecuSurveyObservationsFromDiagnosticResults(
   return Object.freeze(observations.map(observation => Object.freeze(observation)));
 }
 
+function latestValidCommandRaw(results, command) {
+  const normalized = normalizeHex(command);
+  const match = [...(Array.isArray(results) ? results : [])]
+    .reverse()
+    .find(result => normalizeHex(result?.command) === normalized && result?.validResponse === true && result?.raw);
+  return String(match?.raw || "");
+}
+
+export function imReadinessSnapshotFromDiagnosticRun(run) {
+  if (!run || !Array.isArray(run.results)) return buildImReadinessSnapshot();
+  return buildImReadinessSnapshot({
+    sinceClearRaw: latestValidCommandRaw(run.results, "0101"),
+    driveCycleRaw: latestValidCommandRaw(run.results, "0141"),
+    warmupsRaw: latestValidCommandRaw(run.results, "0130"),
+    distanceRaw: latestValidCommandRaw(run.results, "0131")
+  });
+}
+
 export function is220dDiagnosticGroupPlanSummariesFromRun(run) {
   if (!run || !Array.isArray(run.results)) return Object.freeze([]);
   return Object.freeze(IS220D_DIAGNOSTIC_GROUPS.map(group => {
@@ -115,6 +134,7 @@ export function ecuSurveySnapshotFromDiagnosticRun(
     buildSha: runtimeBuildSha(),
     identity: extractMode09IdentityFromDiagnosticRun(run),
     validation: extractFieldValidationEvidenceFromDiagnosticRun(run),
+    imReadiness: imReadinessSnapshotFromDiagnosticRun(run),
     componentDiagnostics
   });
 }
