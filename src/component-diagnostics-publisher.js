@@ -13,6 +13,7 @@ let groupOverviewModulePromise = null;
 let guidedSessionModulePromise = null;
 let operatingStateModulePromise = null;
 let componentInspectionPointsModulePromise = null;
+let fuelInspectionPointsModulePromise = null;
 let nextInspectionModulePromise = null;
 
 function loadPageModule() {
@@ -57,6 +58,15 @@ function loadComponentInspectionPointsModule() {
   return componentInspectionPointsModulePromise;
 }
 
+function loadFuelInspectionPointsModule() {
+  const pointsPromise = loadComponentInspectionPointsModule();
+  if (!pointsPromise) return null;
+  if (!fuelInspectionPointsModulePromise) {
+    fuelInspectionPointsModulePromise = pointsPromise.then(() => import("./is220d-fuel-inspection-points.js"));
+  }
+  return fuelInspectionPointsModulePromise;
+}
+
 function loadNextInspectionModule() {
   const overviewPromise = loadGroupOverviewModule();
   if (!overviewPromise) return null;
@@ -73,6 +83,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   const guidedSessionPromise = loadGuidedSessionModule();
   const operatingStatePromise = loadOperatingStateModule();
   const componentInspectionPointsPromise = loadComponentInspectionPointsModule();
+  const fuelInspectionPointsPromise = loadFuelInspectionPointsModule();
   const nextInspectionPromise = loadNextInspectionModule();
   pagePromise
     .then(module => module.publishIs220dComponentDiagnosticCoverage(coverage, meta))
@@ -89,6 +100,9 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   componentInspectionPointsPromise
     ?.then(module => module.publishIs220dComponentInspectionPoints())
     .catch(() => {});
+  fuelInspectionPointsPromise
+    ?.then(module => module.publishIs220dFuelInspectionPoints())
+    .catch(() => {});
   nextInspectionPromise
     ?.then(module => module.publishPhysicalInspectionNextTask(coverage, meta))
     .catch(() => {});
@@ -99,4 +113,5 @@ loadGroupOverviewModule();
 loadGuidedSessionModule();
 loadOperatingStateModule();
 loadComponentInspectionPointsModule();
+loadFuelInspectionPointsModule();
 loadNextInspectionModule();
