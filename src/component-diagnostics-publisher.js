@@ -12,6 +12,7 @@ let pageModulePromise = null;
 let groupOverviewModulePromise = null;
 let guidedSessionModulePromise = null;
 let operatingStateModulePromise = null;
+let componentInspectionPointsModulePromise = null;
 let nextInspectionModulePromise = null;
 
 function loadPageModule() {
@@ -47,6 +48,15 @@ function loadOperatingStateModule() {
   return operatingStateModulePromise;
 }
 
+function loadComponentInspectionPointsModule() {
+  const operatingPromise = loadOperatingStateModule();
+  if (!operatingPromise) return null;
+  if (!componentInspectionPointsModulePromise) {
+    componentInspectionPointsModulePromise = operatingPromise.then(() => import("./is220d-component-inspection-points.js"));
+  }
+  return componentInspectionPointsModulePromise;
+}
+
 function loadNextInspectionModule() {
   const overviewPromise = loadGroupOverviewModule();
   if (!overviewPromise) return null;
@@ -62,6 +72,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   const overviewPromise = loadGroupOverviewModule();
   const guidedSessionPromise = loadGuidedSessionModule();
   const operatingStatePromise = loadOperatingStateModule();
+  const componentInspectionPointsPromise = loadComponentInspectionPointsModule();
   const nextInspectionPromise = loadNextInspectionModule();
   pagePromise
     .then(module => module.publishIs220dComponentDiagnosticCoverage(coverage, meta))
@@ -75,6 +86,9 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   operatingStatePromise
     ?.then(module => module.publishIs220dOperatingStateGuidance())
     .catch(() => {});
+  componentInspectionPointsPromise
+    ?.then(module => module.publishIs220dComponentInspectionPoints())
+    .catch(() => {});
   nextInspectionPromise
     ?.then(module => module.publishPhysicalInspectionNextTask(coverage, meta))
     .catch(() => {});
@@ -84,4 +98,5 @@ loadPageModule();
 loadGroupOverviewModule();
 loadGuidedSessionModule();
 loadOperatingStateModule();
+loadComponentInspectionPointsModule();
 loadNextInspectionModule();
