@@ -25,6 +25,7 @@ test("physical overview preserves all 23 BOM targets in five non-overlapping gro
   assert.equal(model.groups.length, 5);
   assert.deepEqual(model.groups.map(group => group.componentCount), [9, 6, 4, 3, 1]);
   assert.equal(model.groups.reduce((sum, group) => sum + group.componentCount, 0), 23);
+  assert.equal(model.groups.reduce((sum, group) => sum + group.physicalInspection.itemCount, 0), 23);
 });
 
 test("group overview separates signal coverage from component assessment", () => {
@@ -39,15 +40,18 @@ test("group overview separates signal coverage from component assessment", () =>
   assert.equal(intake.assessed, 3);
   assert.equal(intake.strongDeviation, 1);
   assert.equal(intake.attentionCount, 2);
+  assert.equal(intake.physicalInspection.items[0].id, "engine.map_sensor");
+  assert.equal(intake.physicalInspection.items[0].priorityLabel, "TARKISTA ENSIN");
   assert.deepEqual(intake.attentionComponents.map(item => item.id), ["engine.map_sensor", "engine.egr_valve"]);
 });
 
-test("overview HTML exposes physical focus and existing BOM group filter targets", () => {
+test("overview HTML exposes physical focus, checklist and existing BOM group filter targets", () => {
   const html = buildIs220dDiagnosticGroupOverviewHtml(buildIs220dDiagnosticGroupOverview(coverage()));
-  assert.match(html, /Fyysinen|bom-group-overview-card/);
-  assert.match(html, /data-bom-group-overview="air-intake-turbo-egr"/);
-  assert.match(html, /data-bom-group-overview="fuel-rail-injection"/);
+  assert.match(html, /Fyysiset tarkastuskohteet/);
+  assert.match(html, /data-bom-open-group="air-intake-turbo-egr"/);
+  assert.match(html, /data-bom-open-group="fuel-rail-injection"/);
   assert.match(html, /Ilmansuodattimelta turbolle/);
+  assert.match(html, /Tarkista ilmansuodatin, kotelon tiiviys ja anturin likaantuminen/);
   assert.match(html, /DPNR/);
 });
 
