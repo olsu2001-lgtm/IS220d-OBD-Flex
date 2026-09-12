@@ -43,11 +43,17 @@ test("BOM-sivu näyttää erikseen saadut ja vain yritetyt signaalit", () => {
   assert.deepEqual(attemptedComponentSignals(turbo), ["010B", "0110"]);
 });
 
-test("komponentteja voi suodattaa luokan, tilan ja osanumeron perusteella", () => {
+test("komponentteja voi suodattaa luokan, fyysisen ryhmän, tilan ja osanumeron perusteella", () => {
   const coverage = coverageWith([result("010B"), result("0110"), result("0105")]);
   const directObserved = filterComponentDiagnostics(coverage, { diagnosticClass: "direct", status: "observed" });
   assert.ok(directObserved.length >= 3);
   assert.ok(directObserved.every(item => item.diagnosticClass === "direct" && item.status === "observed"));
+
+  const intakeGroup = filterComponentDiagnostics(coverage, { diagnosticGroup: "air-intake-turbo-egr" });
+  assert.equal(intakeGroup.length, 9);
+  assert.ok(intakeGroup.some(item => item.id === "engine.intake_manifold"));
+  assert.ok(intakeGroup.some(item => item.id === "engine.egr_valve"));
+  assert.equal(intakeGroup.some(item => item.id === "engine.fuel_filter"), false);
 
   const byOe = filterComponentDiagnostics(coverage, { query: "89421-20200" });
   assert.equal(byOe.length, 1);
@@ -56,15 +62,19 @@ test("komponentteja voi suodattaa luokan, tilan ja osanumeron perusteella", () =
   const byName = filterComponentDiagnostics(coverage, { query: "SCV" });
   assert.equal(byName.length, 1);
   assert.equal(byName[0].id, "engine.scv");
+
+  const byArea = filterComponentDiagnostics(coverage, { query: "DPNR / pakokaasu" });
+  assert.equal(byArea.length, 4);
 });
 
-test("komponenttikortti näyttää kattavuuden ja DIRECT-arvion erillään", () => {
+test("komponenttikortti näyttää kattavuuden, DIRECT-arvion ja fyysisen ryhmän erillään", () => {
   const coverage = coverageWith([result("0110", true, "7E0", "41 10 03 E8")]);
   const maf = coverage.components.find(item => item.id === "engine.maf_sensor");
   const html = buildComponentDiagnosticCardHtml(maf);
   assert.match(html, /DIRECT/);
   assert.match(html, /DATA SAATU/);
   assert.match(html, /ARVO USKOTTAVA/);
+  assert.match(html, /Ilma \/ turbo \/ EGR/);
   assert.match(html, /engine\.maf: 10\.0 g\/s/);
   assert.match(html, /PNC 22204/);
   assert.match(html, /OE 22204-30010/);
