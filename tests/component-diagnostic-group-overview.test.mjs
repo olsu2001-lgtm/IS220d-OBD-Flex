@@ -51,6 +51,37 @@ test("overview HTML exposes physical focus and existing BOM group filter targets
   assert.match(html, /DPNR/);
 });
 
+test("group overview shows only aggregated evidence-plan counters", () => {
+  const plans = [{
+    id: "air-intake-turbo-egr",
+    summary: {
+      selectedSignalCount: 5,
+      alreadyObserved: 2,
+      availableInCurrentWideDiagnostic: 1,
+      notInCurrentWideDiagnostic: 1,
+      notAuthorized: 1,
+      fieldRejected: 0
+    },
+    commands: ["SHOULD-NOT-LEAK"]
+  }];
+  const model = buildIs220dDiagnosticGroupOverview(coverage(), plans);
+  const intake = model.groups.find(group => group.id === "air-intake-turbo-egr");
+  assert.deepEqual(intake.planSummary, {
+    selectedSignalCount: 5,
+    alreadyObserved: 2,
+    availableInCurrentWideDiagnostic: 1,
+    notInCurrentWideDiagnostic: 1,
+    notAuthorized: 1,
+    fieldRejected: 0
+  });
+  const html = buildIs220dDiagnosticGroupOverviewHtml(model);
+  assert.match(html, /Evidenssi:/);
+  assert.match(html, /jo saatu 2/);
+  assert.match(html, /nykytesti voi kerätä 1/);
+  assert.match(html, /ei tuotantolukuun valtuutettu 1/);
+  assert.doesNotMatch(html, /SHOULD-NOT-LEAK/);
+});
+
 test("overview publisher remains usable without browser DOM", () => {
   const model = publishIs220dDiagnosticGroupOverview(coverage());
   assert.equal(model.applicable, true);
