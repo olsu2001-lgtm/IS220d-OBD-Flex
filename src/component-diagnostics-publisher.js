@@ -10,6 +10,7 @@ const hasFullBrowserDom = () => {
 
 let pageModulePromise = null;
 let groupOverviewModulePromise = null;
+let nextInspectionModulePromise = null;
 
 function loadPageModule() {
   if (!hasFullBrowserDom()) return null;
@@ -26,17 +27,31 @@ function loadGroupOverviewModule() {
   return groupOverviewModulePromise;
 }
 
+function loadNextInspectionModule() {
+  const overviewPromise = loadGroupOverviewModule();
+  if (!overviewPromise) return null;
+  if (!nextInspectionModulePromise) {
+    nextInspectionModulePromise = overviewPromise.then(() => import("./physical-inspection-next-task.js"));
+  }
+  return nextInspectionModulePromise;
+}
+
 export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}) {
   const pagePromise = loadPageModule();
   if (!pagePromise) return;
   const overviewPromise = loadGroupOverviewModule();
+  const nextInspectionPromise = loadNextInspectionModule();
   pagePromise
     .then(module => module.publishIs220dComponentDiagnosticCoverage(coverage, meta))
     .catch(() => {});
   overviewPromise
     ?.then(module => module.publishIs220dDiagnosticGroupOverview(coverage, meta))
     .catch(() => {});
+  nextInspectionPromise
+    ?.then(module => module.publishPhysicalInspectionNextTask(coverage))
+    .catch(() => {});
 }
 
 loadPageModule();
 loadGroupOverviewModule();
+loadNextInspectionModule();
