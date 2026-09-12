@@ -52,7 +52,11 @@
 .end method
 
 # virtual methods
-.method public execute(Ljava/lang/String;Ljava/lang/String;I)V
+# All potentially blocking Bluetooth operations are serialized on this bridge.
+# If JavaScript times out first, the native operation may still finish in the
+# background, but no later scan/connect/send/disconnect can overlap the same
+# Classic socket or BLE GATT state.
+.method public synchronized execute(Ljava/lang/String;Ljava/lang/String;I)V
     .locals 4
 
     :try_start_0
