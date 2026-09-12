@@ -2,6 +2,7 @@ import { ecuSurveyTopologySignature } from "./ecu-survey.js";
 import { buildFieldValidationTextReport } from "./field-validation.js";
 import { buildTechstreamReferenceTextReport } from "./techstream-reference-report.js";
 import { buildIs220dComponentDiagnosticTextReport } from "./is220d-component-diagnostics.js";
+import { buildImReadinessTextReport } from "./im-readiness.js";
 
 const clean = value => String(value ?? "").replace(/[\r\n\t]+/g, " ").trim();
 
@@ -68,6 +69,12 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
   }
 
   appendIdentity(lines, snapshot.identity);
+  if (snapshot.imReadiness) {
+    lines.push("", buildImReadinessTextReport(snapshot.imReadiness, {
+      vehicle: snapshot.profileVersion || "",
+      timestamp: snapshot.endedAt || snapshot.startedAt || Date.now()
+    }).trimEnd());
+  }
   if (historyResult?.fieldValidation) {
     lines.push("", buildFieldValidationTextReport(historyResult.fieldValidation).trimEnd());
   }
@@ -102,6 +109,7 @@ export function buildEcuSurveyTextReport(snapshot, historyResult = null) {
     "Interpretation boundary:",
     "- A stable response topology is repeatability evidence, not proof of ECU identity.",
     "- Mode 09 match/mismatch compares observed read-only identity data to repository vehicle evidence; mismatch is an evidence flag, not an ECU fault verdict.",
+    "- I/M readiness reports monitor completion state only; incomplete means the monitor has not completed since reset/current cycle, not that the monitored component is proven faulty.",
     "- The field-validation gate summarizes stored diagnostic evidence; Techstream cross-check remains independent external evidence.",
     "- BOM component diagnostics map already collected Flex signals to DIRECT/INDIRECT inspection targets; they do not diagnose a physical component by themselves.",
     "- Imported Techstream reference evidence uses a neutral Flex JSON schema; system names never create CAN mappings automatically.",
