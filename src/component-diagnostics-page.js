@@ -1,3 +1,8 @@
+import {
+  IS220D_DIAGNOSTIC_GROUPS,
+  getIs220dDiagnosticGroupForComponent
+} from "./is220d-diagnostic-groups.js";
+
 const STORAGE_KEY = "lexusIs220dBomComponentDiagnosticsV2";
 const LEGACY_STORAGE_KEY = "lexusIs220dBomComponentDiagnosticsV1";
 
@@ -59,18 +64,31 @@ export function attemptedComponentSignals(component) {
 
 export function filterComponentDiagnostics(coverage, {
   diagnosticClass = "all",
+  diagnosticGroup = "all",
   status = "all",
+  assessmentStatus = "all",
   query = ""
 } = {}) {
   const needle = String(query || "").trim().toLocaleLowerCase("fi");
   const components = Array.isArray(coverage?.components) ? coverage.components : [];
   return components.filter(component => {
+    const group = getIs220dDiagnosticGroupForComponent(component.id);
     if (diagnosticClass !== "all" && component.diagnosticClass !== diagnosticClass) return false;
+    if (diagnosticGroup !== "all" && group?.id !== diagnosticGroup) return false;
     if (status !== "all" && component.status !== status) return false;
+    if (assessmentStatus !== "all" && component?.assessment?.status !== assessmentStatus) return false;
     if (!needle) return true;
-    const haystack = [component.label, component.pnc, component.oe, component.symptom, component.id, component.assessment?.status]
-      .join(" ")
-      .toLocaleLowerCase("fi");
+    const haystack = [
+      component.label,
+      component.pnc,
+      component.oe,
+      component.symptom,
+      component.id,
+      component.assessment?.status,
+      group?.label,
+      group?.shortLabel,
+      group?.physicalFocus
+    ].join(" ").toLocaleLowerCase("fi");
     return haystack.includes(needle);
   });
 }
@@ -86,6 +104,7 @@ export function buildComponentDiagnosticCardHtml(component) {
   const statusMeta = COMPONENT_DIAGNOSTIC_STATUS[component?.status] || { label: "TUNTEMATON", css: "not-tested" };
   const assessmentMeta = COMPONENT_ASSESSMENT_STATUS[component?.assessment?.status] || COMPONENT_ASSESSMENT_STATUS["not-evaluated"];
   const classLabel = CLASS_LABEL[component?.diagnosticClass] || String(component?.diagnosticClass || "").toUpperCase();
+  const group = getIs220dDiagnosticGroupForComponent(component?.id);
   const observed = observedComponentSignals(component);
   const attempted = attemptedComponentSignals(component);
   const required = Math.max(1, Number(component?.requiredGroups || 1));
@@ -109,7 +128,7 @@ export function buildComponentDiagnosticCardHtml(component) {
     : "";
   const note = component?.note ? `<p class="bom-component-note">${escapeHtml(component.note)}</p>` : "";
 
-  return `<article class="bom-component-card ${escapeHtml(statusMeta.css)}" data-component-class="${escapeHtml(component?.diagnosticClass)}" data-component-status="${escapeHtml(component?.status)}" data-assessment-status="${escapeHtml(component?.assessment?.status || "not-evaluated")}">
+  return `<article class="bom-component-card ${escapeHtml(statusMeta.css)}" data-component-class="${escapeHtml(component?.diagnosticClass)}" data-component-status="${escapeHtml(component?.status)}" data-assessment-status="${escapeHtml(component?.assessment?.status || "not-evaluated")}" data-diagnostic-group="${escapeHtml(group?.id || "")}">
     <div class="bom-component-head">
       <div>
         <div class="bom-component-badges"><span class="bom-class ${escapeHtml(component?.diagnosticClass)}">${escapeHtml(classLabel)}</span><span class="bom-status ${escapeHtml(statusMeta.css)}">${escapeHtml(statusMeta.label)}</span><span class="bom-assessment-badge ${escapeHtml(assessmentMeta.css)}">${escapeHtml(assessmentMeta.label)}</span></div>
@@ -117,6 +136,7 @@ export function buildComponentDiagnosticCardHtml(component) {
       </div>
       <strong class="bom-coverage">${observedGroups}/${required}</strong>
     </div>
+    ${group ? `<div class="bom-group-name">${escapeHtml(group.shortLabel)}</div>` : ""}
     <div class="bom-part-numbers"><span>PNC ${escapeHtml(component?.pnc || "–")}</span><span>OE ${escapeHtml(component?.oe || "–")}</span></div>
     <p class="bom-symptom">${escapeHtml(component?.symptom || "")}</p>
     ${assessmentHtml}
@@ -212,6 +232,7 @@ function ensureStyles() {
     .bom-status.unavailable,.bom-assessment-badge.strong-deviation { border-color:var(--danger-border); background:var(--danger-bg); color:var(--danger-text); }
     .bom-status.not-tested,.bom-assessment-badge.not-evaluated { color:var(--muted); }
     .bom-coverage { min-width:42px; padding:6px 7px; border:1px solid var(--line); border-radius:10px; background:var(--surface-inset); text-align:center; font-size:12px; }
+    .bom-group-name { margin-top:7px; color:var(--info); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
     .bom-part-numbers { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
     .bom-part-numbers span { padding:4px 6px; border-radius:7px; background:var(--surface-2); color:var(--muted); font:9px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
     .bom-symptom { margin:10px 0 0; color:var(--text-strong); font-size:12px; line-height:1.45; }
@@ -232,9 +253,13 @@ function ensureStyles() {
     .bom-component-note { color:var(--warning-text); }
     .bom-empty { padding:22px; border:1px dashed var(--line); border-radius:13px; color:var(--muted); text-align:center; font-size:13px; }
     .bom-run-meta { margin:7px 0 0; color:var(--muted); font-size:10px; }
-    @media (max-width:520px) { .bom-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width:520px) { .bom-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .bom-filter-grid { grid-template-columns:1fr; } }
   `;
   document.head.append(style);
+}
+
+function groupOptionsMarkup() {
+  return IS220D_DIAGNOSTIC_GROUPS.map(group => `<option value="${escapeHtml(group.id)}">${escapeHtml(group.shortLabel)}</option>`).join("");
 }
 
 function pageMarkup() {
@@ -277,9 +302,11 @@ function pageMarkup() {
     <div class="card">
       <div class="bom-filter-grid">
         <div><label for="bomClassFilter">Luokka</label><select id="bomClassFilter"><option value="all">Kaikki</option><option value="direct">DIRECT</option><option value="indirect">INDIRECT</option></select></div>
+        <div><label for="bomGroupFilter">Tarkastusalue</label><select id="bomGroupFilter"><option value="all">Kaikki alueet</option>${groupOptionsMarkup()}</select></div>
         <div><label for="bomStatusFilter">Kattavuus</label><select id="bomStatusFilter"><option value="all">Kaikki</option><option value="observed">Data saatu</option><option value="partial">Osittain</option><option value="unavailable">Ei vastausta</option><option value="not-tested">Ei testattu</option></select></div>
+        <div><label for="bomAssessmentFilter">Arvio</label><select id="bomAssessmentFilter"><option value="all">Kaikki</option><option value="normal-pattern">Arvo uskottava</option><option value="strong-deviation">Vahva poikkeama</option><option value="deviation">Poikkeama</option><option value="inconclusive">Ei ratkaisua</option><option value="not-evaluated">Ei arvioitu</option></select></div>
       </div>
-      <div class="bom-search"><label for="bomSearch">Hae osaa / OE / PNC</label><input id="bomSearch" type="text" placeholder="Esim. EGR, 89480, turbo, SCV"></div>
+      <div class="bom-search"><label for="bomSearch">Hae osaa / OE / PNC / aluetta</label><input id="bomSearch" type="text" placeholder="Esim. EGR, 89480, turbo, SCV, polttoaine"></div>
     </div>
     <div id="bomComponentList" class="bom-component-list"><div class="bom-empty">Komponenttidiagnoosia ei ole vielä ajettu tällä asennuksella.</div></div>
   </section>`;
@@ -311,7 +338,7 @@ function installPage() {
 
   document.querySelector("#bomDiagnosticRun")?.addEventListener("click", startComponentDiagnostic);
   document.querySelector("#bomDiagnosticCancel")?.addEventListener("click", () => document.querySelector("#cancelGekoTest")?.click());
-  for (const selector of ["#bomClassFilter", "#bomStatusFilter", "#bomSearch"]) {
+  for (const selector of ["#bomClassFilter", "#bomGroupFilter", "#bomStatusFilter", "#bomAssessmentFilter", "#bomSearch"]) {
     document.querySelector(selector)?.addEventListener(selector === "#bomSearch" ? "input" : "change", renderLatest);
   }
 
@@ -406,7 +433,9 @@ function renderLatest() {
 
   const filtered = filterComponentDiagnostics(coverage, {
     diagnosticClass: document.querySelector("#bomClassFilter")?.value || "all",
+    diagnosticGroup: document.querySelector("#bomGroupFilter")?.value || "all",
     status: document.querySelector("#bomStatusFilter")?.value || "all",
+    assessmentStatus: document.querySelector("#bomAssessmentFilter")?.value || "all",
     query: document.querySelector("#bomSearch")?.value || ""
   });
   list.innerHTML = filtered.length
