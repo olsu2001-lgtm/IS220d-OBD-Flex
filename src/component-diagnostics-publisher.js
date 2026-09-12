@@ -9,6 +9,7 @@ const hasFullBrowserDom = () => {
 };
 
 let pageModulePromise = null;
+let groupOverviewModulePromise = null;
 
 function loadPageModule() {
   if (!hasFullBrowserDom()) return null;
@@ -16,12 +17,26 @@ function loadPageModule() {
   return pageModulePromise;
 }
 
+function loadGroupOverviewModule() {
+  const pagePromise = loadPageModule();
+  if (!pagePromise) return null;
+  if (!groupOverviewModulePromise) {
+    groupOverviewModulePromise = pagePromise.then(() => import("./component-diagnostic-group-overview.js"));
+  }
+  return groupOverviewModulePromise;
+}
+
 export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}) {
-  const modulePromise = loadPageModule();
-  if (!modulePromise) return;
-  modulePromise
+  const pagePromise = loadPageModule();
+  if (!pagePromise) return;
+  const overviewPromise = loadGroupOverviewModule();
+  pagePromise
     .then(module => module.publishIs220dComponentDiagnosticCoverage(coverage, meta))
+    .catch(() => {});
+  overviewPromise
+    ?.then(module => module.publishIs220dDiagnosticGroupOverview(coverage))
     .catch(() => {});
 }
 
 loadPageModule();
+loadGroupOverviewModule();
