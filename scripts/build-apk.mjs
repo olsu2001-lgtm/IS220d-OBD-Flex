@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
 import { build as bundle } from "esbuild";
 import { patchCoreForAsyncNativeBridge } from "./async-native-core-transform.mjs";
-import { patchMainForImReadiness } from "./im-readiness-main-transform.mjs";
+import { IM_READINESS_BUILD_MARKER, patchMainForImReadiness } from "./im-readiness-main-transform.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const buildRoot = path.join(root, ".build");
@@ -148,7 +148,7 @@ async function buildVariant(label, minify, filename) {
   const bundleText = finalZip.readAsText("assets/app.bundle.js");
   if (!bundleText.includes(buildShortSha)) throw new Error(`${label}-APK:sta puuttuu build-SHA ${buildShortSha}`);
   if (!bundleText.includes("__PENDING__")) throw new Error(`${label}-APK:sta puuttuu asynkroninen OBD-silta`);
-  if (!bundleText.includes("I/M readiness · tämä ajosykli")) throw new Error(`${label}-APK:sta puuttuu I/M readiness -laajennus`);
+  if (!bundleText.includes(IM_READINESS_BUILD_MARKER)) throw new Error(`${label}-APK:sta puuttuu I/M readiness -build-markkeri`);
   return output;
 }
 
