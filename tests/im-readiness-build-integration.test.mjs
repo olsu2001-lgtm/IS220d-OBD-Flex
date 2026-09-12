@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { patchMainForImReadiness } from "../scripts/im-readiness-main-transform.mjs";
+import {
+  IM_READINESS_BUILD_MARKER,
+  patchMainForImReadiness
+} from "../scripts/im-readiness-main-transform.mjs";
 import { imReadinessSnapshotFromDiagnosticRun } from "../src/ecu-survey-diagnostic.js";
 
 test("main transform adds four standard I/M readiness reads exactly once", () => {
@@ -12,6 +15,8 @@ test("main transform adds four standard I/M readiness reads exactly once", () =>
     assert.equal(matches.length, 1, `${command} must appear once in the wide diagnostic mode-step list`);
   }
   assert.match(patched, /I\/M readiness · tämä ajosykli/);
+  assert.ok(patched.includes(IM_READINESS_BUILD_MARKER));
+  assert.equal(patched.split(IM_READINESS_BUILD_MARKER).length - 1, 1);
 });
 
 test("main transform is idempotent", () => {
