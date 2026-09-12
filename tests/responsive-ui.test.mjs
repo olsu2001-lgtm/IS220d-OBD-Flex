@@ -5,19 +5,32 @@ import { RESPONSIVE_UI_BUILD_MARKER, patchMainForResponsiveness } from "../scrip
 
 const mainSource = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
 
+function functionBlock(source, signature) {
+  const start = source.indexOf(signature);
+  assert.notEqual(start, -1, `missing function signature: ${signature}`);
+  const nextFunction = source.indexOf("\nfunction ", start + signature.length);
+  return source.slice(start, nextFunction === -1 ? source.length : nextFunction);
+}
+
 test("diagnostiikkaloki ja terminaali renderöidään erissä eikä jokaisella liikennetapahtumalla", () => {
   const patched = patchMainForResponsiveness(mainSource);
   assert.match(patched, new RegExp(RESPONSIVE_UI_BUILD_MARKER));
-  assert.match(patched, /scheduleTerminalRender\(\);/);
-  assert.match(patched, /scheduleElmDiagnosticRender\(\);/);
   assert.match(patched, /setTimeout\(\(\) => \{/);
   assert.match(patched, /}, 80\);/);
-  assert.doesNotMatch(patched, /function appendElmDiagnosticLine\(line\)[\s\S]*?renderElmDiagnostics\(\);\n\}/);
+
+  const terminalAppend = functionBlock(patched, "function appendTerminal(text) {");
+  assert.match(terminalAppend, /scheduleTerminalRender\(\);/);
+  assert.doesNotMatch(terminalAppend, /terminal\.textContent|terminal\.scrollTop/);
+
+  const diagnosticAppend = functionBlock(patched, "function appendElmDiagnosticLine(line) {");
+  assert.match(diagnosticAppend, /scheduleElmDiagnosticRender\(\);/);
+  assert.doesNotMatch(diagnosticAppend, /renderElmDiagnostics\(\);/);
 });
 
 test("laaja diagnostiikka luovuttaa event loopin jokaisen vaiheen jälkeen", () => {
   const patched = patchMainForResponsiveness(mainSource);
-  assert.match(patched, /await yieldUiTurn\(\);/);
+  const runner = functionBlock(patched, "async function runFullDiagnosticSteps(phase, steps, options = {}) {");
+  assert.match(runner, /await yieldUiTurn\(\);/);
   assert.match(patched, /function yieldUiTurn\(\) \{\n  return new Promise\(resolve => setTimeout\(resolve, 0\)\);/);
 });
 
