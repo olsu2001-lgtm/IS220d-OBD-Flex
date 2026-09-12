@@ -6,6 +6,8 @@ import {
 import { extractMode09IdentityFromDiagnosticRun } from "./mode09-identity.js";
 import { extractFieldValidationEvidenceFromDiagnosticRun } from "./field-validation.js";
 import { buildIs220dComponentDiagnosticCoverage } from "./is220d-component-diagnostics.js";
+import { IS220D_DIAGNOSTIC_GROUPS } from "./is220d-diagnostic-groups.js";
+import { buildIs220dDiagnosticGroupPlan } from "./is220d-diagnostic-plan.js";
 import { publishIs220dComponentDiagnosticCoverageToUi } from "./component-diagnostics-publisher.js";
 
 const normalizeHex = value => String(value || "").replace(/\s+/g, "").toUpperCase();
@@ -61,6 +63,18 @@ export function ecuSurveyObservationsFromDiagnosticResults(
   return Object.freeze(observations.map(observation => Object.freeze(observation)));
 }
 
+export function is220dDiagnosticGroupPlanSummariesFromRun(run) {
+  if (!run || !Array.isArray(run.results)) return Object.freeze([]);
+  return Object.freeze(IS220D_DIAGNOSTIC_GROUPS.map(group => {
+    const plan = buildIs220dDiagnosticGroupPlan(group.id, run);
+    return Object.freeze({
+      id: group.id,
+      shortLabel: group.shortLabel,
+      summary: Object.freeze({ ...plan.summary })
+    });
+  }));
+}
+
 export function ecuSurveySnapshotFromDiagnosticRun(
   run,
   {
@@ -88,10 +102,12 @@ export function ecuSurveySnapshotFromDiagnosticRun(
     }
   });
   const componentDiagnostics = buildIs220dComponentDiagnosticCoverage(run);
+  const diagnosticGroupPlans = is220dDiagnosticGroupPlanSummariesFromRun(run);
   publishIs220dComponentDiagnosticCoverageToUi(componentDiagnostics, {
     runId: meta.reportId || "",
     startedAt: run.startedAt,
-    endedAt: run.endedAt
+    endedAt: run.endedAt,
+    diagnosticGroupPlans
   });
 
   return Object.freeze({
