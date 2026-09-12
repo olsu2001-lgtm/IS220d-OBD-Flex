@@ -34,7 +34,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
     .then(module => module.publishIs220dComponentDiagnosticCoverage(coverage, meta))
     .catch(() => {});
   overviewPromise
-    ?.then(module => module.publishIs220dDiagnosticGroupOverview(coverage))
+    ?.then(module => module.publishIs220dDiagnosticGroupOverview(coverage, meta))
     .catch(() => {});
 }
 
