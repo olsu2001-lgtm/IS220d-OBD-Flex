@@ -2,6 +2,7 @@ import {
   commandsForIs220dDiagnosticSignal,
   getIs220dDiagnosticSignal
 } from "./is220d-diagnostic-signals.js";
+import { assessIs220dComponentEvidence } from "./is220d-component-assessment.js";
 
 /**
  * BOM-derived component diagnostics for Lexus IS220d / 2AD-FHV.
@@ -115,7 +116,9 @@ function evaluateComponent(definition, results) {
   if (observedGroups >= requiredGroups) status = "observed";
   else if (observedGroups > 0) status = "partial";
   else if (attemptedGroups > 0) status = "unavailable";
-  return deepFreeze({ ...definition, requiredGroups, observedGroups, attemptedGroups, status, groupEvidence });
+  const evidence = { ...definition, requiredGroups, observedGroups, attemptedGroups, status, groupEvidence };
+  const assessment = assessIs220dComponentEvidence(evidence, results);
+  return deepFreeze({ ...evidence, assessment });
 }
 
 export function buildIs220dComponentDiagnosticCoverage(run) {
@@ -142,6 +145,7 @@ export function buildIs220dComponentDiagnosticCoverage(run) {
 }
 
 const clean = value => String(value ?? "").replace(/[\r\n\t]+/g, " ").trim();
+const formatAssessmentValue = value => `${clean(value.signalKey)}=${Number(value.value).toFixed(Math.abs(Number(value.value)) >= 100 ? 0 : 2)}${value.unit ? ` ${clean(value.unit)}` : ""}`;
 
 export function buildIs220dComponentDiagnosticTextReport(coverage) {
   if (!coverage?.applicable) return "";
@@ -163,15 +167,18 @@ export function buildIs220dComponentDiagnosticTextReport(coverage) {
     const observedSignals = observedStates.map(signal => signal.command);
     const attemptedSignals = attemptedStates.map(signal => signal.command);
     const observedKeys = observedStates.map(signal => signal.signalKey);
+    const assessmentValues = (item.assessment?.values || []).map(formatAssessmentValue);
     const suffix = [
       `class=${String(item.diagnosticClass || "").toUpperCase()}`,
       `status=${clean(item.status)}`,
+      `assessment=${clean(item.assessment?.status || "not-evaluated")}`,
       `pnc=${clean(item.pnc) || "-"}`,
       `oe=${clean(item.oe) || "-"}`,
       `component=${clean(item.label)}`,
       `groups=${Number(item.observedGroups || 0)}/${Number(item.requiredGroups || 1)}`,
       `observed_signal_keys=${[...new Set(observedKeys)].join(",") || "-"}`,
       `observed_signals=${[...new Set(observedSignals)].join(",") || "-"}`,
+      `assessment_values=${assessmentValues.join(",") || "-"}`,
       `attempted_no_positive=${[...new Set(attemptedSignals)].join(",") || "-"}`,
       `symptom=${clean(item.symptom)}`,
       `bom=${clean(item.bomSource)}`
@@ -183,7 +190,8 @@ export function buildIs220dComponentDiagnosticTextReport(coverage) {
 
   lines.push(
     "Interpretation boundary:",
-    "- observed means Flex obtained the mapped signal coverage; it is not a component fault verdict.",
+    "- coverage status and assessment status are separate; DATA SAATU is not a health verdict.",
+    "- normal-pattern currently means only that a vehicle-verified DIRECT value decoded and stayed inside its structural plausibility range.",
     "- INDIRECT means correlation evidence only; the mapped signals do not identify one physical cause by themselves.",
     "- named signal definitions are evidence metadata, not a vehicle-command allowlist.",
     "- Flex 0.8.1 field-disabled 219C injector feedback never counts toward component coverage.",
