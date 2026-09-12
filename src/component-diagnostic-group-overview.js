@@ -1,4 +1,5 @@
 import { IS220D_DIAGNOSTIC_GROUPS } from "./is220d-diagnostic-groups.js";
+import { buildIs220dPhysicalInspectionChecklist } from "./is220d-physical-inspection.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -31,6 +32,8 @@ export function buildIs220dDiagnosticGroupOverview(coverage, planSummaries = [])
     return Object.freeze({ applicable: false, totalComponents: 0, groups: Object.freeze([]) });
   }
 
+  const physicalChecklist = buildIs220dPhysicalInspectionChecklist(coverage);
+  const inspectionByGroup = new Map(physicalChecklist.groups.map(group => [group.id, group]));
   const byId = new Map(components.map(component => [component.id, component]));
   const planById = new Map((Array.isArray(planSummaries) ? planSummaries : []).map(plan => [plan?.id, normalizePlanSummary(plan?.summary)]));
   const groups = IS220D_DIAGNOSTIC_GROUPS.map(group => {
@@ -60,6 +63,7 @@ export function buildIs220dDiagnosticGroupOverview(coverage, planSummaries = [])
       strongDeviation,
       attentionCount: attention.length,
       planSummary: planById.get(group.id) || null,
+      physicalInspection: inspectionByGroup.get(group.id) || null,
       attentionComponents: Object.freeze(attention.map(component => Object.freeze({
         id: component.id,
         label: component.label,
@@ -98,6 +102,24 @@ function groupPlanText(group) {
   return parts.join(" · ");
 }
 
+function buildPhysicalInspectionHtml(group) {
+  const inspection = group.physicalInspection;
+  if (!inspection?.items?.length) return "";
+  const summaryParts = [`${inspection.itemCount} kohdetta`];
+  if (inspection.priorityCount) summaryParts.push(`ensin ${inspection.priorityCount}`);
+  if (inspection.gapCount) summaryParts.push(`vajaa evidenssi ${inspection.gapCount}`);
+  const items = inspection.items.map(item => `<li class="bom-physical-item ${escapeHtml(item.priorityKey)}">
+    <div class="bom-physical-item-head"><strong>${escapeHtml(item.priorityLabel)}</strong><span>${escapeHtml(item.label)}</span></div>
+    <p>${escapeHtml(item.instruction)}</p>
+    <div class="bom-physical-symptom">Oireyhteys: ${escapeHtml(item.symptom)}</div>
+    <div class="bom-physical-part">PNC ${escapeHtml(item.pnc)} · OE ${escapeHtml(item.oe.join(", "))}</div>
+  </li>`).join("");
+  return `<details class="bom-physical-details">
+    <summary>Fyysiset tarkastuskohteet · ${escapeHtml(summaryParts.join(" · "))}</summary>
+    <ol class="bom-physical-list">${items}</ol>
+  </details>`;
+}
+
 export function buildIs220dDiagnosticGroupOverviewHtml(model) {
   if (!model?.applicable) return '<div class="bom-group-overview-empty">Ei IS220d-komponenttidiagnoosia.</div>';
   return model.groups.map(group => {
@@ -106,12 +128,15 @@ export function buildIs220dDiagnosticGroupOverviewHtml(model) {
       : '<div class="bom-group-attention quiet">Ei tämän ajon perusteella erikseen nostettavia komponentteja.</div>';
     const planText = groupPlanText(group);
     const plan = planText ? `<span class="bom-group-plan">Evidenssi: ${escapeHtml(planText)}</span>` : "";
-    return `<button class="bom-group-overview-card" type="button" data-bom-group-overview="${escapeHtml(group.id)}">
-      <span class="bom-group-overview-head"><strong>${escapeHtml(group.shortLabel)}</strong><span>${escapeHtml(groupStatusText(group))}</span></span>
+    const physicalInspection = buildPhysicalInspectionHtml(group);
+    return `<article class="bom-group-overview-card" data-bom-group-card="${escapeHtml(group.id)}">
+      <div class="bom-group-overview-head"><strong>${escapeHtml(group.shortLabel)}</strong><span>${escapeHtml(groupStatusText(group))}</span></div>
       <span class="bom-group-overview-focus">${escapeHtml(group.physicalFocus)}</span>
       ${plan}
       ${attention}
-    </button>`;
+      ${physicalInspection}
+      <button class="secondary compact bom-group-open" type="button" data-bom-open-group="${escapeHtml(group.id)}">Näytä ryhmän komponentit</button>
+    </article>`;
   }).join("");
 }
 
@@ -126,7 +151,6 @@ function ensureStyles() {
     .bom-group-overview-title span { color:var(--muted); font-size:9px; text-align:right; }
     .bom-group-overview-grid { display:grid; gap:8px; }
     .bom-group-overview-card { width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--text); text-align:left; }
-    .bom-group-overview-card:active { transform:translateY(1px); }
     .bom-group-overview-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
     .bom-group-overview-head strong { color:var(--text-strong); font-size:12px; }
     .bom-group-overview-head span { color:var(--muted); font-size:9px; text-align:right; }
@@ -134,6 +158,21 @@ function ensureStyles() {
     .bom-group-plan { display:block; margin-top:7px; padding-top:7px; border-top:1px solid var(--line); color:var(--info); font-size:9px; line-height:1.4; }
     .bom-group-attention { margin-top:7px; color:var(--warning-text); font-size:9px; line-height:1.35; }
     .bom-group-attention.quiet { color:var(--success); }
+    .bom-physical-details { margin-top:9px; padding-top:8px; border-top:1px solid var(--line); }
+    .bom-physical-details summary { color:var(--text-strong); cursor:pointer; font-size:10px; font-weight:800; }
+    .bom-physical-list { display:grid; gap:7px; margin:9px 0 0; padding:0; list-style:none; }
+    .bom-physical-item { padding:9px; border:1px solid var(--line-soft); border-radius:10px; background:var(--surface-inset); }
+    .bom-physical-item.deviation { border-color:var(--danger-border); }
+    .bom-physical-item.gap { border-color:var(--warning-border); }
+    .bom-physical-item-head { display:flex; flex-direction:column; gap:3px; }
+    .bom-physical-item-head strong { color:var(--info); font-size:8px; letter-spacing:.04em; }
+    .bom-physical-item.deviation .bom-physical-item-head strong { color:var(--danger-text); }
+    .bom-physical-item.gap .bom-physical-item-head strong { color:var(--warning); }
+    .bom-physical-item-head span { color:var(--text-strong); font-size:11px; font-weight:800; }
+    .bom-physical-item p { margin:6px 0 0; color:var(--text-strong); font-size:10px; line-height:1.45; }
+    .bom-physical-symptom { margin-top:6px; color:var(--muted); font-size:9px; line-height:1.4; }
+    .bom-physical-part { margin-top:5px; color:var(--muted); font:8px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .bom-group-open { margin-top:9px; width:100%; }
     .bom-group-overview-empty { padding:12px; color:var(--muted); font-size:11px; }
   `;
   document.head.append(style);
@@ -154,9 +193,9 @@ function ensurePanel() {
   if (summary?.parentNode) summary.parentNode.insertBefore(panel, summary.nextSibling);
   else page.append(panel);
   panel.addEventListener("click", event => {
-    const button = event.target?.closest?.("[data-bom-group-overview]");
+    const button = event.target?.closest?.("[data-bom-open-group]");
     if (!button) return;
-    const groupId = button.getAttribute("data-bom-group-overview");
+    const groupId = button.getAttribute("data-bom-open-group");
     const filter = document.querySelector("#bomGroupFilter");
     if (filter && [...filter.options].some(option => option.value === groupId)) {
       filter.value = groupId;
