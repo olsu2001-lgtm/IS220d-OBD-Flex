@@ -17,6 +17,12 @@ This directory separates the **active development contract** from historical Dri
 
 Historical documents never expand the active command allowlist by themselves.
 
+## Current implementation roadmaps
+
+- [`BOM_DIAGNOSTICS_ROADMAP.md`](BOM_DIAGNOSTICS_ROADMAP.md) — phased plan for importing all DIRECT/INDIRECT `Bom-kaapija` diagnostic targets, separating BOM data from signal authorization, adding component assessment rules, physical-location diagnostic groups, Techstream gap closure and field-validation gates.
+
+Roadmaps describe intended work. They do not override the development contract, protocol allowlist, current source or tests.
+
 ## Imported / reconciled project evidence
 
 - [`VEHICLE_EVIDENCE.md`](VEHICLE_EVIDENCE.md) — target IS220d ECU/bus/calibration evidence from the project Drive.
