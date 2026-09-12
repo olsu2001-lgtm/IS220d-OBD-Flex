@@ -1,5 +1,10 @@
 import { IS220D_DIAGNOSTIC_GROUPS } from "./is220d-diagnostic-groups.js";
 import { buildIs220dPhysicalInspectionChecklist } from "./is220d-physical-inspection.js";
+import {
+  readPhysicalInspectionProgress,
+  summarizePhysicalInspectionProgress,
+  writePhysicalInspectionChecked
+} from "./physical-inspection-progress.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -102,25 +107,30 @@ function groupPlanText(group) {
   return parts.join(" · ");
 }
 
-function buildPhysicalInspectionHtml(group) {
+function buildPhysicalInspectionHtml(group, progress) {
   const inspection = group.physicalInspection;
   if (!inspection?.items?.length) return "";
-  const summaryParts = [`${inspection.itemCount} kohdetta`];
+  const completion = summarizePhysicalInspectionProgress(inspection, progress);
+  const summaryParts = [`${inspection.itemCount} kohdetta`, `tarkastettu ${completion.checked}/${completion.total}`];
   if (inspection.priorityCount) summaryParts.push(`ensin ${inspection.priorityCount}`);
   if (inspection.gapCount) summaryParts.push(`vajaa evidenssi ${inspection.gapCount}`);
-  const items = inspection.items.map(item => `<li class="bom-physical-item ${escapeHtml(item.priorityKey)}">
-    <div class="bom-physical-item-head"><strong>${escapeHtml(item.priorityLabel)}</strong><span>${escapeHtml(item.label)}</span></div>
-    <p>${escapeHtml(item.instruction)}</p>
-    <div class="bom-physical-symptom">Oireyhteys: ${escapeHtml(item.symptom)}</div>
-    <div class="bom-physical-part">PNC ${escapeHtml(item.pnc)} · OE ${escapeHtml(item.oe.join(", "))}</div>
-  </li>`).join("");
+  const items = inspection.items.map(item => {
+    const checked = progress?.items?.[item.id]?.checked === true;
+    return `<li class="bom-physical-item ${escapeHtml(item.priorityKey)}${checked ? " checked" : ""}" data-bom-inspection-item="${escapeHtml(item.id)}">
+      <label class="bom-physical-check"><input type="checkbox" data-bom-inspection-check="${escapeHtml(item.id)}"${checked ? " checked" : ""}><span>Tarkastettu</span></label>
+      <div class="bom-physical-item-head"><strong>${escapeHtml(item.priorityLabel)}</strong><span>${escapeHtml(item.label)}</span></div>
+      <p>${escapeHtml(item.instruction)}</p>
+      <div class="bom-physical-symptom">Oireyhteys: ${escapeHtml(item.symptom)}</div>
+      <div class="bom-physical-part">PNC ${escapeHtml(item.pnc)} · OE ${escapeHtml(item.oe.join(", "))}</div>
+    </li>`;
+  }).join("");
   return `<details class="bom-physical-details">
-    <summary>Fyysiset tarkastuskohteet · ${escapeHtml(summaryParts.join(" · "))}</summary>
+    <summary>Fyysiset tarkastuskohteet · <span data-bom-inspection-summary="${escapeHtml(group.id)}">${escapeHtml(summaryParts.join(" · "))}</span></summary>
     <ol class="bom-physical-list">${items}</ol>
   </details>`;
 }
 
-export function buildIs220dDiagnosticGroupOverviewHtml(model) {
+export function buildIs220dDiagnosticGroupOverviewHtml(model, progress = { items: {} }) {
   if (!model?.applicable) return '<div class="bom-group-overview-empty">Ei IS220d-komponenttidiagnoosia.</div>';
   return model.groups.map(group => {
     const attention = group.attentionComponents.length
@@ -128,7 +138,7 @@ export function buildIs220dDiagnosticGroupOverviewHtml(model) {
       : '<div class="bom-group-attention quiet">Ei tämän ajon perusteella erikseen nostettavia komponentteja.</div>';
     const planText = groupPlanText(group);
     const plan = planText ? `<span class="bom-group-plan">Evidenssi: ${escapeHtml(planText)}</span>` : "";
-    const physicalInspection = buildPhysicalInspectionHtml(group);
+    const physicalInspection = buildPhysicalInspectionHtml(group, progress);
     return `<article class="bom-group-overview-card" data-bom-group-card="${escapeHtml(group.id)}">
       <div class="bom-group-overview-head"><strong>${escapeHtml(group.shortLabel)}</strong><span>${escapeHtml(groupStatusText(group))}</span></div>
       <span class="bom-group-overview-focus">${escapeHtml(group.physicalFocus)}</span>
@@ -161,9 +171,12 @@ function ensureStyles() {
     .bom-physical-details { margin-top:9px; padding-top:8px; border-top:1px solid var(--line); }
     .bom-physical-details summary { color:var(--text-strong); cursor:pointer; font-size:10px; font-weight:800; }
     .bom-physical-list { display:grid; gap:7px; margin:9px 0 0; padding:0; list-style:none; }
-    .bom-physical-item { padding:9px; border:1px solid var(--line-soft); border-radius:10px; background:var(--surface-inset); }
+    .bom-physical-item { position:relative; padding:9px; border:1px solid var(--line-soft); border-radius:10px; background:var(--surface-inset); }
+    .bom-physical-item.checked { opacity:.62; }
     .bom-physical-item.deviation { border-color:var(--danger-border); }
     .bom-physical-item.gap { border-color:var(--warning-border); }
+    .bom-physical-check { display:flex; justify-content:flex-end; align-items:center; gap:5px; margin-bottom:6px; color:var(--muted); font-size:9px; }
+    .bom-physical-check input { width:17px; height:17px; margin:0; }
     .bom-physical-item-head { display:flex; flex-direction:column; gap:3px; }
     .bom-physical-item-head strong { color:var(--info); font-size:8px; letter-spacing:.04em; }
     .bom-physical-item.deviation .bom-physical-item-head strong { color:var(--danger-text); }
@@ -176,6 +189,19 @@ function ensureStyles() {
     .bom-group-overview-empty { padding:12px; color:var(--muted); font-size:11px; }
   `;
   document.head.append(style);
+}
+
+function updateInspectionProgressLabel(card) {
+  const groupId = card?.getAttribute?.("data-bom-group-card");
+  if (!groupId) return;
+  const checks = [...card.querySelectorAll("[data-bom-inspection-check]")];
+  const checked = checks.filter(input => input.checked).length;
+  const label = card.querySelector(`[data-bom-inspection-summary="${groupId}"]`);
+  if (!label) return;
+  const inspectionItems = checks.length;
+  const current = label.textContent.split(" · ").filter(part => !part.startsWith("tarkastettu "));
+  current.splice(1, 0, `tarkastettu ${checked}/${inspectionItems}`);
+  label.textContent = current.join(" · ");
 }
 
 function ensurePanel() {
@@ -203,6 +229,14 @@ function ensurePanel() {
       document.querySelector("#bomComponentList")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
     }
   });
+  panel.addEventListener("change", event => {
+    const input = event.target?.closest?.("[data-bom-inspection-check]");
+    if (!input) return;
+    const componentId = input.getAttribute("data-bom-inspection-check");
+    writePhysicalInspectionChecked(componentId, input.checked);
+    input.closest("[data-bom-inspection-item]")?.classList.toggle("checked", input.checked);
+    updateInspectionProgressLabel(input.closest("[data-bom-group-card]"));
+  });
   return panel;
 }
 
@@ -212,7 +246,7 @@ export function publishIs220dDiagnosticGroupOverview(coverage, meta = {}) {
   if (!panel || !model.applicable) return model;
   const grid = panel.querySelector("#bomGroupOverviewGrid");
   const metaLabel = panel.querySelector("#bomGroupOverviewMeta");
-  if (grid) grid.innerHTML = buildIs220dDiagnosticGroupOverviewHtml(model);
+  if (grid) grid.innerHTML = buildIs220dDiagnosticGroupOverviewHtml(model, readPhysicalInspectionProgress());
   if (metaLabel) metaLabel.textContent = `${model.groups.length} aluetta · ${model.totalComponents} komponenttia · data ${model.observedComponents}/${model.totalComponents} · arvioitu ${model.assessedComponents}`;
   return model;
 }
