@@ -1,3 +1,8 @@
+import {
+  commandsForIs220dDiagnosticSignal,
+  getIs220dDiagnosticSignal
+} from "./is220d-diagnostic-signals.js";
+
 /**
  * BOM-derived component diagnostics for Lexus IS220d / 2AD-FHV.
  *
@@ -6,8 +11,8 @@
  * intentionally excluded.
  */
 
-export const IS220D_COMPONENT_DIAGNOSTIC_SCHEMA_VERSION = 1;
-export const IS220D_COMPONENT_DIAGNOSTIC_SOURCE = "Bom-kaapija / Vikadiag_kohteet";
+export const IS220D_COMPONENT_DIAGNOSTIC_SCHEMA_VERSION = 2;
+export const IS220D_COMPONENT_DIAGNOSTIC_SOURCE = "Bom-kaapija / reviewed offline snapshot";
 export const IS220D_COMPONENT_DIAGNOSTIC_POLICY = "direct-indirect-only";
 
 const ENGINE_REQUEST_HEADERS = new Set(["", "7DF", "7E0"]);
@@ -23,39 +28,48 @@ function deepFreeze(value) {
 
 function component(definition) {
   if (!VALID_CLASSES.has(definition.diagnosticClass)) throw new Error(`Unsupported diagnostic class: ${definition.diagnosticClass}`);
+  for (const group of definition.signalGroups || []) {
+    for (const signalKey of group) {
+      const signal = getIs220dDiagnosticSignal(signalKey);
+      if (!signal) throw new Error(`Unknown diagnostic signal ${signalKey} in ${definition.id}`);
+      if (signal.authorization === "field-rejected") throw new Error(`Field-rejected signal ${signalKey} cannot be recipe evidence for ${definition.id}`);
+    }
+  }
   return definition;
 }
 
 /**
- * signalGroups are alternative command groups. A group is observed if any
- * command in it produced a valid response. minimumGroups controls how many
+ * signalGroups contain named evidence signals. A group is observed if any
+ * signal in it produced a valid response. minimumGroups controls how many
  * independent groups are needed before the component has useful coverage.
+ * Signal definitions resolve to existing command identities only after data
+ * has already been collected; this module never transmits a command.
  */
 export const IS220D_COMPONENT_DIAGNOSTICS = deepFreeze([
-  component({ id: "engine.maf_sensor", diagnosticClass: "direct", pnc: "22204", oe: "22204-30010", label: "MAF / ilmamäärämittari", symptom: "Tehonpuute, savutus, kulutuksen nousu tai MAF/P010x-poikkeama.", bomSource: "BOM rivit 941-942", signalGroups: [["0110"]] }),
-  component({ id: "engine.map_sensor", diagnosticClass: "direct", pnc: "89421C", oe: "89421-20200", label: "Ahtopaineanturi / MAP turbo pressure", symptom: "Virheellinen ahtopaine, tehonpuute tai epälooginen MAP/boost-kuormavaste.", bomSource: "BOM rivit 6970-6971", signalGroups: [["010B"]] }),
-  component({ id: "engine.coolant_temperature_sensor", diagnosticClass: "direct", pnc: "89422C", oe: "89422-33030", label: "Moottorin jäähdytysnesteen lämpötila-anturi", symptom: "Virheellinen lämpenemistieto, korkea lämmin tyhjäkäynti, regen-estot tai ECT-poikkeama.", bomSource: "BOM rivit 6972-6973", signalGroups: [["0105"]] }),
-  component({ id: "engine.egr_valve", diagnosticClass: "direct", pnc: "25620", oe: "25620-26101", label: "EGR-venttiili", symptom: "Nykiminen, tehonpuute, musta savu/noki tai EGR/DPF-poikkeama.", bomSource: "BOM rivi 1297", signalGroups: [["212C", "012C", "0169"]] }),
-  component({ id: "engine.dpnr_differential_pressure_sensor", diagnosticClass: "direct", pnc: "89480A", oe: "89480-53010", label: "DPF/DPNR paine-eroanturi", symptom: "DPF-oire, epäonnistuvat regeneroinnit, limp mode tai epäuskottava paine-ero.", bomSource: "BOM rivit 6939-6940", signalGroups: [["217E"]] }),
-  component({ id: "engine.exhaust_gas_temperature_sensor_1", diagnosticClass: "direct", pnc: "89425", oe: "89425-53010", label: "Pakokaasun lämpötila-anturi 1", symptom: "Epäuskottava EGT-data tai regeneroinnin häiriö.", bomSource: "BOM rivit 6931-6932", signalGroups: [["217F"]] }),
-  component({ id: "engine.exhaust_gas_temperature_sensor_2", diagnosticClass: "direct", pnc: "89425A", oe: "89425-53020", label: "Pakokaasun lämpötila-anturi 2", symptom: "Epäuskottava EGT-data tai regeneroinnin häiriö.", bomSource: "BOM rivit 6933-6934", signalGroups: [["217F"]] }),
-  component({ id: "engine.fuel_temperature_sensor", diagnosticClass: "direct", pnc: "89454", oe: "89454-20010", label: "Polttoaineen lämpötila-anturi", symptom: "Epärealistinen polttoainelämpö voi vääristää rail-paineen ja ruiskutusmäärän tulkintaa.", bomSource: "BOM rivit 6976-6977", signalGroups: [["2193"]] }),
-  component({ id: "engine.common_rail_pressure_sensor", diagnosticClass: "direct", pnc: "Pc Sensor / 23810A", oe: "89458-60010", label: "Common rail -paineanturi", symptom: "Rail-paineen epäuskottavuus, hidas paineennousu tai target/actual-ristiriita.", bomSource: "BOM rail assy rivi 1211 + DENSO IS220d bulletin", signalGroups: [["0123", "2196"]] }),
+  component({ id: "engine.maf_sensor", diagnosticClass: "direct", pnc: "22204", oe: "22204-30010", label: "MAF / ilmamäärämittari", symptom: "Tehonpuute, savutus, kulutuksen nousu tai MAF/P010x-poikkeama.", bomSource: "BOM rivit 941-942", signalGroups: [["engine.maf"]] }),
+  component({ id: "engine.map_sensor", diagnosticClass: "direct", pnc: "89421C", oe: "89421-20200", label: "Ahtopaineanturi / MAP turbo pressure", symptom: "Virheellinen ahtopaine, tehonpuute tai epälooginen MAP/boost-kuormavaste.", bomSource: "BOM rivit 6970-6971", signalGroups: [["engine.map"]] }),
+  component({ id: "engine.coolant_temperature_sensor", diagnosticClass: "direct", pnc: "89422C", oe: "89422-33030", label: "Moottorin jäähdytysnesteen lämpötila-anturi", symptom: "Virheellinen lämpenemistieto, korkea lämmin tyhjäkäynti, regen-estot tai ECT-poikkeama.", bomSource: "BOM rivit 6972-6973", signalGroups: [["engine.coolant_temperature"]] }),
+  component({ id: "engine.egr_valve", diagnosticClass: "direct", pnc: "25620", oe: "25620-26101", label: "EGR-venttiili", symptom: "Nykiminen, tehonpuute, musta savu/noki tai EGR/DPF-poikkeama.", bomSource: "BOM rivi 1297", signalGroups: [["engine.egr_position_toyota", "engine.egr_commanded_obd", "engine.egr_position_obd"]] }),
+  component({ id: "engine.dpnr_differential_pressure_sensor", diagnosticClass: "direct", pnc: "89480A", oe: "89480-53010", label: "DPF/DPNR paine-eroanturi", symptom: "DPF-oire, epäonnistuvat regeneroinnit, limp mode tai epäuskottava paine-ero.", bomSource: "BOM rivit 6939-6940", signalGroups: [["engine.dpnr_differential_pressure"]] }),
+  component({ id: "engine.exhaust_gas_temperature_sensor_1", diagnosticClass: "direct", pnc: "89425", oe: "89425-53010", label: "Pakokaasun lämpötila-anturi 1", symptom: "Epäuskottava EGT-data tai regeneroinnin häiriö.", bomSource: "BOM rivit 6931-6932", signalGroups: [["engine.egt_inlet"]] }),
+  component({ id: "engine.exhaust_gas_temperature_sensor_2", diagnosticClass: "direct", pnc: "89425A", oe: "89425-53020", label: "Pakokaasun lämpötila-anturi 2", symptom: "Epäuskottava EGT-data tai regeneroinnin häiriö.", bomSource: "BOM rivit 6933-6934", signalGroups: [["engine.egt_outlet"]] }),
+  component({ id: "engine.fuel_temperature_sensor", diagnosticClass: "direct", pnc: "89454", oe: "89454-20010", label: "Polttoaineen lämpötila-anturi", symptom: "Epärealistinen polttoainelämpö voi vääristää rail-paineen ja ruiskutusmäärän tulkintaa.", bomSource: "BOM rivit 6976-6977", signalGroups: [["engine.fuel_temperature_screening"]] }),
+  component({ id: "engine.common_rail_pressure_sensor", diagnosticClass: "direct", pnc: "Pc Sensor / 23810A", oe: "89458-60010", label: "Common rail -paineanturi", symptom: "Rail-paineen epäuskottavuus, hidas paineennousu tai target/actual-ristiriita.", bomSource: "BOM rail assy rivi 1211 + DENSO IS220d bulletin", signalGroups: [["engine.rail_pressure_obd", "engine.rail_pressure_screening"]] }),
 
-  component({ id: "engine.main_injectors", diagnosticClass: "indirect", pnc: "23670", oe: "23670-29105", label: "Common rail -pääsuuttimet", symptom: "Epätasainen käynti, palamattoman dieselin haju, savu, nakutus tai kulutuksen nousu.", bomSource: "BOM rivit 1104-1105", signalGroups: [["0123", "2196"], ["015D", "21AF"], ["010C"], ["2193"]], minimumGroups: 2, excludedSignals: ["219C"], note: "219C on Flex 0.8.1:ssa kenttäevidenssin perusteella estetty eikä koskaan nosta suutinten kattavuutta." }),
-  component({ id: "engine.exhaust_fuel_addition_injector", diagnosticClass: "indirect", pnc: "23710B", oe: "23710-26011", label: "DPF/DPNR lisäpolttoainesuutin", symptom: "Regenerointi ei onnistu, savu/regenerointipoikkeama tai korkea DPF-paine-ero.", bomSource: "BOM rivit 1114-1115", signalGroups: [["217E"], ["217F"], ["0123", "2196"]], minimumGroups: 2 }),
-  component({ id: "engine.scv", diagnosticClass: "indirect", pnc: "04226", oe: "04226-0L040", label: "SCV / imuohjausventtiili", symptom: "Rail pressure putoaa kuormalla, nykiminen, limp mode tai sammuminen.", bomSource: "BOM rivit 1131-1132", signalGroups: [["0123", "2196"], ["010C"], ["2193"]], minimumGroups: 2 }),
-  component({ id: "engine.fuel_filter", diagnosticClass: "indirect", pnc: "23300/23303", oe: "23300-26100; 23390-0L010", label: "Polttoainesuodatin / elementti", symptom: "Pitkä startti, tehonpuute kuormalla, nykiminen, sammuminen tai matala rail-paine.", bomSource: "BOM rivit 1256-1259", signalGroups: [["0123", "2196"], ["010C"]], minimumGroups: 2 }),
-  component({ id: "engine.injection_pump", diagnosticClass: "indirect", pnc: "22100", oe: "22100-0R031", label: "Common rail -korkeapainepumppu", symptom: "Rail-paine ei nouse startissa tai putoaa kuormalla, tehon katoaminen tai sammuminen.", bomSource: "BOM rivit 1139-1140", signalGroups: [["0123", "2196"], ["010C"], ["2193"]], minimumGroups: 2 }),
-  component({ id: "engine.turbocharger", diagnosticClass: "indirect", pnc: "17201", oe: "17201-26011", label: "Turboahdin", symptom: "Hidas ahtopaineen nousu, yli-/aliahto, tehonpuute, limp mode tai savu.", bomSource: "BOM rivit 828-829", signalGroups: [["010B"], ["0110"], ["0133"], ["212C", "012C", "0169"]], minimumGroups: 3 }),
-  component({ id: "engine.intercooler", diagnosticClass: "indirect", pnc: "17940D", oe: "17940-26010", label: "Välijäähdytin", symptom: "Ahtovuoto, tehonpuute, sihinä, musta savu tai toteutuneen ahtopaineen jääminen matalaksi.", bomSource: "BOM rivit 939-940", signalGroups: [["010B"], ["0110"], ["0133"]], minimumGroups: 2 }),
-  component({ id: "engine.intake_manifold", diagnosticClass: "indirect", pnc: "17111", oe: "17101-26110", label: "Imusarja", symptom: "Karstoittuminen, alakierrosväännön heikkeneminen, savutus tai kulutuksen nousu.", bomSource: "BOM rivit 806-807", signalGroups: [["0110"], ["010B"], ["212C", "012C", "0169"]], minimumGroups: 2 }),
-  component({ id: "engine.vacuum_regulating_valve", diagnosticClass: "indirect", pnc: "25819", oe: "25819-0R011", label: "Alipaineen säätöventtiili", symptom: "Turbon/EGR:n hidas tai väärä liike, tehonpuute, yli-/aliahto tai nykäisy.", bomSource: "BOM rivit 988-989", signalGroups: [["010B"], ["212C", "012C", "0169"], ["0110"]], minimumGroups: 2 }),
-  component({ id: "engine.vacuum_switching_valve", diagnosticClass: "indirect", pnc: "25860", oe: "25860-0R010", label: "Alipaineen vaihtoventtiili / VSV", symptom: "Turbo/EGR-asento väärä, tehonpuute tai satunnainen nykäisy.", bomSource: "BOM rivit 990-991", signalGroups: [["010B"], ["212C", "012C", "0169"], ["0110"]], minimumGroups: 2 }),
-  component({ id: "engine.air_cleaner_hose", diagnosticClass: "indirect", pnc: "17881/17881A/17882A", oe: "17880-26010; 96111-10850; 96111-10710", label: "Ilmaputki ja kiristimet MAFin/turbon imupuolella", symptom: "Imuvuoto, MAF-poikkeama, tehonpuute, savutus tai hidas ahtopaineen nousu.", bomSource: "BOM rivit 933-938", signalGroups: [["0110"], ["010B"]], minimumGroups: 2 }),
-  component({ id: "engine.alternator", diagnosticClass: "indirect", pnc: "27020", oe: "27060-26030", label: "Laturi", symptom: "Alijännite, akun tyhjeneminen tai latauksen katoaminen kuormalla.", bomSource: "BOM rivit 1035-1036", signalGroups: [["0142"]] }),
-  component({ id: "engine.starter", diagnosticClass: "indirect", pnc: "28100", oe: "28100-0R010", label: "Starttimoottori", symptom: "Hidas pyöritys, satunnainen starttaamattomuus tai käynnistyksen liian matala kierrosluku.", bomSource: "BOM rivit 1067-1068", signalGroups: [["010C"], ["0142"]], minimumGroups: 2 }),
-  component({ id: "engine.crank_position_sensor", diagnosticClass: "indirect", pnc: "11401G", oe: "90919-05069", label: "Kampiakselin asentotunnistin", symptom: "Käynnistymättömyys, sammuminen, nykiminen tai kierroslukusignaalin katkeaminen.", bomSource: "BOM rivit 133-134", signalGroups: [["010C"]], note: "RPM on epäsuora signaali; cam/crank-correlation ei ole vielä Flexissä ajoneuvovarmennettu oma lukuarvo." })
+  component({ id: "engine.main_injectors", diagnosticClass: "indirect", pnc: "23670", oe: "23670-29105", label: "Common rail -pääsuuttimet", symptom: "Epätasainen käynti, palamattoman dieselin haju, savu, nakutus tai kulutuksen nousu.", bomSource: "BOM rivit 1104-1105", signalGroups: [["engine.rail_pressure_obd", "engine.rail_pressure_screening"], ["engine.injection_timing_obd", "engine.injection_timing_screening"], ["engine.rpm"], ["engine.fuel_temperature_screening"]], minimumGroups: 2, excludedSignals: ["219C"], excludedSignalKeys: ["engine.injection_feedback_rejected"], note: "219C on Flex 0.8.1:ssa kenttäevidenssin perusteella estetty eikä koskaan nosta suutinten kattavuutta." }),
+  component({ id: "engine.exhaust_fuel_addition_injector", diagnosticClass: "indirect", pnc: "23710B", oe: "23710-26011", label: "DPF/DPNR lisäpolttoainesuutin", symptom: "Regenerointi ei onnistu, savu/regenerointipoikkeama tai korkea DPF-paine-ero.", bomSource: "BOM rivit 1114-1115", signalGroups: [["engine.dpnr_differential_pressure"], ["engine.egt_inlet", "engine.egt_outlet"], ["engine.rail_pressure_obd", "engine.rail_pressure_screening"]], minimumGroups: 2 }),
+  component({ id: "engine.scv", diagnosticClass: "indirect", pnc: "04226", oe: "04226-0L040", label: "SCV / imuohjausventtiili", symptom: "Rail pressure putoaa kuormalla, nykiminen, limp mode tai sammuminen.", bomSource: "BOM rivit 1131-1132", signalGroups: [["engine.rail_pressure_obd", "engine.rail_pressure_screening"], ["engine.rpm"], ["engine.fuel_temperature_screening"]], minimumGroups: 2 }),
+  component({ id: "engine.fuel_filter", diagnosticClass: "indirect", pnc: "23300/23303", oe: "23300-26100; 23390-0L010", label: "Polttoainesuodatin / elementti", symptom: "Pitkä startti, tehonpuute kuormalla, nykiminen, sammuminen tai matala rail-paine.", bomSource: "BOM rivit 1256-1259", signalGroups: [["engine.rail_pressure_obd", "engine.rail_pressure_screening"], ["engine.rpm"]], minimumGroups: 2 }),
+  component({ id: "engine.injection_pump", diagnosticClass: "indirect", pnc: "22100", oe: "22100-0R031", label: "Common rail -korkeapainepumppu", symptom: "Rail-paine ei nouse startissa tai putoaa kuormalla, tehon katoaminen tai sammuminen.", bomSource: "BOM rivit 1139-1140", signalGroups: [["engine.rail_pressure_obd", "engine.rail_pressure_screening"], ["engine.rpm"], ["engine.fuel_temperature_screening"]], minimumGroups: 2 }),
+  component({ id: "engine.turbocharger", diagnosticClass: "indirect", pnc: "17201", oe: "17201-26011", label: "Turboahdin", symptom: "Hidas ahtopaineen nousu, yli-/aliahto, tehonpuute, limp mode tai savu.", bomSource: "BOM rivit 828-829", signalGroups: [["engine.map"], ["engine.maf"], ["engine.barometric_pressure"], ["engine.egr_position_toyota", "engine.egr_commanded_obd", "engine.egr_position_obd"]], minimumGroups: 3 }),
+  component({ id: "engine.intercooler", diagnosticClass: "indirect", pnc: "17940D", oe: "17940-26010", label: "Välijäähdytin", symptom: "Ahtovuoto, tehonpuute, sihinä, musta savu tai toteutuneen ahtopaineen jääminen matalaksi.", bomSource: "BOM rivit 939-940", signalGroups: [["engine.map"], ["engine.maf"], ["engine.barometric_pressure"]], minimumGroups: 2 }),
+  component({ id: "engine.intake_manifold", diagnosticClass: "indirect", pnc: "17111", oe: "17101-26110", label: "Imusarja", symptom: "Karstoittuminen, alakierrosväännön heikkeneminen, savutus tai kulutuksen nousu.", bomSource: "BOM rivit 806-807", signalGroups: [["engine.maf"], ["engine.map"], ["engine.egr_position_toyota", "engine.egr_commanded_obd", "engine.egr_position_obd"]], minimumGroups: 2 }),
+  component({ id: "engine.vacuum_regulating_valve", diagnosticClass: "indirect", pnc: "25819", oe: "25819-0R011", label: "Alipaineen säätöventtiili", symptom: "Turbon/EGR:n hidas tai väärä liike, tehonpuute, yli-/aliahto tai nykäisy.", bomSource: "BOM rivit 988-989", signalGroups: [["engine.map"], ["engine.egr_position_toyota", "engine.egr_commanded_obd", "engine.egr_position_obd"], ["engine.maf"]], minimumGroups: 2 }),
+  component({ id: "engine.vacuum_switching_valve", diagnosticClass: "indirect", pnc: "25860", oe: "25860-0R010", label: "Alipaineen vaihtoventtiili / VSV", symptom: "Turbo/EGR-asento väärä, tehonpuute tai satunnainen nykäisy.", bomSource: "BOM rivit 990-991", signalGroups: [["engine.map"], ["engine.egr_position_toyota", "engine.egr_commanded_obd", "engine.egr_position_obd"], ["engine.maf"]], minimumGroups: 2 }),
+  component({ id: "engine.air_cleaner_hose", diagnosticClass: "indirect", pnc: "17881/17881A/17882A", oe: "17880-26010; 96111-10850; 96111-10710", label: "Ilmaputki ja kiristimet MAFin/turbon imupuolella", symptom: "Imuvuoto, MAF-poikkeama, tehonpuute, savutus tai hidas ahtopaineen nousu.", bomSource: "BOM rivit 933-938", signalGroups: [["engine.maf"], ["engine.map"]], minimumGroups: 2 }),
+  component({ id: "engine.alternator", diagnosticClass: "indirect", pnc: "27020", oe: "27060-26030", label: "Laturi", symptom: "Alijännite, akun tyhjeneminen tai latauksen katoaminen kuormalla.", bomSource: "BOM rivit 1035-1036", signalGroups: [["engine.ecu_voltage"]] }),
+  component({ id: "engine.starter", diagnosticClass: "indirect", pnc: "28100", oe: "28100-0R010", label: "Starttimoottori", symptom: "Hidas pyöritys, satunnainen starttaamattomuus tai käynnistyksen liian matala kierrosluku.", bomSource: "BOM rivit 1067-1068", signalGroups: [["engine.rpm"], ["engine.ecu_voltage"]], minimumGroups: 2 }),
+  component({ id: "engine.crank_position_sensor", diagnosticClass: "indirect", pnc: "11401G", oe: "90919-05069", label: "Kampiakselin asentotunnistin", symptom: "Käynnistymättömyys, sammuminen, nykiminen tai kierroslukusignaalin katkeaminen.", bomSource: "BOM rivit 133-134", signalGroups: [["engine.rpm"]], note: "RPM on epäsuora signaali; cam/crank-correlation ei ole vielä Flexissä ajoneuvovarmennettu oma lukuarvo." })
 ]);
 
 function relevantResults(run) {
@@ -68,10 +82,31 @@ function commandState(results, command) {
   return Object.freeze({ command: normalized, attempted: matches.length > 0, observed: matches.some(result => result?.validResponse === true), attempts: matches.length });
 }
 
+function signalState(results, signalKey) {
+  const definition = getIs220dDiagnosticSignal(signalKey);
+  if (!definition) throw new Error(`Unknown IS220d diagnostic signal: ${signalKey}`);
+  const commandStates = definition.commands.map(command => commandState(results, command));
+  const observedState = commandStates.find(state => state.observed);
+  const attemptedState = commandStates.find(state => state.attempted);
+  return Object.freeze({
+    signalKey,
+    command: observedState?.command || attemptedState?.command || definition.commands[0],
+    commands: definition.commands,
+    attempted: commandStates.some(state => state.attempted),
+    observed: commandStates.some(state => state.observed),
+    attempts: commandStates.reduce((sum, state) => sum + state.attempts, 0),
+    evidence: definition.evidence,
+    authorization: definition.authorization,
+    productionAuthorized: definition.productionAuthorized,
+    commandStates: Object.freeze(commandStates)
+  });
+}
+
 function evaluateComponent(definition, results) {
   const groupEvidence = definition.signalGroups.map(group => {
-    const signals = group.map(command => commandState(results, command));
-    return Object.freeze({ commands: Object.freeze([...group]), observed: signals.some(signal => signal.observed), attempted: signals.some(signal => signal.attempted), signals: Object.freeze(signals) });
+    const signals = group.map(signalKey => signalState(results, signalKey));
+    const commands = [...new Set(group.flatMap(signalKey => commandsForIs220dDiagnosticSignal(signalKey)))];
+    return Object.freeze({ signalKeys: Object.freeze([...group]), commands: Object.freeze(commands), observed: signals.some(signal => signal.observed), attempted: signals.some(signal => signal.attempted), signals: Object.freeze(signals) });
   });
   const requiredGroups = Math.max(1, Number(definition.minimumGroups || 1));
   const observedGroups = groupEvidence.filter(group => group.observed).length;
@@ -123,8 +158,11 @@ export function buildIs220dComponentDiagnosticTextReport(coverage) {
   ];
 
   for (const item of coverage.components || []) {
-    const observedSignals = item.groupEvidence.flatMap(group => group.signals).filter(signal => signal.observed).map(signal => signal.command);
-    const attemptedSignals = item.groupEvidence.flatMap(group => group.signals).filter(signal => signal.attempted && !signal.observed).map(signal => signal.command);
+    const observedStates = item.groupEvidence.flatMap(group => group.signals).filter(signal => signal.observed);
+    const attemptedStates = item.groupEvidence.flatMap(group => group.signals).filter(signal => signal.attempted && !signal.observed);
+    const observedSignals = observedStates.map(signal => signal.command);
+    const attemptedSignals = attemptedStates.map(signal => signal.command);
+    const observedKeys = observedStates.map(signal => signal.signalKey);
     const suffix = [
       `class=${String(item.diagnosticClass || "").toUpperCase()}`,
       `status=${clean(item.status)}`,
@@ -132,6 +170,7 @@ export function buildIs220dComponentDiagnosticTextReport(coverage) {
       `oe=${clean(item.oe) || "-"}`,
       `component=${clean(item.label)}`,
       `groups=${Number(item.observedGroups || 0)}/${Number(item.requiredGroups || 1)}`,
+      `observed_signal_keys=${[...new Set(observedKeys)].join(",") || "-"}`,
       `observed_signals=${[...new Set(observedSignals)].join(",") || "-"}`,
       `attempted_no_positive=${[...new Set(attemptedSignals)].join(",") || "-"}`,
       `symptom=${clean(item.symptom)}`,
@@ -146,6 +185,7 @@ export function buildIs220dComponentDiagnosticTextReport(coverage) {
     "Interpretation boundary:",
     "- observed means Flex obtained the mapped signal coverage; it is not a component fault verdict.",
     "- INDIRECT means correlation evidence only; the mapped signals do not identify one physical cause by themselves.",
+    "- named signal definitions are evidence metadata, not a vehicle-command allowlist.",
     "- Flex 0.8.1 field-disabled 219C injector feedback never counts toward component coverage.",
     "- This layer derives only from diagnostic results already collected by Flex and sends no additional vehicle command."
   );
