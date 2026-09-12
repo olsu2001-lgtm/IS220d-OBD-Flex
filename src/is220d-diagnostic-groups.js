@@ -31,7 +31,7 @@ export const IS220D_DIAGNOSTIC_GROUPS = deepFreeze([
     label: "Polttoaine, rail ja ruiskutus",
     shortLabel: "Polttoaine / rail",
     sourceGroup: "4. Polttoainejärjestelmä",
-    physicalFocus: "Polttoainesuodatin, korkeapainepumppu/SCV, common rail ja pääsuuttimet.",
+    physicalFocus: "Polttoainesuodatin, korkeapainepumppu ja sen imuannosteluventtiili, common rail sekä pääsuuttimet.",
     componentIds: [
       "engine.fuel_temperature_sensor",
       "engine.common_rail_pressure_sensor",
