@@ -3,6 +3,10 @@ import {
   buildPhysicalInspectionWorkQueue,
   readPhysicalInspectionProgress
 } from "./physical-inspection-progress.js";
+import {
+  buildPhysicalInspectionReportModel,
+  buildPhysicalInspectionTextReport
+} from "./physical-inspection-report.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -23,8 +27,9 @@ export function buildPhysicalInspectionNextTaskModel(coverage, progress = { item
 export function buildPhysicalInspectionNextTaskHtml(model) {
   if (!model?.applicable || !model.queue) return "";
   const queue = model.queue;
+  const reportButton = '<button class="secondary compact" type="button" data-bom-copy-workshop-report>Kopioi työraportti</button>';
   if (queue.complete) {
-    return `<div class="bom-next-inspection complete"><div><span>TYÖLISTA</span><strong>Kaikki ${queue.total} tarkastuskohdetta merkitty tehdyiksi</strong></div></div>`;
+    return `<div class="bom-next-inspection complete"><div><span>TYÖLISTA</span><strong>Kaikki ${queue.total} tarkastuskohdetta merkitty tehdyiksi</strong></div>${reportButton}</div>`;
   }
   const next = queue.next;
   if (!next) return "";
@@ -33,7 +38,10 @@ export function buildPhysicalInspectionNextTaskHtml(model) {
     <strong>${escapeHtml(next.label)}</strong>
     <div class="bom-next-inspection-group">${escapeHtml(next.groupShortLabel)}</div>
     <p>${escapeHtml(next.instruction)}</p>
-    <button class="secondary compact" type="button" data-bom-jump-inspection="${escapeHtml(next.id)}">Avaa tarkastuskohde</button>
+    <div class="bom-next-inspection-actions">
+      <button class="secondary compact" type="button" data-bom-jump-inspection="${escapeHtml(next.id)}">Avaa tarkastuskohde</button>
+      ${reportButton}
+    </div>
   </div>`;
 }
 
@@ -50,13 +58,16 @@ function ensureStyles() {
     .bom-next-inspection > strong { display:block; margin-top:7px; color:var(--text-strong); font-size:13px; }
     .bom-next-inspection-group { margin-top:3px; color:var(--info); font-size:9px; font-weight:800; text-transform:uppercase; }
     .bom-next-inspection p { margin:7px 0 0; color:var(--text-strong); font-size:10px; line-height:1.45; }
-    .bom-next-inspection button { width:100%; margin-top:8px; }
+    .bom-next-inspection-actions { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:8px; }
+    .bom-next-inspection-actions button,.bom-next-inspection.complete button { width:100%; }
+    .bom-next-inspection.complete button { margin-top:8px; }
     .bom-next-inspection.complete strong { margin-top:4px; color:var(--success); }
   `;
   document.head.append(style);
 }
 
 let latestCoverage = null;
+let latestMeta = {};
 let listenerInstalled = false;
 
 function render() {
@@ -76,6 +87,23 @@ function render() {
   return model;
 }
 
+async function copyWorkshopReport(button) {
+  if (!latestCoverage) return;
+  const progress = readPhysicalInspectionProgress();
+  const model = buildPhysicalInspectionReportModel(latestCoverage, progress, {
+    ...latestMeta,
+    generatedAt: Date.now()
+  });
+  const text = buildPhysicalInspectionTextReport(model);
+  if (!text) return;
+  try {
+    await globalThis.navigator?.clipboard?.writeText?.(text);
+    if (button) button.textContent = "Työraportti kopioitu";
+  } catch {
+    if (button) button.textContent = "Kopiointi epäonnistui";
+  }
+}
+
 function installListener() {
   if (listenerInstalled || typeof document === "undefined") return;
   listenerInstalled = true;
@@ -84,6 +112,11 @@ function installListener() {
     queueMicrotask(render);
   });
   document.addEventListener("click", event => {
+    const copyButton = event.target?.closest?.("[data-bom-copy-workshop-report]");
+    if (copyButton) {
+      copyWorkshopReport(copyButton);
+      return;
+    }
     const button = event.target?.closest?.("[data-bom-jump-inspection]");
     if (!button) return;
     const id = button.getAttribute("data-bom-jump-inspection");
@@ -95,8 +128,9 @@ function installListener() {
   });
 }
 
-export function publishPhysicalInspectionNextTask(coverage) {
+export function publishPhysicalInspectionNextTask(coverage, meta = {}) {
   latestCoverage = coverage?.applicable ? coverage : null;
+  latestMeta = meta || {};
   installListener();
   return render();
 }
