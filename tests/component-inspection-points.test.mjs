@@ -16,7 +16,7 @@ test("first source-linked inspection set contains 16 points for MAP, MAF, EGR, D
   assert.equal(scope.source, IS220D_COMPONENT_INSPECTION_POINT_SOURCE);
   assert.equal(scope.pointCount, 16);
   assert.equal(scope.componentCount, 5);
-  assert.deepEqual(scope.componentIds.sort(), [
+  assert.deepEqual([...scope.componentIds].sort(), [
     "engine.coolant_temperature_sensor",
     "engine.dpnr_differential_pressure_sensor",
     "engine.egr_valve",
