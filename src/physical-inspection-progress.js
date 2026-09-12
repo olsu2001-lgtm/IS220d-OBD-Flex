@@ -56,3 +56,29 @@ export function summarizePhysicalInspectionProgress(group, progress = emptyProgr
     checkedIds: Object.freeze(checkedIds)
   });
 }
+
+export function buildPhysicalInspectionWorkQueue(groups, progress = emptyProgress()) {
+  const tasks = [];
+  for (let groupIndex = 0; groupIndex < (Array.isArray(groups) ? groups.length : 0); groupIndex += 1) {
+    const group = groups[groupIndex];
+    for (const item of group?.items || []) {
+      tasks.push(Object.freeze({
+        ...item,
+        groupId: group.id,
+        groupLabel: group.label,
+        groupShortLabel: group.shortLabel,
+        groupIndex
+      }));
+    }
+  }
+  tasks.sort((a, b) => a.priorityRank - b.priorityRank || a.groupIndex - b.groupIndex || a.sourceIndex - b.sourceIndex);
+  const pending = tasks.filter(task => progress?.items?.[task.id]?.checked !== true);
+  return Object.freeze({
+    total: tasks.length,
+    checked: tasks.length - pending.length,
+    remaining: pending.length,
+    complete: tasks.length > 0 && pending.length === 0,
+    next: pending[0] || null,
+    pending: Object.freeze(pending)
+  });
+}
