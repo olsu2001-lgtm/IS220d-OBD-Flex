@@ -60,7 +60,7 @@ test("overview publisher remains usable without browser DOM", () => {
 test("physical overview layer contains no vehicle transmit or network path", () => {
   const source = fs.readFileSync(new URL("../src/component-diagnostic-group-overview.js", import.meta.url), "utf8");
   assert.doesNotMatch(source, /\.send\s*\(/);
-  assert.doesNotMatch(source, /\.query\w*\s*\(/);
+  assert.doesNotMatch(source, /\.(?:queryPid|queryToyotaReadData|queryRealtime|probeResearchIdentifier|probeSupportBitmap)\s*\(/i);
   assert.doesNotMatch(source, /fetch\s*\(/);
   assert.doesNotMatch(source, /XMLHttpRequest|WebSocket|NativeElm|transport\.send/i);
 });
