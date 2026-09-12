@@ -10,6 +10,7 @@ const hasFullBrowserDom = () => {
 
 let pageModulePromise = null;
 let groupOverviewModulePromise = null;
+let guidedSessionModulePromise = null;
 let nextInspectionModulePromise = null;
 
 function loadPageModule() {
@@ -27,6 +28,15 @@ function loadGroupOverviewModule() {
   return groupOverviewModulePromise;
 }
 
+function loadGuidedSessionModule() {
+  const pagePromise = loadPageModule();
+  if (!pagePromise) return null;
+  if (!guidedSessionModulePromise) {
+    guidedSessionModulePromise = pagePromise.then(() => import("./component-diagnostic-guided-session.js"));
+  }
+  return guidedSessionModulePromise;
+}
+
 function loadNextInspectionModule() {
   const overviewPromise = loadGroupOverviewModule();
   if (!overviewPromise) return null;
@@ -40,12 +50,16 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   const pagePromise = loadPageModule();
   if (!pagePromise) return;
   const overviewPromise = loadGroupOverviewModule();
+  const guidedSessionPromise = loadGuidedSessionModule();
   const nextInspectionPromise = loadNextInspectionModule();
   pagePromise
     .then(module => module.publishIs220dComponentDiagnosticCoverage(coverage, meta))
     .catch(() => {});
   overviewPromise
     ?.then(module => module.publishIs220dDiagnosticGroupOverview(coverage, meta))
+    .catch(() => {});
+  guidedSessionPromise
+    ?.then(module => module.publishIs220dGuidedDiagnosticSession(coverage, meta))
     .catch(() => {});
   nextInspectionPromise
     ?.then(module => module.publishPhysicalInspectionNextTask(coverage, meta))
@@ -54,4 +68,5 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
 
 loadPageModule();
 loadGroupOverviewModule();
+loadGuidedSessionModule();
 loadNextInspectionModule();
