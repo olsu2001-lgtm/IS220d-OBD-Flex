@@ -1,10 +1,19 @@
-const STORAGE_KEY = "lexusIs220dBomComponentDiagnosticsV1";
+const STORAGE_KEY = "lexusIs220dBomComponentDiagnosticsV2";
+const LEGACY_STORAGE_KEY = "lexusIs220dBomComponentDiagnosticsV1";
 
 export const COMPONENT_DIAGNOSTIC_STATUS = Object.freeze({
   observed: Object.freeze({ label: "DATA SAATU", css: "observed" }),
   partial: Object.freeze({ label: "OSITTAIN", css: "partial" }),
   unavailable: Object.freeze({ label: "EI VASTAUSTA", css: "unavailable" }),
   "not-tested": Object.freeze({ label: "EI TESTATTU", css: "not-tested" })
+});
+
+export const COMPONENT_ASSESSMENT_STATUS = Object.freeze({
+  "normal-pattern": Object.freeze({ label: "ARVO USKOTTAVA", css: "normal-pattern" }),
+  deviation: Object.freeze({ label: "POIKKEAMA", css: "deviation" }),
+  "strong-deviation": Object.freeze({ label: "VAHVA POIKKEAMA", css: "strong-deviation" }),
+  inconclusive: Object.freeze({ label: "EI RATKAISUA", css: "inconclusive" }),
+  "not-evaluated": Object.freeze({ label: "EI ARVIOITU", css: "not-evaluated" })
 });
 
 const CLASS_LABEL = Object.freeze({ direct: "DIRECT", indirect: "INDIRECT" });
@@ -20,6 +29,10 @@ function escapeHtml(value) {
 
 export function componentDiagnosticStatusLabel(status) {
   return COMPONENT_DIAGNOSTIC_STATUS[status]?.label || String(status || "TUNTEMATON").toUpperCase();
+}
+
+export function componentAssessmentStatusLabel(status) {
+  return COMPONENT_ASSESSMENT_STATUS[status]?.label || String(status || "EI ARVIOITU").toUpperCase();
 }
 
 export function observedComponentSignals(component) {
@@ -55,15 +68,23 @@ export function filterComponentDiagnostics(coverage, {
     if (diagnosticClass !== "all" && component.diagnosticClass !== diagnosticClass) return false;
     if (status !== "all" && component.status !== status) return false;
     if (!needle) return true;
-    const haystack = [component.label, component.pnc, component.oe, component.symptom, component.id]
+    const haystack = [component.label, component.pnc, component.oe, component.symptom, component.id, component.assessment?.status]
       .join(" ")
       .toLocaleLowerCase("fi");
     return haystack.includes(needle);
   });
 }
 
+function formatAssessmentValue(value) {
+  const numeric = Number(value?.value);
+  if (!Number.isFinite(numeric)) return "";
+  const decimals = Math.abs(numeric) >= 100 ? 0 : Math.abs(numeric) >= 10 ? 1 : 2;
+  return `${value.signalKey}: ${numeric.toFixed(decimals)}${value.unit ? ` ${value.unit}` : ""}`;
+}
+
 export function buildComponentDiagnosticCardHtml(component) {
   const statusMeta = COMPONENT_DIAGNOSTIC_STATUS[component?.status] || { label: "TUNTEMATON", css: "not-tested" };
+  const assessmentMeta = COMPONENT_ASSESSMENT_STATUS[component?.assessment?.status] || COMPONENT_ASSESSMENT_STATUS["not-evaluated"];
   const classLabel = CLASS_LABEL[component?.diagnosticClass] || String(component?.diagnosticClass || "").toUpperCase();
   const observed = observedComponentSignals(component);
   const attempted = attemptedComponentSignals(component);
@@ -74,21 +95,31 @@ export function buildComponentDiagnosticCardHtml(component) {
     : attempted.length
       ? `Yritetty: ${attempted.join(", ")}`
       : "Tämän ajon signaaleja ei ole kysytty";
+  const assessmentValues = (component?.assessment?.values || []).map(formatAssessmentValue).filter(Boolean);
+  const assessmentReason = component?.assessment?.reason || "Komponentille ei ole vielä erillistä arviointisääntöä.";
+  const assessmentLimitations = (component?.assessment?.limitations || []).filter(Boolean);
+  const assessmentHtml = `<div class="bom-assessment ${escapeHtml(assessmentMeta.css)}">
+    <div class="bom-assessment-title"><span>Arvio</span><strong>${escapeHtml(assessmentMeta.label)}</strong></div>
+    <p>${escapeHtml(assessmentReason)}</p>
+    ${assessmentValues.length ? `<div class="bom-assessment-values">${assessmentValues.map(value => `<code>${escapeHtml(value)}</code>`).join("")}</div>` : ""}
+    ${assessmentLimitations.length ? `<ul>${assessmentLimitations.map(value => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}
+  </div>`;
   const excluded = Array.isArray(component?.excludedSignals) && component.excludedSignals.length
     ? `<div class="bom-component-excluded">Ei käytetä evidenssinä: <code>${escapeHtml(component.excludedSignals.join(", "))}</code></div>`
     : "";
   const note = component?.note ? `<p class="bom-component-note">${escapeHtml(component.note)}</p>` : "";
 
-  return `<article class="bom-component-card ${escapeHtml(statusMeta.css)}" data-component-class="${escapeHtml(component?.diagnosticClass)}" data-component-status="${escapeHtml(component?.status)}">
+  return `<article class="bom-component-card ${escapeHtml(statusMeta.css)}" data-component-class="${escapeHtml(component?.diagnosticClass)}" data-component-status="${escapeHtml(component?.status)}" data-assessment-status="${escapeHtml(component?.assessment?.status || "not-evaluated")}">
     <div class="bom-component-head">
       <div>
-        <div class="bom-component-badges"><span class="bom-class ${escapeHtml(component?.diagnosticClass)}">${escapeHtml(classLabel)}</span><span class="bom-status ${escapeHtml(statusMeta.css)}">${escapeHtml(statusMeta.label)}</span></div>
+        <div class="bom-component-badges"><span class="bom-class ${escapeHtml(component?.diagnosticClass)}">${escapeHtml(classLabel)}</span><span class="bom-status ${escapeHtml(statusMeta.css)}">${escapeHtml(statusMeta.label)}</span><span class="bom-assessment-badge ${escapeHtml(assessmentMeta.css)}">${escapeHtml(assessmentMeta.label)}</span></div>
         <h3>${escapeHtml(component?.label)}</h3>
       </div>
       <strong class="bom-coverage">${observedGroups}/${required}</strong>
     </div>
     <div class="bom-part-numbers"><span>PNC ${escapeHtml(component?.pnc || "–")}</span><span>OE ${escapeHtml(component?.oe || "–")}</span></div>
     <p class="bom-symptom">${escapeHtml(component?.symptom || "")}</p>
+    ${assessmentHtml}
     <details class="bom-component-details">
       <summary>Diagnoosievidenssi</summary>
       <div class="bom-signal-line">${escapeHtml(signalText)}</div>
@@ -101,6 +132,7 @@ export function buildComponentDiagnosticCardHtml(component) {
 
 export function buildComponentDiagnosticSummary(coverage) {
   const summary = coverage?.summary || {};
+  const components = Array.isArray(coverage?.components) ? coverage.components : [];
   return Object.freeze({
     total: Number(summary.total || 0),
     direct: Number(summary.direct || 0),
@@ -108,19 +140,29 @@ export function buildComponentDiagnosticSummary(coverage) {
     observed: Number(summary.observed || 0),
     partial: Number(summary.partial || 0),
     unavailable: Number(summary.unavailable || 0),
-    notTested: Number(summary.notTested || 0)
+    notTested: Number(summary.notTested || 0),
+    normalPattern: components.filter(component => component?.assessment?.status === "normal-pattern").length,
+    deviation: components.filter(component => ["deviation", "strong-deviation"].includes(component?.assessment?.status)).length,
+    inconclusive: components.filter(component => component?.assessment?.status === "inconclusive").length
   });
 }
 
 let latestPayload = null;
 
+function parseStoredPayload(raw) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed?.coverage?.applicable ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function safeStorageGet() {
   try {
-    const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.coverage?.applicable) return null;
-    return parsed;
+    return parseStoredPayload(globalThis.localStorage?.getItem(STORAGE_KEY)) ||
+      parseStoredPayload(globalThis.localStorage?.getItem(LEGACY_STORAGE_KEY));
   } catch {
     return null;
   }
@@ -162,17 +204,27 @@ function ensureStyles() {
     .bom-component-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
     .bom-component-head h3 { margin:7px 0 0; font-size:15px; line-height:1.3; }
     .bom-component-badges { display:flex; flex-wrap:wrap; gap:5px; }
-    .bom-class,.bom-status { display:inline-block; padding:4px 7px; border:1px solid var(--line); border-radius:999px; font-size:8px; font-weight:900; letter-spacing:.05em; }
+    .bom-class,.bom-status,.bom-assessment-badge { display:inline-block; padding:4px 7px; border:1px solid var(--line); border-radius:999px; font-size:8px; font-weight:900; letter-spacing:.05em; }
     .bom-class.direct { border-color:var(--info-border); background:var(--info-bg); color:var(--info); }
     .bom-class.indirect { border-color:var(--warning-border); background:var(--warning-bg); color:var(--warning); }
-    .bom-status.observed { border-color:var(--success-border); background:var(--success-bg); color:var(--success); }
-    .bom-status.partial { border-color:var(--warning-border); background:var(--warning-bg); color:var(--warning); }
-    .bom-status.unavailable { border-color:var(--danger-border); background:var(--danger-bg); color:var(--danger-text); }
-    .bom-status.not-tested { color:var(--muted); }
+    .bom-status.observed,.bom-assessment-badge.normal-pattern { border-color:var(--success-border); background:var(--success-bg); color:var(--success); }
+    .bom-status.partial,.bom-assessment-badge.inconclusive,.bom-assessment-badge.deviation { border-color:var(--warning-border); background:var(--warning-bg); color:var(--warning); }
+    .bom-status.unavailable,.bom-assessment-badge.strong-deviation { border-color:var(--danger-border); background:var(--danger-bg); color:var(--danger-text); }
+    .bom-status.not-tested,.bom-assessment-badge.not-evaluated { color:var(--muted); }
     .bom-coverage { min-width:42px; padding:6px 7px; border:1px solid var(--line); border-radius:10px; background:var(--surface-inset); text-align:center; font-size:12px; }
     .bom-part-numbers { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
     .bom-part-numbers span { padding:4px 6px; border-radius:7px; background:var(--surface-2); color:var(--muted); font:9px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
     .bom-symptom { margin:10px 0 0; color:var(--text-strong); font-size:12px; line-height:1.45; }
+    .bom-assessment { margin-top:10px; padding:9px 10px; border:1px solid var(--line-soft); border-radius:10px; background:var(--surface-inset); }
+    .bom-assessment.normal-pattern { border-color:var(--success-border); }
+    .bom-assessment.strong-deviation { border-color:var(--danger-border); }
+    .bom-assessment.inconclusive,.bom-assessment.deviation { border-color:var(--warning-border); }
+    .bom-assessment-title { display:flex; justify-content:space-between; gap:10px; font-size:9px; text-transform:uppercase; color:var(--muted); }
+    .bom-assessment-title strong { color:var(--text-strong); }
+    .bom-assessment p,.bom-assessment ul { margin:7px 0 0; font-size:10px; line-height:1.45; color:var(--text-strong); }
+    .bom-assessment ul { padding-left:17px; color:var(--muted); }
+    .bom-assessment-values { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+    .bom-assessment-values code { padding:4px 6px; border-radius:7px; background:var(--surface-2); font-size:9px; }
     .bom-component-details { margin-top:10px; border-top:1px solid var(--line-soft); padding-top:9px; }
     .bom-component-details summary { color:var(--info); cursor:pointer; font-size:11px; font-weight:800; }
     .bom-signal-line,.bom-source,.bom-component-excluded,.bom-component-note { margin-top:8px; color:var(--muted); font-size:10px; line-height:1.45; overflow-wrap:anywhere; }
@@ -192,7 +244,7 @@ function pageMarkup() {
       <span id="bomDiagnosticBadge" class="ct-test-badge neutral">EI AJETTU</span>
     </div>
     <div class="inline-message">
-      Flex kohdistaa jo kerätyn ECU/OBD-datan BOM-osille. <strong>DATA SAATU</strong> tarkoittaa, että komponentin diagnostiikkaan tarvittava signaalikattavuus saatiin — se ei yksin tarkoita, että osa on ehjä tai viallinen.
+      Flex erottaa nyt <strong>datan kattavuuden</strong> ja <strong>komponenttiarvion</strong>. DATA SAATU kertoo vain, että reseptin signaali saatiin. ARVO USKOTTAVA tarkoittaa tässä vaiheessa vain, että ajoneuvovarmennettu DIRECT-arvo purkautui ja pysyi rakenteellisella uskottavuusalueella — se ei todista osaa ehjäksi.
     </div>
     <div class="card">
       <h3>Aja komponenttipohjainen diagnoosi</h3>
@@ -220,7 +272,7 @@ function pageMarkup() {
       <div><span>DIRECT</span><strong id="bomSummaryDirect">0</strong></div>
       <div><span>INDIRECT</span><strong id="bomSummaryIndirect">0</strong></div>
       <div><span>DATA SAATU</span><strong id="bomSummaryObserved">0</strong></div>
-      <div><span>KESKEN</span><strong id="bomSummaryIncomplete">0</strong></div>
+      <div><span>ARVIOITU DIRECT</span><strong id="bomSummaryAssessed">0</strong></div>
     </div>
     <div class="card">
       <div class="bom-filter-grid">
@@ -339,7 +391,7 @@ function renderLatest() {
   setText("#bomSummaryDirect", summary.direct);
   setText("#bomSummaryIndirect", summary.indirect);
   setText("#bomSummaryObserved", summary.observed);
-  setText("#bomSummaryIncomplete", summary.partial + summary.unavailable + summary.notTested);
+  setText("#bomSummaryAssessed", summary.normalPattern + summary.deviation + summary.inconclusive);
 
   const badge = document.querySelector("#bomDiagnosticBadge");
   if (badge) {
