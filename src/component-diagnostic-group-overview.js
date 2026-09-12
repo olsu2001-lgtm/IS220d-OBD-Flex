@@ -12,13 +12,27 @@ function escapeHtml(value) {
 const ASSESSED_STATUSES = new Set(["normal-pattern", "deviation", "strong-deviation", "inconclusive"]);
 const ATTENTION_ASSESSMENTS = new Set(["deviation", "strong-deviation", "inconclusive"]);
 
-export function buildIs220dDiagnosticGroupOverview(coverage) {
+function normalizePlanSummary(summary) {
+  if (!summary || typeof summary !== "object") return null;
+  const integer = key => Math.max(0, Number.parseInt(summary[key], 10) || 0);
+  return Object.freeze({
+    selectedSignalCount: integer("selectedSignalCount"),
+    alreadyObserved: integer("alreadyObserved"),
+    availableInCurrentWideDiagnostic: integer("availableInCurrentWideDiagnostic"),
+    notInCurrentWideDiagnostic: integer("notInCurrentWideDiagnostic"),
+    notAuthorized: integer("notAuthorized"),
+    fieldRejected: integer("fieldRejected")
+  });
+}
+
+export function buildIs220dDiagnosticGroupOverview(coverage, planSummaries = []) {
   const components = Array.isArray(coverage?.components) ? coverage.components : [];
   if (!coverage?.applicable) {
     return Object.freeze({ applicable: false, totalComponents: 0, groups: Object.freeze([]) });
   }
 
   const byId = new Map(components.map(component => [component.id, component]));
+  const planById = new Map((Array.isArray(planSummaries) ? planSummaries : []).map(plan => [plan?.id, normalizePlanSummary(plan?.summary)]));
   const groups = IS220D_DIAGNOSTIC_GROUPS.map(group => {
     const groupComponents = group.componentIds.map(id => byId.get(id)).filter(Boolean);
     const observed = groupComponents.filter(component => component.status === "observed").length;
@@ -45,6 +59,7 @@ export function buildIs220dDiagnosticGroupOverview(coverage) {
       assessed,
       strongDeviation,
       attentionCount: attention.length,
+      planSummary: planById.get(group.id) || null,
       attentionComponents: Object.freeze(attention.map(component => Object.freeze({
         id: component.id,
         label: component.label,
@@ -72,15 +87,29 @@ function groupStatusText(group) {
   return parts.join(" · ");
 }
 
+function groupPlanText(group) {
+  const plan = group.planSummary;
+  if (!plan) return "";
+  const parts = [`valitut signaalit ${plan.selectedSignalCount}`, `jo saatu ${plan.alreadyObserved}`];
+  if (plan.availableInCurrentWideDiagnostic) parts.push(`nykytesti voi kerätä ${plan.availableInCurrentWideDiagnostic}`);
+  if (plan.notInCurrentWideDiagnostic) parts.push(`ei nykytestissä ${plan.notInCurrentWideDiagnostic}`);
+  if (plan.notAuthorized) parts.push(`ei tuotantolukuun valtuutettu ${plan.notAuthorized}`);
+  if (plan.fieldRejected) parts.push(`kentässä hylätty ${plan.fieldRejected}`);
+  return parts.join(" · ");
+}
+
 export function buildIs220dDiagnosticGroupOverviewHtml(model) {
   if (!model?.applicable) return '<div class="bom-group-overview-empty">Ei IS220d-komponenttidiagnoosia.</div>';
   return model.groups.map(group => {
     const attention = group.attentionComponents.length
       ? `<div class="bom-group-attention">Huomio: ${group.attentionComponents.map(item => escapeHtml(item.label)).join(", ")}</div>`
       : '<div class="bom-group-attention quiet">Ei tämän ajon perusteella erikseen nostettavia komponentteja.</div>';
+    const planText = groupPlanText(group);
+    const plan = planText ? `<span class="bom-group-plan">Evidenssi: ${escapeHtml(planText)}</span>` : "";
     return `<button class="bom-group-overview-card" type="button" data-bom-group-overview="${escapeHtml(group.id)}">
       <span class="bom-group-overview-head"><strong>${escapeHtml(group.shortLabel)}</strong><span>${escapeHtml(groupStatusText(group))}</span></span>
       <span class="bom-group-overview-focus">${escapeHtml(group.physicalFocus)}</span>
+      ${plan}
       ${attention}
     </button>`;
   }).join("");
@@ -102,6 +131,7 @@ function ensureStyles() {
     .bom-group-overview-head strong { color:var(--text-strong); font-size:12px; }
     .bom-group-overview-head span { color:var(--muted); font-size:9px; text-align:right; }
     .bom-group-overview-focus { display:block; margin-top:6px; color:var(--muted); font-size:10px; line-height:1.4; }
+    .bom-group-plan { display:block; margin-top:7px; padding-top:7px; border-top:1px solid var(--line); color:var(--info); font-size:9px; line-height:1.4; }
     .bom-group-attention { margin-top:7px; color:var(--warning-text); font-size:9px; line-height:1.35; }
     .bom-group-attention.quiet { color:var(--success); }
     .bom-group-overview-empty { padding:12px; color:var(--muted); font-size:11px; }
@@ -137,14 +167,14 @@ function ensurePanel() {
   return panel;
 }
 
-export function publishIs220dDiagnosticGroupOverview(coverage) {
-  const model = buildIs220dDiagnosticGroupOverview(coverage);
+export function publishIs220dDiagnosticGroupOverview(coverage, meta = {}) {
+  const model = buildIs220dDiagnosticGroupOverview(coverage, meta?.diagnosticGroupPlans);
   const panel = ensurePanel();
   if (!panel || !model.applicable) return model;
   const grid = panel.querySelector("#bomGroupOverviewGrid");
-  const meta = panel.querySelector("#bomGroupOverviewMeta");
+  const metaLabel = panel.querySelector("#bomGroupOverviewMeta");
   if (grid) grid.innerHTML = buildIs220dDiagnosticGroupOverviewHtml(model);
-  if (meta) meta.textContent = `${model.groups.length} aluetta · ${model.totalComponents} komponenttia · data ${model.observedComponents}/${model.totalComponents} · arvioitu ${model.assessedComponents}`;
+  if (metaLabel) metaLabel.textContent = `${model.groups.length} aluetta · ${model.totalComponents} komponenttia · data ${model.observedComponents}/${model.totalComponents} · arvioitu ${model.assessedComponents}`;
   return model;
 }
 
