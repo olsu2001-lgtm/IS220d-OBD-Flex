@@ -29,7 +29,7 @@
 .end method
 
 .method private start(Ljava/lang/String;Ljava/lang/String;I)Ljava/lang/String;
-    .locals 5
+    .locals 4
 
     iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->sequence:Ljava/util/concurrent/atomic/AtomicInteger;
     invoke-virtual {v0}, Ljava/util/concurrent/atomic/AtomicInteger;->incrementAndGet()I
@@ -38,19 +38,7 @@
     invoke-static {v0}, Ljava/lang/Integer;->toString(I)Ljava/lang/String;
     move-result-object v1
 
-    const-string v4, "ble"
-    invoke-virtual {v4, p1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
-    move-result v0
-    if-eqz v0, :classic_prefix
-
-    const-string v4, "b"
-    goto :prefix_ready
-
-    :classic_prefix
-    const-string v4, "c"
-
-    :prefix_ready
-    invoke-virtual {v4, v1}, Ljava/lang/String;->concat(Ljava/lang/String;)Ljava/lang/String;
+    invoke-virtual {p1, v1}, Ljava/lang/String;->concat(Ljava/lang/String;)Ljava/lang/String;
     move-result-object v1
 
     new-instance v2, Lcom/nicron/webview/AsyncObdSendRunnable;
@@ -65,13 +53,67 @@
 
 # virtual methods
 .method public execute(Ljava/lang/String;Ljava/lang/String;I)V
-    .locals 3
+    .locals 4
 
     :try_start_0
-    const-string v0, "b"
+    const-string v0, "bc"
     invoke-virtual {p1, v0}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
     move-result v0
+    if-eqz v0, :check_classic_connect
 
+    iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->ble:Lcom/nicron/webview/BleObdBridge;
+    invoke-virtual {v0, p2}, Lcom/nicron/webview/BleObdBridge;->connect(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v1
+    goto :store_result
+
+    :check_classic_connect
+    const-string v0, "cc"
+    invoke-virtual {p1, v0}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v0
+    if-eqz v0, :check_ble_scan
+
+    iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->classic:Lcom/nicron/webview/ObdBridge;
+    invoke-virtual {v0, p2}, Lcom/nicron/webview/ObdBridge;->connect(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v1
+    goto :store_result
+
+    :check_ble_scan
+    const-string v0, "bx"
+    invoke-virtual {p1, v0}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v0
+    if-eqz v0, :check_ble_disconnect
+
+    iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->ble:Lcom/nicron/webview/BleObdBridge;
+    invoke-virtual {v0, p3}, Lcom/nicron/webview/BleObdBridge;->scanDevices(I)Ljava/lang/String;
+    move-result-object v1
+    goto :store_result
+
+    :check_ble_disconnect
+    const-string v0, "bq"
+    invoke-virtual {p1, v0}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v0
+    if-eqz v0, :check_classic_disconnect
+
+    iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->ble:Lcom/nicron/webview/BleObdBridge;
+    invoke-virtual {v0}, Lcom/nicron/webview/BleObdBridge;->disconnect()V
+    const-string v1, "OK"
+    goto :store_result
+
+    :check_classic_disconnect
+    const-string v0, "cq"
+    invoke-virtual {p1, v0}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v0
+    if-eqz v0, :check_ble_send
+
+    iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->classic:Lcom/nicron/webview/ObdBridge;
+    invoke-virtual {v0}, Lcom/nicron/webview/ObdBridge;->disconnect()V
+    const-string v1, "OK"
+    goto :store_result
+
+    :check_ble_send
+    const-string v0, "bs"
+    invoke-virtual {p1, v0}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+    move-result v0
     if-eqz v0, :classic_send
 
     iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->ble:Lcom/nicron/webview/BleObdBridge;
@@ -109,7 +151,7 @@
     move-result-object v1
     iget-object v0, p0, Lcom/nicron/webview/AsyncObdBridge;->results:Ljava/util/concurrent/ConcurrentHashMap;
     invoke-virtual {v0, p1, v1}, Ljava/util/concurrent/ConcurrentHashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-    move-result-object v2
+    move-result-object v3
     return-void
 .end method
 
@@ -135,7 +177,7 @@
     .annotation runtime Landroid/webkit/JavascriptInterface;
     .end annotation
 
-    const-string v0, "ble"
+    const-string v0, "bs"
     invoke-direct {p0, v0, p1, p2}, Lcom/nicron/webview/AsyncObdBridge;->start(Ljava/lang/String;Ljava/lang/String;I)Ljava/lang/String;
     move-result-object p1
     return-object p1
@@ -146,7 +188,62 @@
     .annotation runtime Landroid/webkit/JavascriptInterface;
     .end annotation
 
-    const-string v0, "classic"
+    const-string v0, "cs"
+    invoke-direct {p0, v0, p1, p2}, Lcom/nicron/webview/AsyncObdBridge;->start(Ljava/lang/String;Ljava/lang/String;I)Ljava/lang/String;
+    move-result-object p1
+    return-object p1
+.end method
+
+.method public startBleConnect(Ljava/lang/String;I)Ljava/lang/String;
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+
+    const-string v0, "bc"
+    invoke-direct {p0, v0, p1, p2}, Lcom/nicron/webview/AsyncObdBridge;->start(Ljava/lang/String;Ljava/lang/String;I)Ljava/lang/String;
+    move-result-object p1
+    return-object p1
+.end method
+
+.method public startClassicConnect(Ljava/lang/String;I)Ljava/lang/String;
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+
+    const-string v0, "cc"
+    invoke-direct {p0, v0, p1, p2}, Lcom/nicron/webview/AsyncObdBridge;->start(Ljava/lang/String;Ljava/lang/String;I)Ljava/lang/String;
+    move-result-object p1
+    return-object p1
+.end method
+
+.method public startBleScan(Ljava/lang/String;I)Ljava/lang/String;
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+
+    const-string v0, "bx"
+    invoke-direct {p0, v0, p1, p2}, Lcom/nicron/webview/AsyncObdBridge;->start(Ljava/lang/String;Ljava/lang/String;I)Ljava/lang/String;
+    move-result-object p1
+    return-object p1
+.end method
+
+.method public startBleDisconnect(Ljava/lang/String;I)Ljava/lang/String;
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+
+    const-string v0, "bq"
+    invoke-direct {p0, v0, p1, p2}, Lcom/nicron/webview/AsyncObdBridge;->start(Ljava/lang/String;Ljava/lang/String;I)Ljava/lang/String;
+    move-result-object p1
+    return-object p1
+.end method
+
+.method public startClassicDisconnect(Ljava/lang/String;I)Ljava/lang/String;
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+
+    const-string v0, "cq"
     invoke-direct {p0, v0, p1, p2}, Lcom/nicron/webview/AsyncObdBridge;->start(Ljava/lang/String;Ljava/lang/String;I)Ljava/lang/String;
     move-result-object p1
     return-object p1
