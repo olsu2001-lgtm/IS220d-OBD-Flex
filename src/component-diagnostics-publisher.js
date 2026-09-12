@@ -15,6 +15,7 @@ let operatingStateModulePromise = null;
 let componentInspectionPointsModulePromise = null;
 let fuelInspectionPointsModulePromise = null;
 let startingChargingInspectionPointsModulePromise = null;
+let airExhaustInspectionPointsModulePromise = null;
 let nextInspectionModulePromise = null;
 
 function loadPageModule() {
@@ -77,6 +78,15 @@ function loadStartingChargingInspectionPointsModule() {
   return startingChargingInspectionPointsModulePromise;
 }
 
+function loadAirExhaustInspectionPointsModule() {
+  const startPromise = loadStartingChargingInspectionPointsModule();
+  if (!startPromise) return null;
+  if (!airExhaustInspectionPointsModulePromise) {
+    airExhaustInspectionPointsModulePromise = startPromise.then(() => import("./is220d-air-exhaust-inspection-points.js"));
+  }
+  return airExhaustInspectionPointsModulePromise;
+}
+
 function loadNextInspectionModule() {
   const overviewPromise = loadGroupOverviewModule();
   if (!overviewPromise) return null;
@@ -95,6 +105,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   const componentInspectionPointsPromise = loadComponentInspectionPointsModule();
   const fuelInspectionPointsPromise = loadFuelInspectionPointsModule();
   const startingChargingInspectionPointsPromise = loadStartingChargingInspectionPointsModule();
+  const airExhaustInspectionPointsPromise = loadAirExhaustInspectionPointsModule();
   const nextInspectionPromise = loadNextInspectionModule();
   pagePromise
     .then(module => module.publishIs220dComponentDiagnosticCoverage(coverage, meta))
@@ -117,6 +128,9 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   startingChargingInspectionPointsPromise
     ?.then(module => module.publishIs220dStartingChargingInspectionPoints())
     .catch(() => {});
+  airExhaustInspectionPointsPromise
+    ?.then(module => module.publishIs220dAirExhaustInspectionPoints())
+    .catch(() => {});
   nextInspectionPromise
     ?.then(module => module.publishPhysicalInspectionNextTask(coverage, meta))
     .catch(() => {});
@@ -129,4 +143,5 @@ loadOperatingStateModule();
 loadComponentInspectionPointsModule();
 loadFuelInspectionPointsModule();
 loadStartingChargingInspectionPointsModule();
+loadAirExhaustInspectionPointsModule();
 loadNextInspectionModule();
