@@ -23,8 +23,9 @@ test("APK-transformi siirtää OBD-sendit ja blokkaavat Bluetooth-ohjauskutsut a
   assert.doesNotMatch(patched, /const result = String\(this\.bridge\.scanDevices/);
 });
 
-test("asynkroninen natiivisilta ajaa send-, scan-, connect- ja disconnect-operaatiot taustasäikeessä", () => {
+test("asynkroninen natiivisilta ajaa Bluetooth-operaatiot taustasäikeessä ja sarjallistaa niiden suorittamisen", () => {
   assert.match(asyncBridge, /new-instance v3, Ljava\/lang\/Thread;/);
+  assert.match(asyncBridge, /\.method public synchronized execute\(Ljava\/lang\/String;Ljava\/lang\/String;I\)V/);
   assert.match(asyncBridge, /startClassic\(Ljava\/lang\/String;I\)Ljava\/lang\/String;/);
   assert.match(asyncBridge, /startBle\(Ljava\/lang\/String;I\)Ljava\/lang\/String;/);
   assert.match(asyncBridge, /startClassicConnect\(Ljava\/lang\/String;I\)Ljava\/lang\/String;/);
