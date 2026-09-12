@@ -14,6 +14,7 @@ let guidedSessionModulePromise = null;
 let operatingStateModulePromise = null;
 let componentInspectionPointsModulePromise = null;
 let fuelInspectionPointsModulePromise = null;
+let startingChargingInspectionPointsModulePromise = null;
 let nextInspectionModulePromise = null;
 
 function loadPageModule() {
@@ -67,6 +68,15 @@ function loadFuelInspectionPointsModule() {
   return fuelInspectionPointsModulePromise;
 }
 
+function loadStartingChargingInspectionPointsModule() {
+  const fuelPromise = loadFuelInspectionPointsModule();
+  if (!fuelPromise) return null;
+  if (!startingChargingInspectionPointsModulePromise) {
+    startingChargingInspectionPointsModulePromise = fuelPromise.then(() => import("./is220d-starting-charging-inspection-points.js"));
+  }
+  return startingChargingInspectionPointsModulePromise;
+}
+
 function loadNextInspectionModule() {
   const overviewPromise = loadGroupOverviewModule();
   if (!overviewPromise) return null;
@@ -84,6 +94,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   const operatingStatePromise = loadOperatingStateModule();
   const componentInspectionPointsPromise = loadComponentInspectionPointsModule();
   const fuelInspectionPointsPromise = loadFuelInspectionPointsModule();
+  const startingChargingInspectionPointsPromise = loadStartingChargingInspectionPointsModule();
   const nextInspectionPromise = loadNextInspectionModule();
   pagePromise
     .then(module => module.publishIs220dComponentDiagnosticCoverage(coverage, meta))
@@ -103,6 +114,9 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   fuelInspectionPointsPromise
     ?.then(module => module.publishIs220dFuelInspectionPoints())
     .catch(() => {});
+  startingChargingInspectionPointsPromise
+    ?.then(module => module.publishIs220dStartingChargingInspectionPoints())
+    .catch(() => {});
   nextInspectionPromise
     ?.then(module => module.publishPhysicalInspectionNextTask(coverage, meta))
     .catch(() => {});
@@ -114,4 +128,5 @@ loadGuidedSessionModule();
 loadOperatingStateModule();
 loadComponentInspectionPointsModule();
 loadFuelInspectionPointsModule();
+loadStartingChargingInspectionPointsModule();
 loadNextInspectionModule();
