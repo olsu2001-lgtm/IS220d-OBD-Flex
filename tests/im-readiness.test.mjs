@@ -50,6 +50,20 @@ test("PID 41 uses identical readiness bit layout but does not expose MIL/DTC cou
   assert.equal(parsed.incompleteCount, 1);
 });
 
+test("zero supported readiness monitors fail closed instead of reporting READY", () => {
+  const parsed = parseImReadiness("41 01 00 00 00 00", 0x01);
+  assert.equal(parsed.supportedCount, 0);
+  assert.equal(parsed.completeCount, 0);
+  assert.equal(parsed.incompleteCount, 0);
+  assert.equal(parsed.ready, false);
+
+  const snapshot = buildImReadinessSnapshot({ sinceClearRaw: "41 01 00 00 00 00" });
+  assert.equal(snapshot.overall, "unavailable");
+  const report = buildImReadinessTextReport(snapshot, { vehicle: "Lexus IS220d", timestamp: 0 });
+  assert.match(report, /Tulos: EI SAATAVILLA/);
+  assert.doesNotMatch(report, /Tulos: VALMIS/);
+});
+
 test("warmups and distance since clear decode standard PIDs", () => {
   assert.equal(parseWarmupsSinceDtcClear("41 30 07"), 7);
   assert.equal(parseDistanceSinceDtcClear("7E8 04 41 31 01 F4"), 500);
