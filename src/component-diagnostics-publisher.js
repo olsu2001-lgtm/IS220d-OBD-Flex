@@ -1,3 +1,5 @@
+import { publishIs220dTechstreamEvidence } from "./is220d-techstream-evidence.js";
+
 const hasFullBrowserDom = () => {
   try {
     if (typeof document === "undefined" || typeof document.querySelector !== "function") return false;
@@ -158,6 +160,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
     .catch(() => {});
   techstreamDataListGapPromise
     ?.then(module => module.publishTechstreamDataListGapUi())
+    .then(() => publishIs220dTechstreamEvidence())
     .catch(() => {});
   nextInspectionPromise
     ?.then(module => module.publishPhysicalInspectionNextTask(coverage, meta))
