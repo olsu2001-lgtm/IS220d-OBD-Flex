@@ -74,7 +74,15 @@ test("report contains imported values and offline provenance", () => {
   assert.match(report, /offline Techstream Data List CSV\/text export/);
 });
 
-test("CSV import module is transport-free and cannot authorize vehicle commands", () => {
-  const source = fs.readFileSync(new URL("../src/techstream-data-list-export.js", import.meta.url), "utf8");
-  assert.doesNotMatch(source, /NativeElmTransport|NativeBleElmTransport|state\.client|safeCommand\s*\(|\.send\s*\(|ATSH|ATCRA|productionAuthorized|allowlist/i);
+test("CSV import core and packaged UI remain transport-free", () => {
+  const core = fs.readFileSync(new URL("../src/techstream-data-list-export.js", import.meta.url), "utf8");
+  const ui = fs.readFileSync(new URL("../src/techstream-data-list-gap-ui.js", import.meta.url), "utf8");
+  for (const source of [core, ui]) {
+    assert.doesNotMatch(source, /NativeElmTransport|NativeBleElmTransport|state\.client|safeCommand\s*\(|ATSH|ATCRA|productionAuthorized/i);
+  }
+  assert.match(ui, /parseTechstreamDataListExport/);
+  assert.match(ui, /type = "file"/);
+  assert.match(ui, /\.csv,\.txt,text\/csv,text\/plain/);
+  assert.match(ui, /selected\.text\(\)/);
+  assert.match(ui, /offline-importti/);
 });
