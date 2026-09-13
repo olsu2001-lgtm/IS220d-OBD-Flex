@@ -8,6 +8,7 @@ import { extractFieldValidationEvidenceFromDiagnosticRun } from "./field-validat
 import { buildIs220dComponentDiagnosticCoverage } from "./is220d-component-diagnostics.js";
 import { IS220D_DIAGNOSTIC_GROUPS } from "./is220d-diagnostic-groups.js";
 import { buildIs220dDiagnosticGroupPlan } from "./is220d-diagnostic-plan.js";
+import { buildIs220dCaptureEvidenceFromDiagnosticRun } from "./is220d-capture-history.js";
 import { publishIs220dComponentDiagnosticCoverageToUi } from "./component-diagnostics-publisher.js";
 import { buildImReadinessSnapshot } from "./im-readiness.js";
 
@@ -122,11 +123,13 @@ export function ecuSurveySnapshotFromDiagnosticRun(
   });
   const componentDiagnostics = buildIs220dComponentDiagnosticCoverage(run);
   const diagnosticGroupPlans = is220dDiagnosticGroupPlanSummariesFromRun(run);
+  const captureEvidence = buildIs220dCaptureEvidenceFromDiagnosticRun(run);
   publishIs220dComponentDiagnosticCoverageToUi(componentDiagnostics, {
     runId: meta.reportId || "",
     startedAt: run.startedAt,
     endedAt: run.endedAt,
-    diagnosticGroupPlans
+    diagnosticGroupPlans,
+    captureEvidence
   });
 
   return Object.freeze({
