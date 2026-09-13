@@ -95,6 +95,19 @@ export function is220dDiagnosticGroupPlanSummariesFromRun(run) {
   }));
 }
 
+/**
+ * Capture history is an optional post-processing feature. It must never be able
+ * to abort the completed diagnostic/report path if one captured result is
+ * malformed or a decoder encounters an unexpected payload.
+ */
+export function safeIs220dCaptureEvidenceFromDiagnosticRun(run) {
+  try {
+    return buildIs220dCaptureEvidenceFromDiagnosticRun(run);
+  } catch {
+    return null;
+  }
+}
+
 export function ecuSurveySnapshotFromDiagnosticRun(
   run,
   {
@@ -123,7 +136,7 @@ export function ecuSurveySnapshotFromDiagnosticRun(
   });
   const componentDiagnostics = buildIs220dComponentDiagnosticCoverage(run);
   const diagnosticGroupPlans = is220dDiagnosticGroupPlanSummariesFromRun(run);
-  const captureEvidence = buildIs220dCaptureEvidenceFromDiagnosticRun(run);
+  const captureEvidence = safeIs220dCaptureEvidenceFromDiagnosticRun(run);
   publishIs220dComponentDiagnosticCoverageToUi(componentDiagnostics, {
     runId: meta.reportId || "",
     startedAt: run.startedAt,
