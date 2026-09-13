@@ -28,7 +28,9 @@ The aggregate test requires the union of inspection-point component IDs to equal
 - `VAATII FYYSISEN VARMISTUKSEN`;
 - `ODOTTAA VARMENNETTUA SIGNAALIA`.
 
-Electronic completion is derived from actually attempted/observed production-authorized evidence. Physical checks require an explicit local user confirmation (`checked-normal` or `deviation-found`). A physical confirmation cannot be used to mark an electronic point complete.
+Electronic completion (`EVIDENSSI KERÄTTY`) is derived from actually observed production-authorized live evidence. Physical checks require an explicit local user confirmation (`checked-normal` or `deviation-found`). A physical confirmation cannot be used to mark an electronic point complete.
+
+Compatible imported Techstream CSV evidence can move a linked electronic point only to `OSITTAIN`. It can never produce `EVIDENSSI KERÄTTY`, because the imported values may come from a different session or operating state than the current Flex capture.
 
 ## Techstream Data List reference evidence
 
