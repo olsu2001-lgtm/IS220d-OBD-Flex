@@ -170,6 +170,11 @@ function ensureStyles() {
   document.head.append(style);
 }
 
+function notifyEvidenceChanged() {
+  if (typeof document === "undefined" || typeof Event === "undefined") return;
+  try { document.dispatchEvent(new Event("is220d-techstream-evidence-changed")); } catch {}
+}
+
 let listenersInstalled = false;
 let importListenersInstalled = false;
 
@@ -183,7 +188,9 @@ function persistImportedText(text, fileName, storage) {
   });
   if (!candidate.availableTargetCount) return null;
   writeIs220dTechstreamEvidence(result, { storage, fileName });
-  return publishIs220dTechstreamEvidence(storage);
+  const state = publishIs220dTechstreamEvidence(storage);
+  notifyEvidenceChanged();
+  return state;
 }
 
 function installImportListeners(storage) {
@@ -204,7 +211,10 @@ function installImportListeners(storage) {
   analyze?.addEventListener("click", () => persistImportedText(textarea.value, "liitetty CSV/text", storage));
   clear?.addEventListener("click", () => {
     clearIs220dTechstreamEvidence(storage);
-    queueMicrotask(() => publishIs220dTechstreamEvidence(storage));
+    queueMicrotask(() => {
+      publishIs220dTechstreamEvidence(storage);
+      notifyEvidenceChanged();
+    });
   });
   importListenersInstalled = true;
 }
