@@ -19,6 +19,7 @@ let fuelInspectionPointsModulePromise = null;
 let startingChargingInspectionPointsModulePromise = null;
 let airExhaustInspectionPointsModulePromise = null;
 let inspectionExecutionStateModulePromise = null;
+let captureHistoryModulePromise = null;
 let techstreamDataListGapModulePromise = null;
 let nextInspectionModulePromise = null;
 
@@ -100,11 +101,20 @@ function loadInspectionExecutionStateModule() {
   return inspectionExecutionStateModulePromise;
 }
 
-function loadTechstreamDataListGapModule() {
+function loadCaptureHistoryModule() {
   const executionPromise = loadInspectionExecutionStateModule();
   if (!executionPromise) return null;
+  if (!captureHistoryModulePromise) {
+    captureHistoryModulePromise = executionPromise.then(() => import("./is220d-capture-history.js"));
+  }
+  return captureHistoryModulePromise;
+}
+
+function loadTechstreamDataListGapModule() {
+  const capturePromise = loadCaptureHistoryModule();
+  if (!capturePromise) return null;
   if (!techstreamDataListGapModulePromise) {
-    techstreamDataListGapModulePromise = executionPromise.then(() => import("./techstream-data-list-gap-ui.js"));
+    techstreamDataListGapModulePromise = capturePromise.then(() => import("./techstream-data-list-gap-ui.js"));
   }
   return techstreamDataListGapModulePromise;
 }
@@ -129,6 +139,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   const startingChargingInspectionPointsPromise = loadStartingChargingInspectionPointsModule();
   const airExhaustInspectionPointsPromise = loadAirExhaustInspectionPointsModule();
   const inspectionExecutionStatePromise = loadInspectionExecutionStateModule();
+  const captureHistoryPromise = loadCaptureHistoryModule();
   const techstreamDataListGapPromise = loadTechstreamDataListGapModule();
   const nextInspectionPromise = loadNextInspectionModule();
   pagePromise
@@ -158,6 +169,9 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   inspectionExecutionStatePromise
     ?.then(module => module.publishIs220dInspectionExecutionState(coverage, meta))
     .catch(() => {});
+  captureHistoryPromise
+    ?.then(module => module.publishIs220dCaptureHistory(meta.captureEvidence))
+    .catch(() => {});
   techstreamDataListGapPromise
     ?.then(module => module.publishTechstreamDataListGapUi())
     .then(() => publishIs220dTechstreamEvidence())
@@ -176,5 +190,6 @@ loadFuelInspectionPointsModule();
 loadStartingChargingInspectionPointsModule();
 loadAirExhaustInspectionPointsModule();
 loadInspectionExecutionStateModule();
+loadCaptureHistoryModule();
 loadTechstreamDataListGapModule();
 loadNextInspectionModule();
