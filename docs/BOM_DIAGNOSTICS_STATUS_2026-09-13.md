@@ -32,6 +32,26 @@ Electronic completion (`EVIDENSSI KERÄTTY`) is derived from actually observed p
 
 Compatible imported Techstream CSV evidence can move a linked electronic point only to `OSITTAIN`. It can never produce `EVIDENSSI KERÄTTY`, because the imported values may come from a different session or operating state than the current Flex capture.
 
+## Operating-state capture history
+
+`is220d-capture-history.js` now adds an explicit local capture history for evidence already collected by the existing wide diagnostic. It does not run a second diagnostic pass.
+
+Supported user-assigned capture contexts are:
+
+- `KOEO`;
+- `STARTTAUS`;
+- `KÄYNTI`;
+- `LÄMMIN TYHJÄKÄYNTI`;
+- `KUORMITUS`.
+
+A completed diagnostic run becomes a sanitized capture candidate. The user must explicitly choose its context before it enters capture history. Context is not inferred from a generic `engine running` flag, and one diagnostic run can belong to only one context at a time.
+
+The local capture record contains only run identity/timestamps, the explicit context, observed named signal keys and decoded numeric values with their units/evidence metadata. Raw CAN/ELM frames, request commands, Bluetooth addresses and vehicle identity payloads are not persisted by this layer.
+
+Only signals that are both production-authorized and currently collected by the wide diagnostic can enter capture history. Field-rejected `219C` and the non-authorized `2193`, `2196` and `21AF` candidates therefore cannot become capture values.
+
+Cross-run comparison uses only the two latest captures with the same explicit context. The current BOM physical-group selection further limits which signal values appear in the comparison. A displayed delta is only a numeric difference between compatible captures; it is not an automatic fault verdict. Values from different contexts are never combined as if they were simultaneous measurements.
+
 ## Techstream Data List reference evidence
 
 Flex can import an offline Techstream Data List CSV/text export for these current evidence gaps:
@@ -56,17 +76,17 @@ Existing target-vehicle `.TSE` sessions do not contain these three Data List tar
 
 ## Transport boundary
 
-The inspection-point, execution-state and Techstream-reference modules are metadata/evaluation/UI layers only. They do not send vehicle requests.
+The inspection-point, execution-state, capture-history and Techstream-reference modules are metadata/evaluation/UI layers only. They do not send vehicle requests.
 
 Static tests reject vehicle/network execution paths such as `.send()`, `queryPid`, `queryToyotaReadData`, `NativeElm`, `transport.send`, `fetch`, WebSocket and XMLHttpRequest from these modules.
 
-The BOM and imported Techstream evidence cannot authorize an ECU command. `219C` remains field-rejected and is not accepted into inspection evidence. The main-injector workflow records cylinder feedback as an unresolved live-data gap instead of replacing it with a guessed request.
+The BOM, capture history and imported Techstream evidence cannot authorize an ECU command. `219C` remains field-rejected and is not accepted into inspection or capture evidence. The main-injector workflow records cylinder feedback as an unresolved live-data gap instead of replacing it with a guessed request.
 
 ## What the current verified wide diagnostic can support
 
-The inspection workflow can already reuse current production-authorized evidence such as engine RPM, coolant temperature, MAP, MAF, standard OBD rail pressure, barometric pressure, ECU voltage, verified Toyota EGR position `212C`, DPNR differential pressure `217E`, and DPNR inlet/outlet EGT data `217F`.
+The inspection and capture workflows can reuse current production-authorized evidence such as engine RPM, coolant temperature, MAP, MAF, standard OBD rail pressure, barometric pressure, ECU voltage, verified Toyota EGR position `212C`, DPNR differential pressure `217E`, and DPNR inlet/outlet EGT data `217F`.
 
-Inspection points may reference registered signals that are not yet collected by the current wide diagnostic. Those dependencies remain unavailable / awaiting verification and do not become transport actions.
+Inspection points may reference registered signals that are not yet collected by the current wide diagnostic. Those dependencies remain unavailable / awaiting verification and do not become transport actions or capture-history values.
 
 ## Named evidence gaps
 
@@ -87,16 +107,16 @@ These gaps follow the existing evidence gate: identify from Techstream/manual ev
 
 ## I/M readiness integrity
 
-The standard Mode 01 readiness layer reads `0101`, `0141`, `0130` and `0131`. Overall readiness now fails closed when PID `0101` responds but reports zero supported monitors: that state is `unavailable`, not `ready`.
+The standard Mode 01 readiness layer reads `0101`, `0141`, `0130` and `0131`. Overall readiness fails closed when PID `0101` responds but reports zero supported monitors: that state is `unavailable`, not `ready`.
 
 ## Workshop behavior now available
 
-The BOM page can combine group selection, signal/evidence preflight, operating-state guidance, electronic coverage and component assessment, 50 source-linked inspection points, execution state, physical checklist/progress, Techstream offline reference evidence and next physical task prioritization.
+The BOM page can combine group selection, signal/evidence preflight, operating-state guidance, electronic coverage and component assessment, 50 source-linked inspection points, execution state, physical checklist/progress, explicit operating-state capture history, Techstream offline reference evidence and next physical task prioritization.
 
 Group selection remains a workshop scope selector. It does not create a second vehicle-command implementation and does not bypass the profile-authorized wide diagnostic.
 
 ## Next software step
 
-The next useful layer is **cross-run evidence correlation**: preserve explicit capture context (KOEO / cranking / warm idle / load) for locally stored evidence and compare compatible captures without treating values from different operating states or different sessions as simultaneous measurements.
+The next useful layer is **context-aware point evaluation** using the new capture history, but only where the reviewed source evidence and verified signals support a deterministic relationship. Suitable first targets are qualitative same-context comparisons such as MAP/BARO KOEO plausibility, warm-idle stability/trend checks and DPNR/EGT repeatability. Fixed numeric fault thresholds must not be invented when the reviewed source gives only a qualitative comparison.
 
-After that, add deterministic point-level evaluation only where source evidence and verified signals support it. Do not invent numerical fault thresholds when the reviewed source provides only a qualitative comparison or trend.
+Before any point rule relies on an operating-state label, add state-quality checks where the already verified signals can support them. For example, a `warm-idle` capture can record whether coolant/RPM evidence is available, while a `load` capture can record whether RPM/MAP/MAF evidence is available. These quality checks should qualify the evidence rather than silently reclassify a user-selected context.
