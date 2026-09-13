@@ -1,3 +1,5 @@
+import { parseTechstreamDataListExport } from "./techstream-data-list-export.js";
+
 export const IS220D_TECHSTREAM_EVIDENCE_SCHEMA_VERSION = 1;
 export const IS220D_TECHSTREAM_EVIDENCE_STORAGE_KEY = "lexusIs220dTechstreamDataListEvidenceV1";
 
@@ -167,12 +169,51 @@ function ensureStyles() {
 }
 
 let listenersInstalled = false;
+let importListenersInstalled = false;
+
+function persistImportedText(text, fileName, storage) {
+  const result = parseTechstreamDataListExport(text);
+  const candidate = buildIs220dTechstreamEvidenceState({
+    schemaVersion: IS220D_TECHSTREAM_EVIDENCE_SCHEMA_VERSION,
+    importedAt: Date.now(),
+    fileName,
+    values: result.values
+  });
+  if (!candidate.availableTargetCount) return null;
+  writeIs220dTechstreamEvidence(result, { storage, fileName });
+  return publishIs220dTechstreamEvidence(storage);
+}
+
+function installImportListeners(storage) {
+  if (typeof document === "undefined" || importListenersInstalled) return;
+  const root = document.querySelector("#techstreamDataListGap");
+  const file = root?.querySelector('[aria-label="Techstream Data List CSV file"]');
+  const textarea = root?.querySelector('[aria-label="Techstream Data List CSV text"]');
+  if (!root || !file || !textarea) return;
+  const buttons = [...root.querySelectorAll("button")];
+  const analyze = buttons.find(button => button.textContent?.includes("Poimi Data List"));
+  const clear = buttons.find(button => button.textContent?.trim() === "Tyhjennä");
+
+  file.addEventListener("change", async () => {
+    const selected = file.files?.[0];
+    if (!selected) return;
+    try { persistImportedText(await selected.text(), selected.name || "Techstream CSV", storage); } catch {}
+  });
+  analyze?.addEventListener("click", () => persistImportedText(textarea.value, "liitetty CSV/text", storage));
+  clear?.addEventListener("click", () => {
+    clearIs220dTechstreamEvidence(storage);
+    queueMicrotask(() => publishIs220dTechstreamEvidence(storage));
+  });
+  importListenersInstalled = true;
+}
+
 export function publishIs220dTechstreamEvidence(storage = globalThis.localStorage) {
   const state = buildIs220dTechstreamEvidenceState(readIs220dTechstreamEvidence(storage));
   if (typeof document === "undefined") return state;
   ensureStyles();
   renderSummary(state);
   renderPointEvidence(state);
+  installImportListeners(storage);
   if (!listenersInstalled) {
     listenersInstalled = true;
     document.querySelector("#bomDiagnosticRunGroup")?.addEventListener("change", () => queueMicrotask(() => publishIs220dTechstreamEvidence(storage)));
