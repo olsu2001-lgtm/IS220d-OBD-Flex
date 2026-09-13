@@ -23,6 +23,12 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Read app version
+        id: app_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -41,8 +47,10 @@ jobs:
       - name: Verify APK structure, version, signature and provenance
         run: |
           set -euo pipefail
-          DEBUG_APK=dist/Lexus_OBD-Flex-0.8.1-debug.apk
-          RELEASE_APK=dist/Lexus_OBD-Flex-0.8.1-release.apk
+          APP_VERSION=$(node -p "require('./package.json').version")
+          VERSION_CODE=$(node -e 'const [a,b,c]=require("./package.json").version.split(".").map(Number); process.stdout.write(String(a*10000+b*100+c));')
+          DEBUG_APK="dist/Lexus_OBD-Flex-${APP_VERSION}-debug.apk"
+          RELEASE_APK="dist/Lexus_OBD-Flex-${APP_VERSION}-release.apk"
           test -s "$DEBUG_APK"
           test -s "$RELEASE_APK"
           test -s dist/build-info.json
@@ -54,8 +62,8 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$RELEASE_APK"
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
           test -x "$AAPT"
-          "$AAPT" dump badging "$RELEASE_APK" | grep -F "package: name='fi.oliver.is220dobd' versionCode='801' versionName='0.8.1'"
-          node -e 'const fs=require("fs"); const info=JSON.parse(fs.readFileSync("dist/build-info.json","utf8")); if(info.gitSha!==process.env.GITHUB_SHA) throw new Error(`build-info SHA ${info.gitSha} != ${process.env.GITHUB_SHA}`); if(info.appVersion!=="0.8.1") throw new Error(`unexpected appVersion ${info.appVersion}`);'
+          "$AAPT" dump badging "$RELEASE_APK" | grep -F "package: name='fi.oliver.is220dobd' versionCode='${VERSION_CODE}' versionName='${APP_VERSION}'"
+          node -e 'const fs=require("fs"); const pkg=require("./package.json"); const info=JSON.parse(fs.readFileSync("dist/build-info.json","utf8")); if(info.gitSha!==process.env.GITHUB_SHA) throw new Error(`build-info SHA ${info.gitSha} != ${process.env.GITHUB_SHA}`); if(info.appVersion!==pkg.version) throw new Error(`unexpected appVersion ${info.appVersion} != ${pkg.version}`); const expected=[`Lexus_OBD-Flex-${pkg.version}-debug.apk`,`Lexus_OBD-Flex-${pkg.version}-release.apk`]; if(JSON.stringify(info.outputs)!==JSON.stringify(expected)) throw new Error(`unexpected outputs ${JSON.stringify(info.outputs)}`);'
           SHORT_SHA="${GITHUB_SHA:0:12}"
           unzip -p "$DEBUG_APK" assets/app.bundle.js | grep -Fq "$SHORT_SHA"
           unzip -p "$RELEASE_APK" assets/app.bundle.js | grep -Fq "$SHORT_SHA"
@@ -63,10 +71,10 @@ jobs:
       - name: Upload field-validation APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Lexus-OBD-Flex-0.8.1-${{ github.sha }}
+          name: Lexus-OBD-Flex-${{ steps.app_version.outputs.value }}-${{ github.sha }}
           path: |
-            dist/Lexus_OBD-Flex-0.8.1-debug.apk
-            dist/Lexus_OBD-Flex-0.8.1-release.apk
+            dist/Lexus_OBD-Flex-${{ steps.app_version.outputs.value }}-debug.apk
+            dist/Lexus_OBD-Flex-${{ steps.app_version.outputs.value }}-release.apk
             dist/build-info.json
           if-no-files-found: error
           retention-days: 14
