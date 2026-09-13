@@ -18,7 +18,9 @@ const TARGET_META = Object.freeze({
 });
 
 function finite(value) {
-  return Number.isFinite(Number(value)) ? Number(value) : null;
+  if (value == null || String(value).trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function emptyRecord() {
