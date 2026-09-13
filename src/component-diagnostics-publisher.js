@@ -111,10 +111,10 @@ function loadCaptureHistoryModule() {
 }
 
 function loadTechstreamDataListGapModule() {
-  const capturePromise = loadCaptureHistoryModule();
-  if (!capturePromise) return null;
+  const executionPromise = loadInspectionExecutionStateModule();
+  if (!executionPromise) return null;
   if (!techstreamDataListGapModulePromise) {
-    techstreamDataListGapModulePromise = capturePromise.then(() => import("./techstream-data-list-gap-ui.js"));
+    techstreamDataListGapModulePromise = executionPromise.then(() => import("./techstream-data-list-gap-ui.js"));
   }
   return techstreamDataListGapModulePromise;
 }
