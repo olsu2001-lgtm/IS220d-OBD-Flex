@@ -128,7 +128,7 @@ export function buildImReadinessSnapshot({ sinceClearRaw = "", driveCycleRaw = "
     driveCycle,
     warmupsSinceClear,
     distanceSinceClearKm,
-    overall: !sinceClear
+    overall: !sinceClear || sinceClear.supportedCount === 0
       ? "unavailable"
       : sinceClear.incompleteCount > 0
         ? "not-ready"
