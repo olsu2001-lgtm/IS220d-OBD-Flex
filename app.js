@@ -3,7 +3,7 @@ import { app } from "nitron";
 app.init({
   name: "Lexus OBD Flex",
   packageId: "fi.oliver.is220dobd",
-  version: "0.8.1",
+  version: "0.9.0",
   entry: "index.html",
   orientation: "portrait",
   statusBar: true,
