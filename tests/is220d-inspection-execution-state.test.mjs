@@ -11,6 +11,7 @@ import {
   readIs220dInspectionPointProgress,
   writeIs220dInspectionPointFinding
 } from "../src/is220d-inspection-execution-state.js";
+import { buildIs220dTechstreamEvidenceState } from "../src/is220d-techstream-evidence.js";
 
 function fakeStorage() {
   const values = new Map();
@@ -99,6 +100,49 @@ test("electronic point becomes partial when only part of its authorized evidence
   assert.equal(point.evidence.authorizedSignals, 3);
   assert.equal(point.evidence.observedAuthorized, 1);
   assert.equal(point.evidence.attemptedAuthorized, 2);
+});
+
+test("offline Techstream reference can only advance an electronic point to partial", () => {
+  const reference = buildIs220dTechstreamEvidenceState({
+    schemaVersion: 1,
+    importedAt: 10,
+    fileName: "idle.csv",
+    values: {
+      injectionFeedbackMm3PerStroke: [0.4, -0.3, 0.2, -0.1],
+      targetCommonRailPressureKpa: 39800,
+      targetPumpScvCurrentMa: 1275
+    }
+  });
+  const state = buildIs220dInspectionExecutionState(coverageWithSignalStates(), undefined, "fuel-rail-injection", reference);
+  const scv = pointState(state, "scv-rail-response");
+  const injector = pointState(state, "injector-system-context");
+  assert.equal(scv.status, "partial");
+  assert.equal(injector.status, "partial");
+  assert.equal(scv.evidence.offlineReferenceAvailable, true);
+  assert.deepEqual(scv.evidence.offlineReferenceTargetKeys, ["targetRail", "targetScv"]);
+  assert.match(scv.reason, /offline-referenssi/);
+  assert.notEqual(scv.status, "evidence-collected");
+  assert.notEqual(injector.status, "evidence-collected");
+  assert.equal(state.summary.offlineReferencePoints, 5);
+});
+
+test("complete live evidence still controls evidence-collected status when offline reference also exists", () => {
+  const reference = buildIs220dTechstreamEvidenceState({
+    schemaVersion: 1,
+    values: {
+      injectionFeedbackMm3PerStroke: [0.4, -0.3, 0.2, -0.1],
+      targetCommonRailPressureKpa: 39800,
+      targetPumpScvCurrentMa: 1275
+    }
+  });
+  const state = buildIs220dInspectionExecutionState(coverageWithSignalStates({
+    "engine.rail_pressure_obd": { observed: true },
+    "engine.rpm": { observed: true },
+    "engine.fuel_temperature_screening": { observed: false }
+  }), undefined, "fuel-rail-injection", reference);
+  const point = pointState(state, "fuel-filter-rail-build");
+  assert.equal(point.status, "evidence-collected");
+  assert.equal(point.evidence.offlineReferenceAvailable, true);
 });
 
 test("electronic point reports evidence collected only when every authorized signal is observed", () => {
