@@ -17,6 +17,7 @@ let fuelInspectionPointsModulePromise = null;
 let startingChargingInspectionPointsModulePromise = null;
 let airExhaustInspectionPointsModulePromise = null;
 let inspectionExecutionStateModulePromise = null;
+let techstreamDataListGapModulePromise = null;
 let nextInspectionModulePromise = null;
 
 function loadPageModule() {
@@ -97,6 +98,15 @@ function loadInspectionExecutionStateModule() {
   return inspectionExecutionStateModulePromise;
 }
 
+function loadTechstreamDataListGapModule() {
+  const executionPromise = loadInspectionExecutionStateModule();
+  if (!executionPromise) return null;
+  if (!techstreamDataListGapModulePromise) {
+    techstreamDataListGapModulePromise = executionPromise.then(() => import("./techstream-data-list-gap-ui.js"));
+  }
+  return techstreamDataListGapModulePromise;
+}
+
 function loadNextInspectionModule() {
   const overviewPromise = loadGroupOverviewModule();
   if (!overviewPromise) return null;
@@ -117,6 +127,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   const startingChargingInspectionPointsPromise = loadStartingChargingInspectionPointsModule();
   const airExhaustInspectionPointsPromise = loadAirExhaustInspectionPointsModule();
   const inspectionExecutionStatePromise = loadInspectionExecutionStateModule();
+  const techstreamDataListGapPromise = loadTechstreamDataListGapModule();
   const nextInspectionPromise = loadNextInspectionModule();
   pagePromise
     .then(module => module.publishIs220dComponentDiagnosticCoverage(coverage, meta))
@@ -145,6 +156,9 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   inspectionExecutionStatePromise
     ?.then(module => module.publishIs220dInspectionExecutionState(coverage, meta))
     .catch(() => {});
+  techstreamDataListGapPromise
+    ?.then(module => module.publishTechstreamDataListGapUi())
+    .catch(() => {});
   nextInspectionPromise
     ?.then(module => module.publishPhysicalInspectionNextTask(coverage, meta))
     .catch(() => {});
@@ -159,4 +173,5 @@ loadFuelInspectionPointsModule();
 loadStartingChargingInspectionPointsModule();
 loadAirExhaustInspectionPointsModule();
 loadInspectionExecutionStateModule();
+loadTechstreamDataListGapModule();
 loadNextInspectionModule();
