@@ -4,10 +4,15 @@ import {
   buildTechstreamDataListCaptureTemplate,
   buildTechstreamDataListGapTextReport
 } from "./techstream-data-list-gap.js";
+import {
+  parseTechstreamDataListExport,
+  buildTechstreamDataListExportTextReport
+} from "./techstream-data-list-export.js";
 
 const PANEL_ID = "techstreamDataListGap";
 const STYLE_ID = "techstream-data-list-gap-styles";
 let lastAnalysis = analyzeTechstreamDataListTrace("");
+let lastDataListExport = parseTechstreamDataListExport("");
 
 function create(tag, className = "", text = "") {
   const node = document.createElement(tag);
@@ -27,7 +32,8 @@ function ensureStyles() {
     .techstream-gap-target strong{display:block;font-size:10px}.techstream-gap-target small{display:block;margin-top:3px;color:var(--muted);font-size:8px;line-height:1.35}.techstream-gap-target b{display:inline-block;margin-top:5px;color:var(--warning);font-size:8px}
     .techstream-gap details{margin-top:9px;border-top:1px solid var(--line);padding-top:8px}.techstream-gap summary{cursor:pointer;color:var(--info);font-size:9px;font-weight:850}
     .techstream-gap textarea{width:100%;min-height:145px;margin-top:8px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-inset);color:var(--text-strong);resize:vertical;font:8px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-    .techstream-gap-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.techstream-gap-actions button{min-height:34px;font-size:8px}.techstream-gap-results{display:grid;gap:5px;margin-top:8px}.techstream-gap-result{padding:7px;border-radius:8px;background:var(--surface-inset);font-size:8px}.techstream-gap-result strong{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.techstream-gap-result.rejected{border-left:3px solid var(--warning)}
+    .techstream-gap-file{width:100%;margin-top:7px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--surface-inset);color:var(--muted);font-size:8px}
+    .techstream-gap-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.techstream-gap-actions button{min-height:34px;font-size:8px}.techstream-gap-results{display:grid;gap:5px;margin-top:8px}.techstream-gap-result{padding:7px;border-radius:8px;background:var(--surface-inset);font-size:8px;line-height:1.4}.techstream-gap-result strong{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.techstream-gap-result.rejected{border-left:3px solid var(--warning)}.techstream-gap-result.complete{border-left:3px solid var(--success)}.techstream-gap-result.partial{border-left:3px solid var(--warning)}
     @media(max-width:420px){.techstream-gap-actions{grid-template-columns:1fr}}
   `;
   document.head.append(style);
@@ -49,7 +55,7 @@ function renderTargets(root) {
 }
 
 function renderAnalysis(root, analysis) {
-  const results = root.querySelector(".techstream-gap-results");
+  const results = root.querySelector(".techstream-gap-results.trace-results");
   if (!results) return;
   results.replaceChildren();
   results.append(create("div", "techstream-gap-result", `Pareja ${analysis.pairCount} · uusia kandidaatteja ${analysis.candidateCount} · parittomia vastauksia ${analysis.unmatchedResponseCount}`));
@@ -60,6 +66,22 @@ function renderAnalysis(root, analysis) {
     results.append(create("div", "techstream-gap-result rejected", `${item.command} → ${item.responsePrefix} · HYLÄTTY KENTTÄEVIDENSSILLÄ · ei kandidaatti`));
   }
   if (!analysis.candidates.length && !analysis.rejected.length) results.append(create("div", "techstream-gap-result", "Ei uusia 21xx→61xx-pareja tästä jäljestä."));
+}
+
+function formatValue(value, suffix = "") {
+  return Number.isFinite(value) ? `${value}${suffix}` : "–";
+}
+
+function renderDataListExport(root, result) {
+  const results = root.querySelector(".techstream-gap-results.csv-results");
+  if (!results) return;
+  results.replaceChildren();
+  const feedback = result.values.injectionFeedbackMm3PerStroke;
+  results.append(create("div", `techstream-gap-result ${result.complete ? "complete" : "partial"}`, `Kattavuus ${result.completeTargetCount}/3 · suutinkanavia ${result.injectorChannelCount}/4 · ${result.complete ? "KAIKKI TAVOITTEET LÖYTYIVÄT" : "OSITTAINEN EXPORT"}`));
+  results.append(create("div", "techstream-gap-result", `Injection Feedback #1–#4: ${feedback.map(value => formatValue(value)).join(" / ")} mm³/st`));
+  results.append(create("div", "techstream-gap-result", `Target Common Rail Pressure: ${formatValue(result.values.targetCommonRailPressureKpa, " kPa")}`));
+  results.append(create("div", "techstream-gap-result", `Target Pump SCV Current: ${formatValue(result.values.targetPumpScvCurrentMa, " mA")}`));
+  results.append(create("div", "techstream-gap-result", `Evidenssirivejä ${result.evidence.length} · offline-importti · ajoneuvotransporttia ei käytetty`));
 }
 
 function buildCaptureTool(root) {
@@ -90,10 +112,68 @@ function buildCaptureTool(root) {
     setTimeout(() => { report.textContent = "Kopioi analyysiraportti"; }, 1600);
   });
   actions.append(analyze, template, report);
-  const results = create("div", "techstream-gap-results");
+  const results = create("div", "techstream-gap-results trace-results");
   details.append(textarea, actions, results);
   root.append(details);
   renderAnalysis(root, lastAnalysis);
+}
+
+function buildCsvImportTool(root) {
+  const details = create("details");
+  details.open = true;
+  details.append(create("summary", "", "Techstream Data List CSV/text -importti"));
+  details.append(create("p", "techstream-gap-note", "Tuo Techstreamin Data List -exportti CSV- tai tekstimuodossa. Importti etsii vain Injection Feedback Val #1–#4-, Target Common Rail Pressure- ja Target Pump SCV Current -kentät. Käsittely tapahtuu paikallisesti eikä lähetä mitään autolle."));
+
+  const file = create("input", "techstream-gap-file");
+  file.type = "file";
+  file.accept = ".csv,.txt,text/csv,text/plain";
+  file.setAttribute("aria-label", "Techstream Data List CSV file");
+  const textarea = create("textarea");
+  textarea.setAttribute("aria-label", "Techstream Data List CSV text");
+  textarea.placeholder = "Liitä CSV/text tähän tai valitse tiedosto yllä.";
+
+  const actions = create("div", "techstream-gap-actions");
+  const analyze = create("button", "primary", "Poimi Data List -arvot");
+  const report = create("button", "secondary", "Kopioi arvot");
+  const clear = create("button", "secondary", "Tyhjennä");
+  analyze.type = report.type = clear.type = "button";
+
+  const runImport = text => {
+    lastDataListExport = parseTechstreamDataListExport(text);
+    renderDataListExport(root, lastDataListExport);
+  };
+
+  file.addEventListener("change", async () => {
+    const selected = file.files?.[0];
+    if (!selected) return;
+    try {
+      const text = await selected.text();
+      textarea.value = text;
+      runImport(text);
+    } catch {
+      textarea.value = "";
+      lastDataListExport = parseTechstreamDataListExport("");
+      renderDataListExport(root, lastDataListExport);
+    }
+  });
+  analyze.addEventListener("click", () => runImport(textarea.value));
+  report.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(buildTechstreamDataListExportTextReport(lastDataListExport)); report.textContent = "Arvot kopioitu"; }
+    catch { report.textContent = "Kopiointi epäonnistui"; }
+    setTimeout(() => { report.textContent = "Kopioi arvot"; }, 1600);
+  });
+  clear.addEventListener("click", () => {
+    file.value = "";
+    textarea.value = "";
+    lastDataListExport = parseTechstreamDataListExport("");
+    renderDataListExport(root, lastDataListExport);
+  });
+
+  actions.append(analyze, report, clear);
+  const results = create("div", "techstream-gap-results csv-results");
+  details.append(file, textarea, actions, results);
+  root.append(details);
+  renderDataListExport(root, lastDataListExport);
 }
 
 function ensurePanel() {
@@ -106,10 +186,11 @@ function ensurePanel() {
   root = create("section", "techstream-gap");
   root.id = PANEL_ID;
   const head = create("div", "techstream-gap-head");
-  head.append(create("strong", "", "Techstream · puuttuvat Data List -signaalit"), create("span", "", "PASSIIVINEN CAPTURE · EI LÄHETYKSIÄ"));
+  head.append(create("strong", "", "Techstream · puuttuvat Data List -signaalit"), create("span", "", "OFFLINE IMPORT + PASSIIVINEN CAPTURE"));
   root.append(head);
-  root.append(create("p", "techstream-gap-note", "Tavoitteena on tunnistaa oikea raakatapahtuma kolmelle IS220d:n diagnoosissa tärkeälle arvolle ilman PID-arvausta. Nykyinen Toyota-tuotantoallowlist ei muutu."));
+  root.append(create("p", "techstream-gap-note", "Tavoitteena on tunnistaa oikea Techstream-arvo ja myöhemmin sen raakatapahtuma ilman PID-arvausta. Nykyinen Toyota-tuotantoallowlist ei muutu."));
   renderTargets(root);
+  buildCsvImportTool(root);
   buildCaptureTool(root);
   anchor.insertAdjacentElement("afterend", root);
   return root;
