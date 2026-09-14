@@ -1,8 +1,8 @@
 # Lexus OBD Flex
 
-Flex 0.8.1 yhdistää samaan kenttätestiversioon kolmen ajon ECU Surveyn,
+Flex 0.9.1 yhdistää samaan kenttätestiversioon kolmen ajon ECU Surveyn,
 Field Test Moden, Techstream-vertailun, Evidence Support Bundle v1:n sekä
-IS220d / 2AD-FHV -moottorin DPNR-tarkistusnäkymän. Flex 0.8.1 estää nykyisellä
+IS220d / 2AD-FHV -moottorin DPNR-tarkistusnäkymän. Flex 0.9.1 estää nykyisellä
 `35360000`-kalibroinnilla 45 sekunnin suutintestin ennen CAN-lähetystä, koska
 sen `219C`-pyyntö palautti `NO DATA` kolmessa toistettavassa kenttäajossa.
 Korvaavaa tunnistetta ei arvata: näkymä näyttää `EI TUETTU`, kunnes oikea
@@ -12,7 +12,7 @@ ja analyysirajat säilyvät lähteessä tulevaa varmennettua toteutusta varten.
 Flex 0.7.5 korjasi 0.7.3:n APK:ssa havaitun WebView-käynnistysvirheen, joka
 esti teeman vaihdon, sivunavigaation ja Bluetooth-laitelistan toiminnan.
 Rakennus validoi nämä kolme toimintoa jatkossa myös paketoidusta
-`app.bundle.js`-tiedostosta ennen APK:n muodostamista. Flex 0.8.1 lukitsee
+`app.bundle.js`-tiedostosta ennen APK:n muodostamista. Flex 0.9.1 lukitsee
 lisäksi Live-kuvaajan korkeuden, estää kentässä vastaamattoman `219C`-pyynnön
 ja vapauttaa käyttöliittymän ennen lyhyeksi rajattua ELM/CAN-palautusta.
 
@@ -880,8 +880,8 @@ valitsemalle sovellukselle.
 
 - käyttäjälle näkyvä nimi: `Lexus OBD Flex`
 - `applicationId`: `fi.oliver.is220dobd` (muuttumaton)
-- `versionName`: `0.8.1`
-- `versionCode`: `801`
+- `versionName`: `0.9.1`
+- `versionCode`: `901`
 - allekirjoitusidentiteetti: sama kuin Flex 0.2.1:ssä
 
 Debug- ja release-APK käyttävät tarkoituksella samaa aiemman Flexin allekirjoitusidentiteettiä, jotta kumpikin voidaan asentaa 0.2.1:n päälle. Release-paketti sisältää minifioidun käyttöliittymäkoodin; debug-paketti sisältää lukukelpoisemman nipun.
@@ -904,6 +904,6 @@ Rakennus toimii ilman Android SDK:n tai Android Studion erillistä asennusta. Ta
 Tulokset:
 
 ```text
-dist/Lexus_OBD-Flex-0.8.1-debug.apk
-dist/Lexus_OBD-Flex-0.8.1-release.apk
+dist/Lexus_OBD-Flex-0.9.1-debug.apk
+dist/Lexus_OBD-Flex-0.9.1-release.apk
 ```
