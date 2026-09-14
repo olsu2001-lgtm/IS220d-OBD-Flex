@@ -16,7 +16,8 @@ export function patchMainForDpnrCleaningTest(source) {
 
   const install = `
 const ${DPNR_CLEANING_BUILD_MARKER} = true;
-installDpnrCleaningTest({
+const dpnrCleaningAnchor = typeof document !== "undefined" ? document.querySelector?.("#elmDiagnosticCard") : null;
+if (typeof dpnrCleaningAnchor?.insertAdjacentElement === "function") installDpnrCleaningTest({
   appVersion: APP_VERSION,
   canRun: () => {
     if (!state.connected || !state.client) return { ok: false, message: "Yhdistä ensin autoon." };
