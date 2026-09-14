@@ -1,5 +1,13 @@
 # Lexus OBD Flex
 
+Current version is defined only in `package.json`. Before any update or APK
+delivery, read [the release workflow](docs/VERSIONING.md) and the shared
+[`flex-release-registry`](https://github.com/olsu2001-lgtm/IS220d-OBD-Flex/blob/flex-release-registry/releases/registry.json).
+The latest registered source commit is the delivered baseline; `main` and old
+branch names may lag behind it.
+
+## Feature history
+
 Flex 0.8.1 yhdistää samaan kenttätestiversioon kolmen ajon ECU Surveyn,
 Field Test Moden, Techstream-vertailun, Evidence Support Bundle v1:n sekä
 IS220d / 2AD-FHV -moottorin DPNR-tarkistusnäkymän. Flex 0.8.1 estää nykyisellä

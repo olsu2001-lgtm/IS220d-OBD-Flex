@@ -1,3 +1,4 @@
+import { APP_VERSION } from "../src/app-version.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -43,9 +44,9 @@ function history({ fieldReady = false, techstreamLoaded = false } = {}) {
   };
 }
 
-test("Evidence Support Bundle exposes the 0.8.1 readiness state without approving a release", () => {
+test("Evidence Support Bundle exposes the current version readiness state without approving a release", () => {
   const collecting = buildEvidenceSupportBundle(history(), { generatedAt: 1000 });
-  assert.equal(collecting.releaseReadiness.targetVersion, "0.8.1");
+  assert.equal(collecting.releaseReadiness.targetVersion, APP_VERSION);
   assert.equal(collecting.releaseReadiness.status, "collecting-field-evidence");
   assert.equal(collecting.releaseReadiness.readyForReleaseReview, false);
   assert.equal(collecting.releaseReadiness.releaseApproved, false);

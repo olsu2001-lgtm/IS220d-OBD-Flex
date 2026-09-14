@@ -37,5 +37,5 @@ test("laaja diagnostiikka luovuttaa event loopin jokaisen vaiheen jälkeen", () 
 test("responsiveness-transformi on idempotentti ja failaa kiinni rakenteen muuttuessa", () => {
   const once = patchMainForResponsiveness(mainSource);
   assert.equal(patchMainForResponsiveness(once), once);
-  assert.throws(() => patchMainForResponsiveness('const APP_VERSION = "0.8.1";'), /appendTerminal/);
+  assert.throws(() => patchMainForResponsiveness('import { APP_VERSION } from "./app-version.js";'), /appendTerminal/);
 });

@@ -1,14 +1,9 @@
 import { app } from "nitron";
 
-// Historical release markers retained for source-level regression checks only.
-// The active Android package version is defined in app.init below.
-export const FLEX_090_RELEASE = Object.freeze({ version: "0.9.0" });
-export const FLEX_PREVIOUS_RELEASE = Object.freeze({ version: "0.9.1" });
-
 app.init({
   name: "Lexus OBD Flex",
   packageId: "fi.oliver.is220dobd",
-  version: "0.9.2",
+  // Nitron reads the version directly from package.json.
   entry: "index.html",
   orientation: "portrait",
   statusBar: true,

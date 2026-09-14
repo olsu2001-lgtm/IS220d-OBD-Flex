@@ -1,3 +1,4 @@
+import { APP_VERSION } from "./app-version.js";
 import {
   NativeElmTransport,
   NativeBleElmTransport,
@@ -102,7 +103,7 @@ import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const APP_VERSION = "0.8.1";
+$("#appVersionLabel").textContent = `Versio ${APP_VERSION}`;
 const DPNR_MONITOR_METRIC_IDS = Object.freeze([
   "dpnrDifferentialPressure",
   "dpnrInletTemperature",

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 
-const [htmlPath, bundlePath] = process.argv.slice(2);
+const [htmlPath, bundlePath, expectedVersion] = process.argv.slice(2);
 if (!htmlPath || !bundlePath) throw new Error("Usage: node scripts/ui-smoke.mjs <index.html> <app.bundle.js>");
 
 const html = await readFile(htmlPath, "utf8");
@@ -182,6 +182,8 @@ Object.assign(globalThis, {
 
 vm.runInThisContext(bundle, { filename: bundlePath });
 await new Promise(resolve => setTimeout(resolve, 60));
+
+if (expectedVersion) assert.equal(byId.get("appVersionLabel")?.textContent, `Versio ${expectedVersion}`, "visible version must match APK version");
 
 const startupDetails = `connectionError=${byId.get("connectionError")?.textContent || ""}; terminal=${byId.get("terminalLog")?.textContent || ""}`;
 assert.ok((byId.get("themeSelect")?.listeners.get("change") || []).length, `theme handler was not attached; ${startupDetails}`);

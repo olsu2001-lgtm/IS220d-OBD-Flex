@@ -1,5 +1,17 @@
 # Muutoshistoria
 
+## 0.9.3 · Yhtenäinen versiointi ja julkaisulukko
+
+- Versio tulee vain package.json-tiedostosta APK:hon, näkyvään käyttöliittymään
+  ja diagnostiikkaraportteihin. Androidin versionCode on 903.
+- Poistettu kiinteät 0.8.1-APK-nimet ja vanhoja tiedostoja säilyttävä jälkinimeäminen.
+- Kaikki haarat tarkistavat yhteisen GitHub-julkaisurekisterin. Tunnisteet
+  0.9.2:een asti on suljettu; jokainen uusi toimitus rekisteröi SHA-256-tiivisteet.
+- Valmiiden debug- ja release-APK:iden versiot, allekirjoitukset, sisältö ja
+  lähdekoodin commit tarkistetaan ennen rekisteröintiä ja jakamista.
+- Pohja on toimitettu 0.9.2 / 40fc602b74877e659170341418840f2c49e22a29.
+  Ajoneuvoprotokollia tai anturitulkinnoita ei muuteta.
+
 ## 0.8.1 · Suutintestin fail-closed-korjaus
 
 - Estää kentässä vastaamattoman Toyota `219C` -pyynnön ennen kuljetusta

@@ -1,3 +1,4 @@
+import { APP_VERSION } from "../src/app-version.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -145,7 +146,7 @@ test("release readiness text report is compact, review-only and contains no raw 
     techstreamComparison: techstreamComparison()
   });
   const report = buildReleaseReadinessTextReport(readiness);
-  assert.match(report, /Target version: 0\.8\.1/);
+  assert.ok(report.split("\n").includes(`Target version: ${APP_VERSION}`));
   assert.match(report, /Ready for release review: yes/);
   assert.match(report, /Release approved automatically: no/);
   assert.match(report, /Candidate mappings never satisfy a verified release gate/);
