@@ -7,7 +7,7 @@ read-only Android diagnostic application for a Lexus IS220d / XE20 / 2AD-FHV.
 
 - Application name: `IS220d OBD Flex`
 - Package ID: `fi.oliver.is220dobd`
-- Current baseline: `0.8.1` / versionCode `801`
+- Current baseline: `0.9.1` / versionCode `901`
 - `IS220d OBD Classic` is a separate project. Never import, merge or synchronize
   Classic code, transports, versioning or lifecycle into this repository.
 
@@ -47,7 +47,7 @@ builds or vehicle identity matter to a task.
   architecture and roadmap.
 
 Historical evidence never overrides this contract, `docs/SAFETY.md`,
-`docs/PROTOCOL.md`, current source or current regression tests. The 0.8.1
+`docs/PROTOCOL.md`, current source or current regression tests. The 0.9.1
 baseline retains reviewed read-only multi-vehicle workflows and field-disables the injector transaction
 with explicit profile separation, evidence labels and matching tests.
 
