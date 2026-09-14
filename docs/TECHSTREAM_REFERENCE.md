@@ -138,7 +138,7 @@ When a reference is loaded, the full ECU Survey text report appends a `TECHSTREA
 
 No Techstream proprietary raw file content or additional CAN/ELM transcript is added by this layer.
 
-## Relationship to the 0.7.0 field-validation gate
+## Relationship to the 0.8.0 field-validation gate
 
 The automatic three-run field-validation gate remains independent:
 
@@ -148,4 +148,4 @@ The automatic three-run field-validation gate remains independent:
 4. load/review the Techstream reference separately;
 5. only then decide whether the ECU Survey evidence is sufficient for a vehicle-validated release or a new ECU mapping PR.
 
-A reference import does not automatically convert the field-validation gate into a 0.7.0 release approval.
+A reference import does not automatically convert the field-validation gate into a 0.8.0 release approval.

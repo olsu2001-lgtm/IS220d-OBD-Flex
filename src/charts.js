@@ -2,8 +2,12 @@ export function drawLineChart(canvas, points, options = {}) {
   if (!canvas) return;
   const rect = canvas.getBoundingClientRect();
   const width = Math.max(260, Math.round(rect.width || canvas.clientWidth || 320));
-  const height = Number(canvas.getAttribute("height")) || 210;
+  // Keep the CSS chart height independent from the backing-store pixel height.
+  // Reading the height attribute here caused it to be multiplied by DPR again
+  // on every redraw (210 -> 420 -> 840 on a DPR 2 phone).
+  const height = Math.max(120, Number(options.height) || 210);
   const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
+  if (canvas.style) canvas.style.height = `${height}px`;
   canvas.width = width * dpr;
   canvas.height = height * dpr;
   const ctx = canvas.getContext("2d");
