@@ -4,10 +4,11 @@ import { readFile } from "node:fs/promises";
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("0.9.1 muodostaa uuden versionoidun lähtötason 0.9.0:n jälkeen", async () => {
+test("0.9.2 muodostaa uuden versionoidun lähtötason 0.9.1:n jälkeen", async () => {
   const [app, pkg] = await Promise.all([read("app.js"), read("package.json")]);
-  assert.match(app, /version:\s*"0\.9\.1"/);
-  assert.equal(JSON.parse(pkg).version, "0.9.1");
+  assert.match(app, /version:\s*"0\.9\.2"/);
+  assert.match(app, /FLEX_PREVIOUS_RELEASE[\s\S]*version:\s*"0\.9\.1"/);
+  assert.equal(JSON.parse(pkg).version, "0.9.2");
 });
 
 test("DPNR-näkymä näyttää tulkitut arvot, raakavasteet ja lokituksen", async () => {
