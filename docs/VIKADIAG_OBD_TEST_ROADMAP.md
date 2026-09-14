@@ -93,3 +93,60 @@ The delivered baseline remains Flex 0.9.4 while this roadmap is developed.
 Source-only catalog changes must not call `version:next`, use a `release/*` branch,
 build an APK for distribution, modify the shared release registry or upload a new
 Flex package to Drive. A later release begins only after explicit user approval.
+
+
+
+## Batch 2: live Drive rows 11–25 (2026-09-14)
+
+Reviewed against PR #29 head `59524a5c2b9fc111856dbdb1192c1d7f05f0daf4`.
+The live registry identifies delivered source `17e8a96419724421cb4625abe6f20ebbfb36dcff`;
+the four later commits change only this catalog, its tests and roadmap.
+Package version remains unchanged. Supporting reads: Diag_ryhmät rows 1–20,
+Moottorisähkö_audit rows 1–40, BOM rows 133–134 and 194–195.
+The audit and corrected Vikadiag row resolve the misleading BOM cam-sensor name.
+
+Role describes available diagnostic scope; readiness separately records whether
+the component-specific conclusion is blocked. No newly reviewed row is direct.
+
+| Drive row | Component | Role | Readiness |
+|---:|---|---|---|
+| 11 | Laturi | indirect | indirect-existing-signals |
+| 12 | Starttimoottori | indirect | indirect-existing-signals |
+| 13 | Kytkimen pääsylinteri | physical-only | physical-only |
+| 14 | Kardaani keskilaakereineen | physical-only | physical-only |
+| 15 | Kardaanin keskilaakeri | physical-only | physical-only |
+| 16 | Nokka-akselin asentotunnistin / sylinterintunnistusanturi | indirect | needs-signal-verification |
+| 17 | Kampiakselin asentotunnistin | indirect | indirect-existing-signals |
+| 18 | Ilmansuodatinkotelo kokonaisuutena | indirect | indirect-existing-signals |
+| 19 | Moottorin ilmansuodatin | indirect | indirect-existing-signals |
+| 20 | Ilmaputki ja kiristimet MAFin/turbon imupuolella | indirect | indirect-existing-signals |
+| 21 | Välijäähdytin | indirect | indirect-existing-signals |
+| 22 | Imusarja | indirect | indirect-existing-signals |
+| 23 | Imusarjan tiiviste | indirect | indirect-existing-signals |
+| 24 | Pakosarja ja pakosarjan tiiviste | indirect | indirect-existing-signals |
+| 25 | Turboahdin | indirect | indirect-existing-signals |
+
+There are 13 small draft recipes and 14 references to existing inspection points
+in this batch. Existing alternator, starter, crank, intake hose, intercooler,
+intake manifold and turbo points are referenced, not cloned. The first nine
+catalog entries remain intact, including the dedicated DPNR test link.
+
+Every continuation row retains its live source range, symptom, source confidence,
+physical follow-up, operating states, evidence labels and explicit limitations.
+Recipes use the existing inspection-point field vocabulary. They do not enter
+the UI, polling plan, execution state or capture history yet. A later integration
+should use those existing modules, including `is220d-capture-history.js`; it must
+not interpret absent/invalid samples as zero or a completed physical inspection.
+
+Missing evidence includes cam/crank synchronization, start/clutch input states,
+charging feedback, boost target and EGR target. Measured EGR position is not an
+EGR command; MAP is absolute pressure. No absolute fault thresholds are added.
+
+Manual visuals remain `pending-extract`: location and inspection diagrams for all
+rows, connector views for electrical components and exploded views for mechanical
+parts. The attached ISO is available, but no exact figure was identified for this
+batch. Search metadata is not a claim that a picture has been found.
+
+Validation: 13 deterministic catalog tests pass locally. Full regression/safety
+results are recorded by PR CI; release check/build/register/upload must be skipped.
+Next unreviewed Drive row: **26**.
