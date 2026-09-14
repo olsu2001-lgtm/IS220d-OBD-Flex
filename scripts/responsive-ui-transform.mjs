@@ -3,6 +3,7 @@ import { patchMainForDpnrCleaningTest } from "./dpnr-cleaning-main-transform.mjs
 export const RESPONSIVE_UI_BUILD_MARKER = "__IS220D_RESPONSIVE_UI_V1__";
 
 const APP_VERSION_ANCHOR = 'const APP_VERSION = "0.8.1";';
+const BUILD_APP_VERSION = "0.9.1";
 const APPEND_TERMINAL = `function appendTerminal(text) {
   state.terminalEntries.push(text);
   if (state.terminalEntries.length > 600) state.terminalEntries.splice(0, state.terminalEntries.length - 600);
@@ -65,7 +66,7 @@ export function patchMainForResponsiveness(source) {
   if (count(input, RUN_DIAGNOSTIC_STEPS) !== 1) throw new Error("Responsive UI transform: runFullDiagnosticSteps shape changed");
 
   const responsive = input
-    .replace(APP_VERSION_ANCHOR, `${APP_VERSION_ANCHOR}${HELPERS}`)
+    .replace(APP_VERSION_ANCHOR, `const APP_VERSION = "${BUILD_APP_VERSION}";${HELPERS}`)
     .replace(APPEND_TERMINAL, `function appendTerminal(text) {
   state.terminalEntries.push(text);
   if (state.terminalEntries.length > 600) state.terminalEntries.splice(0, state.terminalEntries.length - 600);
