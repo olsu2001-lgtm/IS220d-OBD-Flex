@@ -105,6 +105,25 @@ export function sortAdapterDevices(devices = []) {
     });
 }
 
+export function restoreMissingClassicSelection(devices = [], remembered = {}) {
+  const address = cleanName(remembered.address).toUpperCase();
+  const transport = cleanName(remembered.transport).toLowerCase();
+  if (!address || address === "FAKE:IS220D" || transport !== "classic") return [...devices];
+
+  const hasRememberedClassic = devices.some(device =>
+    cleanName(device.transport || "classic").toLowerCase() === "classic" &&
+    cleanName(device.address).toUpperCase() === address
+  );
+  if (hasRememberedClassic) return [...devices];
+
+  return [...devices, {
+    name: cleanName(remembered.name) || "Aiemmin valittu Classic-laite",
+    address,
+    transport: "classic",
+    pairingRequired: true
+  }];
+}
+
 export function selectedAdapterHelp(profile = {}) {
   const device = classifyAdapterDevice(profile);
   if (device.vlinker && device.transport === "classic") {
