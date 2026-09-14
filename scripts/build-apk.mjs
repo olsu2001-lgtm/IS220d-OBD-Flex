@@ -10,6 +10,7 @@ import { sha256, verifyArtifacts } from "./verify-release.mjs";
 import { patchCoreForAsyncNativeBridge } from "./async-native-core-transform.mjs";
 import { IM_READINESS_BUILD_MARKER, patchMainForImReadiness } from "./im-readiness-main-transform.mjs";
 import { RESPONSIVE_UI_BUILD_MARKER, patchMainForResponsiveness } from "./responsive-ui-transform.mjs";
+import { VLINKER_RECOVERY_BUILD_MARKER, patchMainForVLinkerRecovery } from "./vlinker-recovery-main-transform.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const buildRoot = path.join(root, ".build");
@@ -38,7 +39,11 @@ const buildTransformPlugin = {
       loader: "js"
     }));
     build.onLoad({ filter: /[\\/]src[\\/]main\.js$/ }, args => ({
-      contents: patchMainForResponsiveness(patchMainForImReadiness(fs.readFileSync(args.path, "utf8"))),
+      contents: patchMainForVLinkerRecovery(
+        patchMainForResponsiveness(
+          patchMainForImReadiness(fs.readFileSync(args.path, "utf8"))
+        )
+      ),
       loader: "js"
     }));
   }
@@ -151,6 +156,7 @@ async function buildVariant(label, minify, filename) {
   if (!bundleText.includes("__PENDING__")) throw new Error(`${label}-APK:sta puuttuu asynkroninen OBD-silta`);
   if (!bundleText.includes(IM_READINESS_BUILD_MARKER)) throw new Error(`${label}-APK:sta puuttuu I/M readiness -build-markkeri`);
   if (!bundleText.includes(RESPONSIVE_UI_BUILD_MARKER)) throw new Error(`${label}-APK:sta puuttuu responsiveness-build-markkeri`);
+  if (!bundleText.includes(VLINKER_RECOVERY_BUILD_MARKER)) throw new Error(`${label}-APK:sta puuttuu vLinker recovery -build-markkeri`);
   return output;
 }
 

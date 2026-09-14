@@ -7,13 +7,36 @@ read-only Android diagnostic application for a Lexus IS220d / XE20 / 2AD-FHV.
 
 - Application name: `IS220d OBD Flex`
 - Package ID: `fi.oliver.is220dobd`
-- Current version: read `package.json`; never infer it from a branch name or this document.
+- Current source version: read `package.json`; never infer it from a branch name,
+  chat memory, an APK filename or this document.
 - Shared release registry: `releases/registry.json` on branch `flex-release-registry`.
-  Read it live at the start of every update; the highest registered source commit
-  identifies the latest delivered baseline even when `main` is older.
+  Read it live before release work; the highest registered source commit identifies
+  the latest delivered baseline even when `main` or a development branch differs.
 - Required release workflow: read `docs/VERSIONING.md`.
 - `IS220d OBD Classic` is a separate project. Never import, merge or synchronize
   Classic code, transports, versioning or lifecycle into this repository.
+
+## AI handoff rules
+
+GitHub is the durable project state. These rules intentionally make it possible
+for a less capable or context-poor agent to continue development without relying
+on a previous chat transcript.
+
+- Start by reading `AGENTS.md`, `docs/VERSIONING.md`, the live release registry,
+  the relevant source and its tests. Do not reconstruct project state from memory.
+- A source-only fix **does not reserve or increment an app version**. Keep the
+  currently delivered `package.json:version` while developing and reviewing code.
+- Use ordinary branches such as `fix/*`, `feat/*` or `work/*` for source work.
+  Their pull requests run tests only and must not publish APKs.
+- A `release/*` branch is an explicit publication signal. Do not create or rename
+  a branch to `release/*` unless the user has explicitly requested a new APK or
+  release. Before doing so, run `npm run version:next` and verify the live registry.
+- Every delivered APK, including a changed test APK, gets a globally unused
+  version. A registered version is immutable and can never be rebuilt with new
+  source under the same identifier.
+- Keep behavior rules close to the code and lock them with deterministic tests.
+  When adding a build-time source transform, make it fail closed on changed
+  anchors, make it idempotent and add a marker that the APK build verifies.
 
 ## Non-negotiable safety boundary
 
@@ -34,6 +57,26 @@ read-only Android diagnostic application for a Lexus IS220d / XE20 / 2AD-FHV.
 
 Read `docs/SAFETY.md` and `docs/PROTOCOL.md` before changing any transport,
 profile, parser, measurement or Android bridge code.
+
+## vLinker Android connection invariants
+
+- For vLinker MC / MC+, Android Bluetooth Classic/SPP (`vLinker MC` or
+  `vLinker MC-Android`) is the primary route. The documented pairing PIN in the
+  current UI guidance is `1234`.
+- `vLinker MC-IOS` is a BLE advertisement/route. Seeing it does not prove that
+  the Android Classic bond exists or is healthy.
+- If MC-IOS is visible but no bonded Classic vLinker is returned, present this as
+  a Classic-pairing recovery condition. Do not silently treat BLE as a replacement
+  for a lost Classic bond.
+- Persist the automatic device/transport preference only **after** the adapter
+  protocol has initialized successfully. A failed GATT/ELM attempt must never
+  overwrite the last known-good route.
+- Connection-stage UI must distinguish radio/GATT success from ELM327 success.
+  If GATT opened but ELM initialization failed and the transport was closed, the
+  Bluetooth stage must not remain falsely green.
+- The packaged behavior is applied by
+  `scripts/vlinker-recovery-main-transform.mjs`; its regression tests are in
+  `tests/vlinker-recovery-build.test.mjs`.
 
 ## Imported Drive evidence
 
@@ -58,26 +101,24 @@ with explicit profile separation, evidence labels and matching tests.
 
 ## Change workflow
 
-1. Read the shared release registry from `flex-release-registry`, inspect the
-   FLEX app Drive folder and CI history, and start from the latest delivered
-   source commit. Never start from an older default branch without reconciling
-   newer work. Run `npm run version:next` to select an unused version from the
-   shared maximum. Only `package.json:version` is editable; the lockfile is
-   synchronized by that command. Never reuse a distributed version, even for a
-   different branch, retry, filename, commit or variant.
-2. Work on a dedicated branch; do not push an unreviewed change to `main`.
-3. Make the smallest change that satisfies the issue.
-4. Add or update deterministic tests for every behavior change.
-5. Run `npm ci`, `npm test` and `npm run build`.
-6. Verify that package ID, version, permissions and command allowlists did not
-   change unexpectedly.
-7. Run `npm run release:register` after APK verification and before distributing
-   any APK. CI does this automatically before artifact upload. A registry/network
-   error blocks delivery; never use a cached ledger, force an update or rename an
-   old APK to bypass it. Registered APKs are immutable; reuse the exact bytes or
-   select a new version. Never change the registry branch from feature code.
-8. Describe safety impact, tests and field-verification status in the pull
-   request. Simulated success is not vehicle verification.
+1. Read the live registry and identify the latest delivered source commit. Start
+   source work from that baseline or explicitly reconcile any later unshipped work.
+2. Work on a dedicated non-release branch. Do not bump `package.json:version`
+   merely to develop, review or test source code.
+3. Make the smallest change that satisfies the issue and add deterministic tests.
+4. Run `npm ci` and `npm test`. A normal source PR is expected to stop here; CI
+   intentionally does not build or register an APK from `fix/*`, `feat/*` or
+   `work/*` branches.
+5. When and only when the user requests a new APK/delivery, read the live registry
+   again, run `npm run version:next`, commit the version/lockfile change and use a
+   `release/*` branch (or an explicitly authorized manual publish dispatch).
+6. The release path runs `npm run release:check`, `npm run build`, APK verification
+   and `npm run release:register`. Any registry/network/version conflict blocks
+   delivery. Never bypass the live registry or rename old APK bytes.
+7. Verify package ID, version, permissions, command allowlists, source SHA and APK
+   hashes. Deliver only the exact registered APK bytes.
+8. Describe behavior, tests and field-verification status in the pull request.
+   Simulated success is not vehicle verification.
 
 ## Evidence policy
 
@@ -90,6 +131,7 @@ with explicit profile separation, evidence labels and matching tests.
 
 ## Completion criteria
 
-A change is complete only when all tests pass, both APK variants build, safety
-tests remain green, documentation matches behavior and no generated files or
-signing secrets are committed.
+A source change is ready for review when deterministic tests pass, safety tests
+remain green and documentation matches behavior. A release is complete only when
+both APK variants also build and verify, the exact hashes are registered, and no
+generated files or signing secrets are committed.

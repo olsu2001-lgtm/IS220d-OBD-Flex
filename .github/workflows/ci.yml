@@ -5,11 +5,19 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Build, register and upload a new APK release"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
 
-# One queue for all release branches; registry writes also compare the blob SHA.
+# Source-review PRs must be cheap and safe for any development agent. APK publication
+# is opt-in: either use a release/* branch or manually dispatch with publish=true.
+# The shared release registry still serializes and rejects reused version identities.
 concurrency:
   group: flex-release
   cancel-in-progress: false
@@ -22,6 +30,7 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ github.token }}
       FLEX_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      FLEX_PUBLISH: ${{ (github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
     steps:
       - name: Checkout exact source commit
         uses: actions/checkout@v4
@@ -41,23 +50,24 @@ jobs:
         run: npm ci
       - name: Run regression and safety tests
         run: npm test
-      # Main merges run tests only: reuse the registered APK instead of rebuilding
-      # the same version with a new timestamp or signature.
+
+      # Normal fix/feature/work branches stop here. This allows source review without
+      # consuming a version number or accidentally publishing an APK.
       - name: Check shared release registry
-        if: github.event_name != 'push'
+        if: env.FLEX_PUBLISH == 'true'
         run: npm run release:check
       - name: Build and verify debug and release APKs
-        if: github.event_name != 'push'
+        if: env.FLEX_PUBLISH == 'true'
         run: npm run build
       - name: Register exact APK hashes before distribution
-        if: github.event_name != 'push'
+        if: env.FLEX_PUBLISH == 'true'
         run: npm run release:register
       - name: Read registered version
-        if: github.event_name != 'push'
+        if: env.FLEX_PUBLISH == 'true'
         id: app_version
         run: node -e 'const fs=require("fs"); const info=require("./dist/release-registration.json"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `value=${info.versionName}\n`);'
       - name: Upload registered APK artifact
-        if: github.event_name != 'push'
+        if: env.FLEX_PUBLISH == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Lexus-OBD-Flex-${{ steps.app_version.outputs.value }}-${{ github.event.pull_request.head.sha || github.sha }}
