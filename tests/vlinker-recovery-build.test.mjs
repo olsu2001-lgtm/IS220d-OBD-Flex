@@ -45,7 +45,18 @@ test("failed selections cannot overwrite the automatic last-successful route", (
   assert.ok(connectedIndex >= 0, "state.connected success anchor must remain present");
   assert.ok(successPersistIndex > connectedIndex, "successful route must be persisted only after adapter initialization");
   assert.ok(legacyPersistIndex > connectedIndex, "legacy compatibility key must also be written only after success");
-  assert.equal(transformed.indexOf('  localStorage.setItem("lastObdDevice", address);'), -1, "connect start must not persist a merely selected device");
+
+  const beforeSuccessfulInitialization = transformed.slice(0, connectedIndex);
+  assert.doesNotMatch(
+    beforeSuccessfulInitialization,
+    /localStorage\.setItem\("lastObdDevice", address\)/,
+    "connect start must not persist a merely selected device"
+  );
+  assert.doesNotMatch(
+    beforeSuccessfulInitialization,
+    /localStorage\.setItem\("lastObdTransport", transportType\)/,
+    "connect start must not persist a merely selected transport"
+  );
 });
 
 test("missing Classic bond is a recovery state instead of a silent MC-IOS replacement", () => {
