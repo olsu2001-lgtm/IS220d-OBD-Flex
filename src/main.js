@@ -103,7 +103,7 @@ import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const APP_VERSION = "0.8.2";
+const APP_VERSION = "0.8.1";
 const DPNR_MONITOR_METRIC_IDS = Object.freeze([
   "dpnrDifferentialPressure",
   "dpnrInletTemperature",
