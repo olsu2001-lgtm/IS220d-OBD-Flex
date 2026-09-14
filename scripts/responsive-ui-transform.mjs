@@ -1,3 +1,5 @@
+import { patchMainForDpnrCleaningTest } from "./dpnr-cleaning-main-transform.mjs";
+
 export const RESPONSIVE_UI_BUILD_MARKER = "__IS220D_RESPONSIVE_UI_V1__";
 
 const APP_VERSION_ANCHOR = 'const APP_VERSION = "0.8.1";';
@@ -56,13 +58,13 @@ function count(source, needle) {
 
 export function patchMainForResponsiveness(source) {
   const input = String(source || "");
-  if (input.includes(RESPONSIVE_UI_BUILD_MARKER)) return input;
+  if (input.includes(RESPONSIVE_UI_BUILD_MARKER)) return patchMainForDpnrCleaningTest(input);
   if (count(input, APP_VERSION_ANCHOR) !== 1) throw new Error("Responsive UI transform: APP_VERSION anchor missing or ambiguous");
   if (count(input, APPEND_TERMINAL) !== 1) throw new Error("Responsive UI transform: appendTerminal shape changed");
   if (count(input, APPEND_ELM_DIAGNOSTIC) !== 1) throw new Error("Responsive UI transform: appendElmDiagnosticLine shape changed");
   if (count(input, RUN_DIAGNOSTIC_STEPS) !== 1) throw new Error("Responsive UI transform: runFullDiagnosticSteps shape changed");
 
-  return input
+  const responsive = input
     .replace(APP_VERSION_ANCHOR, `${APP_VERSION_ANCHOR}${HELPERS}`)
     .replace(APPEND_TERMINAL, `function appendTerminal(text) {
   state.terminalEntries.push(text);
@@ -82,4 +84,5 @@ export function patchMainForResponsiveness(source) {
     await yieldUiTurn();
   }
 }`);
+  return patchMainForDpnrCleaningTest(responsive);
 }
