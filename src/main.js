@@ -61,6 +61,7 @@ import {
   MANAGED_RECONNECT_DELAYS_MS,
   classifyAdapterDevice,
   sortAdapterDevices,
+  restoreMissingClassicSelection,
   selectedAdapterHelp,
   formatAdapterCapabilitySummary
 } from "./adapter-profile.js";
@@ -102,7 +103,7 @@ import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const APP_VERSION = "0.8.1";
+const APP_VERSION = "0.8.2";
 const DPNR_MONITOR_METRIC_IDS = Object.freeze([
   "dpnrDifferentialPressure",
   "dpnrInletTemperature",
@@ -753,6 +754,7 @@ async function refreshDevices(scanBle = true) {
   const currentOption = select.selectedOptions[0];
   const previous = currentOption?.dataset.address || localStorage.getItem("lastObdDevice") || "";
   const previousTransport = currentOption?.dataset.transport || localStorage.getItem("lastObdTransport") || "";
+  const previousName = currentOption?.dataset.name || localStorage.getItem("lastObdName") || "";
   const refreshButton = $("#refreshDevices");
   refreshButton.disabled = true;
   refreshButton.textContent = "Haetaan…";
@@ -790,6 +792,11 @@ async function refreshDevices(scanBle = true) {
     });
   }
   state.bleDiagnosticsBase = buildBleDiagnosticsReport(devices, diagnostics, scanBle, scanError || diagnostics.diagnosticError || "");
+  devices = restoreMissingClassicSelection(devices, {
+    address: previous,
+    transport: previousTransport,
+    name: previousName
+  });
   renderBleDiagnostics();
   if (scanBle) appendTerminal(`${formatClock(Date.now())}  BLE-haku valmis\n${state.bleDiagnosticsBase}`);
   const unique = new Map();
@@ -807,7 +814,8 @@ async function refreshDevices(scanBle = true) {
     option.value = `${transport}:${device.address}`;
     const type = device.simulated ? "" : profile.channelLabel;
     const signal = device.transport === "ble" && Number.isFinite(device.rssi) ? ` · ${device.rssi} dBm` : "";
-    option.textContent = `${profile.adapterLabel}${device.simulated ? "" : ` · ${type}${signal} · ${device.address}`}`;
+    const pairing = device.pairingRequired ? " · PARITUS VAADITAAN" : "";
+    option.textContent = `${profile.adapterLabel}${device.simulated ? "" : ` · ${type}${signal}${pairing} · ${device.address}`}`;
     option.dataset.simulated = String(Boolean(device.simulated));
     option.dataset.transport = transport;
     option.dataset.address = device.address;
@@ -817,6 +825,7 @@ async function refreshDevices(scanBle = true) {
     option.dataset.vlinker = String(profile.vlinker);
     option.dataset.quicklynks = String(profile.quicklynks);
     option.dataset.knownFallback = String(Boolean(device.knownFallback));
+    option.dataset.pairingRequired = String(Boolean(device.pairingRequired));
     select.append(option);
   }
   const match = devices.find(device => device.address === previous && (!previousTransport || (device.transport || "simulated") === previousTransport));
@@ -865,7 +874,10 @@ function renderAdapterSupport() {
 
 function updateDeviceHelp() {
   const profile = selectedAdapterProfile();
-  if (profile.transport === "ble") {
+  const pairingRequired = $("#deviceSelect").selectedOptions[0]?.dataset.pairingRequired === "true";
+  if (pairingRequired) {
+    $("#deviceHelp").textContent = "Aiemmin valitun Bluetooth Classic -laitteen Android-paritus puuttuu. Valitse Yhdistä ja syötä vLinker MC / MC+ -PIN 1234. MC-IOS on saman adapterin erillinen BLE-kanava, eikä Flex vaihda siihen automaattisesti.";
+  } else if (profile.transport === "ble") {
     const directFallback = $("#deviceSelect").selectedOptions[0]?.dataset.knownFallback === "true";
     $("#deviceHelp").textContent = directFallback
       ? "Androidin haku ei palauttanut Motonet-lukijaa, joten Flex yrittää yhteyttä suoraan varmennettuun BLE-osoitteeseen. Lukijaa ei pariteta Androidin asetuksissa."
@@ -890,6 +902,7 @@ async function connect() {
   const selectedProfile = selectedAdapterProfile();
   localStorage.setItem("lastObdDevice", address);
   localStorage.setItem("lastObdTransport", transportType);
+  localStorage.setItem("lastObdName", selectedProfile.name || selectedOption?.dataset.name || "");
   localStorage.setItem("obdProtocol", protocol);
   showConnectionError();
   state.connecting = true;
@@ -985,7 +998,10 @@ async function connect() {
     $("#quicklynksRawRow").classList.add("hidden");
     setConnectionStatus("error", "Yhteysvirhe");
     if (state.connectionStages.bluetooth.status === "testing") setConnectionStage("bluetooth", "error", error.message);
-    showConnectionError(connectionAdvice(error));
+    const pairingHint = selectedProfile.vlinker && transportType === "classic"
+      ? " Tarkista Androidin parituspyyntö ja käytä PIN-koodia 1234. Jos PIN meni väärin, valitse sama PARITUS VAADITAAN -laite uudelleen; MC-IOS on erillinen BLE-kanava."
+      : "";
+    showConnectionError(`${connectionAdvice(error)}${pairingHint}`);
   } finally {
     state.connecting = false;
     updateConnectionButtons();
