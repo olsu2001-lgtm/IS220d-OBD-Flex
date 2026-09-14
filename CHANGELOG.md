@@ -1,5 +1,15 @@
 # Muutoshistoria
 
+## 0.9.1 · vLinker Classic -parituksen palautus
+
+- Säilyttää aiemmin valitun vLinker MC / MC+ Classic -laitteen laitevalikossa,
+  vaikka väärä PIN poistaisi epäonnistuneen parituksen Androidin bonded-listasta.
+- Merkitsee puuttuvan Classic-parituksen tilalla `PARITUS VAADITAAN` ja ohjaa
+  yrittämään uudelleen PIN-koodilla `1234`.
+- Estää automaattisen siirtymisen saman adapterin `vLinker MC-IOS` -BLE-kanavaan.
+- Yhtenäistää sovelluksen, Android-paketin, buildin ja dokumentaation versioon
+  `0.9.1` / `versionCode 901`.
+
 ## 0.8.1 · Suutintestin fail-closed-korjaus
 
 - Estää kentässä vastaamattoman Toyota `219C` -pyynnön ennen kuljetusta
