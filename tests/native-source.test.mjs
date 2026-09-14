@@ -36,7 +36,7 @@ test("BLE-haku käyttää kolmea Android-hakuvaihetta pääsäikeellä ja raport
   assert.match(bridge, /scanObdFilterCallbacks/);
   assert.match(bridge, /scanCallbackCount/);
   assert.match(bridge, /scanDurationMs/);
-  assert.match(bridge, /Activity;->runOnUiThread\(Ljava\/lang\/Runnable;\)V/);
+  assert.match(bridge, /Activity;->runOnUiThread\(Landroid\/os\/Runnable;\)V/);
   assert.match(callback, /BleObdBridge;->noteScanResult\(\)V/);
   assert.match(simpleStart, /BluetoothLeScanner;->startScan/);
   assert.match(configuredStart, /BluetoothLeScanner;->startScan\(Ljava\/util\/List;Landroid\/bluetooth\/le\/ScanSettings;/);
@@ -56,12 +56,12 @@ test("Bluetooth Classic SPP ja tavallinen ASCII-ELM327 säilyvät lähteessä", 
   assert.match(core, /this\.command\("ATL0"/);
 });
 
-test("0.9.0 ei pyydä internetoikeutta ja säilyttää Flex-pakettitunnuksen", async () => {
+test("0.9.1 ei pyydä internetoikeutta ja säilyttää Flex-pakettitunnuksen", async () => {
   const app = await read("app.js");
 
   assert.match(app, /packageId:\s*"fi\.oliver\.is220dobd"/);
   assert.match(app, /name:\s*"Lexus OBD Flex"/);
-  assert.match(app, /version:\s*"0\.9\.0"/);
+  assert.match(app, /version:\s*"0\.9\.1"/);
   assert.equal(app.includes("android.permission.INTERNET"), false);
 });
 
