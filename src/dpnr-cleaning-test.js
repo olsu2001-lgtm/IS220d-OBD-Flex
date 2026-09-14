@@ -1,30 +1,9 @@
 export const DPNR_CLEANING_TEST_STORAGE_KEY = "lexusIs220dDpnrCleaningTestV1";
 
 export const DPNR_CLEANING_PHASES = Object.freeze({
-  koeo: Object.freeze({
-    id: "koeo",
-    label: "KOEO · virrat päällä, moottori sammuksissa",
-    durationMs: 5000,
-    instruction: "Virrat päälle, moottori sammuksissa. Aloita DPNR-live ja tallenna nollataso.",
-    rpmMin: null,
-    rpmMax: 80
-  }),
-  idle: Object.freeze({
-    id: "idle",
-    label: "Tyhjäkäynti",
-    durationMs: 6000,
-    instruction: "Käynnistä moottori ja anna sen käydä vakaata tyhjäkäyntiä ilman kaasua.",
-    rpmMin: 500,
-    rpmMax: 1600
-  }),
-  rpm3000: Object.freeze({
-    id: "rpm3000",
-    label: "3000 rpm · ei kuormaa",
-    durationMs: 6000,
-    instruction: "Vaihde vapaalle. Pidä kierrokset mahdollisimman tasaisesti noin 3000 rpm:ssa mittauksen ajan.",
-    rpmMin: 2700,
-    rpmMax: 3300
-  })
+  koeo: Object.freeze({ id: "koeo", label: "KOEO · virrat päällä, moottori sammuksissa", durationMs: 5000, instruction: "Virrat päälle, moottori sammuksissa. Aloita DPNR-live ja tallenna nollataso.", rpmMin: null, rpmMax: 80 }),
+  idle: Object.freeze({ id: "idle", label: "Tyhjäkäynti", durationMs: 6000, instruction: "Käynnistä moottori ja anna sen käydä vakaata tyhjäkäyntiä ilman kaasua.", rpmMin: 500, rpmMax: 1600 }),
+  rpm3000: Object.freeze({ id: "rpm3000", label: "3000 rpm · ei kuormaa", durationMs: 6000, instruction: "Vaihde vapaalle. Pidä kierrokset mahdollisimman tasaisesti noin 3000 rpm:ssa mittauksen ajan.", rpmMin: 2700, rpmMax: 3300 })
 });
 
 function freeze(value) {
@@ -36,10 +15,7 @@ function freeze(value) {
 
 export function parseFlexNumber(value) {
   if (typeof value === "number") return Number.isFinite(value) ? value : NaN;
-  const text = String(value ?? "")
-    .replace(/\s+/g, "")
-    .replace(",", ".")
-    .replace(/[^0-9+\-.]/g, "");
+  const text = String(value ?? "").replace(/\s+/g, "").replace(",", ".").replace(/[^0-9+\-.]/g, "");
   if (!text || text === "-" || text === ".") return NaN;
   const parsed = Number.parseFloat(text);
   return Number.isFinite(parsed) ? parsed : NaN;
@@ -73,37 +49,17 @@ export function summarizeDpnrCleaningSamples(samples = [], phaseId = "") {
 
 export function assessDpnrCleaningPhase(phaseId, summary) {
   const pressure = Number(summary?.pressureMedianKpa);
-  if (!Number.isFinite(pressure)) {
-    return freeze({ status: "no-data", label: "EI DATAA", message: "217E-paine-eroa ei saatu mittausjaksolta." });
-  }
+  if (!Number.isFinite(pressure)) return freeze({ status: "no-data", label: "EI DATAA", message: "217E-paine-eroa ei saatu mittausjaksolta." });
   if (phaseId === "rpm3000" && pressure < 0) {
-    return freeze({
-      status: "strong-deviation",
-      label: "NEGATIIVINEN 3000 RPM",
-      message: "GSIC P1426 -diagnostiikan mukaan negatiivinen DPNR-paine-ero noin 3000 rpm:ssa ilman kuormaa on epälooginen. Tarkista paineletkujen järjestys, tukos ja pressure transmitting pipe -linjat."
-    });
+    return freeze({ status: "strong-deviation", label: "NEGATIIVINEN 3000 RPM", message: "GSIC P1426 -diagnostiikan mukaan negatiivinen DPNR-paine-ero noin 3000 rpm:ssa ilman kuormaa on epälooginen. Tarkista paineletkujen järjestys, tukos ja pressure transmitting pipe -linjat." });
   }
   if (phaseId === "idle" && pressure < 0) {
-    return freeze({
-      status: "deviation",
-      label: "NEGATIIVINEN",
-      message: "Paine-ero on negatiivinen myös tyhjäkäynnillä. Vertaa KOEO-nollatasoon ja 3000 rpm -mittaukseen ennen osien vaihtamista."
-    });
+    return freeze({ status: "deviation", label: "NEGATIIVINEN", message: "Paine-ero on negatiivinen myös tyhjäkäynnillä. Vertaa KOEO-nollatasoon ja 3000 rpm -mittaukseen ennen osien vaihtamista." });
   }
   if (phaseId === "koeo") {
-    return freeze({
-      status: "observed",
-      label: "NOLLATASO TALLENNETTU",
-      message: "GSIC:n vertailussa KOEO-paine-eron tulee olla noin 0 kPa. Flex ei aseta tälle omaa keksittyä hyväksymisrajaa, vaan tallentaa arvon ennen/jälkeen-vertailuun."
-    });
+    return freeze({ status: "observed", label: "NOLLATASO TALLENNETTU", message: "GSIC:n vertailussa KOEO-paine-eron tulee olla noin 0 kPa. Flex ei aseta tälle omaa keksittyä hyväksymisrajaa, vaan tallentaa arvon ennen/jälkeen-vertailuun." });
   }
-  return freeze({
-    status: "observed",
-    label: "DATA TALLENNETTU",
-    message: phaseId === "rpm3000"
-      ? "Paine-eron merkki on positiivinen tässä mittauksessa. Tämä ei yksin todista DPNR:n kuntoa tai tukkeutumattomuutta."
-      : "Mittaus tallennettu vertailua varten."
-  });
+  return freeze({ status: "observed", label: "DATA TALLENNETTU", message: phaseId === "rpm3000" ? "Paine-eron merkki on positiivinen tässä mittauksessa. Tämä ei yksin todista DPNR:n kuntoa tai tukkeutumattomuutta." : "Mittaus tallennettu vertailua varten." });
 }
 
 export function compareDpnrCleaningRuns(before = null, after = null) {
@@ -124,7 +80,7 @@ export function compareDpnrCleaningRuns(before = null, after = null) {
       message = "3000 rpm -paine-ero on puhdistuksen jälkeen edelleen negatiivinen. Tarkista letkujen järjestys, jäljelle jäänyt tukos, transmitting pipe -linjat ja paine-eroanturi.";
     } else {
       outcome = "comparable";
-      message = "Molempien 3000 rpm -mittausten paine-eron merkki on ei-negatiivinen. Vertaa arvoja, raakavastetta ja KOEO-nollatasoa; tämä testi ei määritä DPNR:n tukkeutumisrajaa."
+      message = "Molempien 3000 rpm -mittausten paine-eron merkki on ei-negatiivinen. Vertaa arvoja, raakavastetta ja KOEO-nollatasoa; tämä testi ei määritä DPNR:n tukkeutumisrajaa.";
     }
   }
   return freeze({
@@ -171,12 +127,10 @@ export function buildDpnrCleaningReport(record) {
     lines.push("");
   }
   const comparison = compareDpnrCleaningRuns(record?.before, record?.after);
-  lines.push("VERTAILU");
-  lines.push(`  ${comparison.message}`);
+  lines.push("VERTAILU", `  ${comparison.message}`);
   if (Number.isFinite(comparison.delta3000Kpa)) lines.push(`  3000 rpm muutos: ${formatNumber(comparison.delta3000Kpa)} kPa`);
   if (comparison.koeoAbsoluteMovedTowardZero !== null) lines.push(`  KOEO siirtyi lähemmäs nollaa: ${comparison.koeoAbsoluteMovedTowardZero ? "kyllä" : "ei"}`);
-  lines.push("", "Huom: testi ei suorita DPF-regenerointia, Active Test -toimintoja, vikakoodien poistoa tai ECU-kirjoituksia.");
-  lines.push("===== END LEXUS IS220D DPNR CLEANING COMPARISON =====");
+  lines.push("", "Huom: testi ei suorita DPF-regenerointia, Active Test -toimintoja, vikakoodien poistoa tai ECU-kirjoituksia.", "===== END LEXUS IS220D DPNR CLEANING COMPARISON =====");
   return lines.join("\n");
 }
 
@@ -193,21 +147,29 @@ function safeWriteRecord(record) {
   try { globalThis.localStorage?.setItem(DPNR_CLEANING_TEST_STORAGE_KEY, JSON.stringify(record)); } catch {}
 }
 
+function query(root, selector) {
+  return typeof root?.querySelector === "function" ? root.querySelector(selector) : null;
+}
+
+function queryAll(root, selector) {
+  return typeof root?.querySelectorAll === "function" ? [...root.querySelectorAll(selector)] : [];
+}
+
 function pressureElement() {
-  const cards = [...(globalThis.document?.querySelectorAll?.("#dpnrMetricGrid .dpnr-metric") || [])];
-  return cards.find(card => /paine|pressure/i.test(card.querySelector("span")?.textContent || "")) || cards[0] || null;
+  const cards = queryAll(globalThis.document, "#dpnrMetricGrid .dpnr-metric");
+  return cards.find(card => /paine|pressure/i.test(query(card, "span")?.textContent || "")) || cards[0] || null;
 }
 
 function readLiveSample() {
   const documentObject = globalThis.document;
   if (!documentObject) return null;
-  const pressure = parseFlexNumber(pressureElement()?.querySelector("strong")?.textContent);
+  const pressure = parseFlexNumber(query(pressureElement(), "strong")?.textContent);
   return {
     timestamp: Date.now(),
     pressureKpa: pressure,
-    rpm: parseFlexNumber(documentObject.querySelector("#dpnrRpm")?.textContent),
-    coolantC: parseFlexNumber(documentObject.querySelector("#dpnrCoolant")?.textContent),
-    raw217e: String(documentObject.querySelector("#dpnrRaw217e")?.textContent || "").trim()
+    rpm: parseFlexNumber(query(documentObject, "#dpnrRpm")?.textContent),
+    coolantC: parseFlexNumber(query(documentObject, "#dpnrCoolant")?.textContent),
+    raw217e: String(query(documentObject, "#dpnrRaw217e")?.textContent || "").trim()
   };
 }
 
@@ -221,42 +183,27 @@ function phaseAcceptsSample(phase, sample) {
 
 function stylePanel() {
   const documentObject = globalThis.document;
-  if (!documentObject || documentObject.querySelector("#dpnr-cleaning-test-styles")) return;
+  if (!documentObject || query(documentObject, "#dpnr-cleaning-test-styles") || typeof documentObject.createElement !== "function") return;
   const style = documentObject.createElement("style");
   style.id = "dpnr-cleaning-test-styles";
-  style.textContent = `
-    .dpnr-cleaning-test { border-color:var(--info-border); }
-    .dpnr-cleaning-test .mode-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0; }
-    .dpnr-cleaning-test .phase-grid { display:grid; gap:8px; margin-top:10px; }
-    .dpnr-cleaning-phase { padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--surface-inset); }
-    .dpnr-cleaning-phase strong { display:block; font-size:11px; }
-    .dpnr-cleaning-phase small { display:block; margin:4px 0 8px; color:var(--muted); line-height:1.4; }
-    .dpnr-cleaning-phase .result { margin-top:7px; font-size:10px; color:var(--text-strong); }
-    .dpnr-cleaning-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-    .dpnr-cleaning-comparison { margin-top:10px; }
-  `;
-  documentObject.head.append(style);
+  style.textContent = `.dpnr-cleaning-test{border-color:var(--info-border)}.dpnr-cleaning-test .phase-grid{display:grid;gap:8px;margin-top:10px}.dpnr-cleaning-phase{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-inset)}.dpnr-cleaning-phase strong{display:block;font-size:11px}.dpnr-cleaning-phase small{display:block;margin:4px 0 8px;color:var(--muted);line-height:1.4}.dpnr-cleaning-phase .result{margin-top:7px;font-size:10px;color:var(--text-strong)}.dpnr-cleaning-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.dpnr-cleaning-comparison{margin-top:10px}`;
+  if (documentObject.head && typeof documentObject.head.append === "function") documentObject.head.append(style);
 }
 
-function modeLabel(mode) {
-  return mode === "after" ? "JÄLKEEN" : "ENNEN";
-}
+function modeLabel(mode) { return mode === "after" ? "JÄLKEEN" : "ENNEN"; }
 
 function renderSavedResults(panel, record) {
-  const mode = panel.querySelector("#dpnrCleaningMode")?.value || "before";
+  const mode = query(panel, "#dpnrCleaningMode")?.value || "before";
   const run = record?.[mode];
   for (const phaseId of Object.keys(DPNR_CLEANING_PHASES)) {
-    const target = panel.querySelector(`[data-dpnr-result="${phaseId}"]`);
+    const target = query(panel, `[data-dpnr-result="${phaseId}"]`);
     const phase = run?.phases?.[phaseId];
     if (!target) continue;
-    if (!phase) {
-      target.textContent = "Ei tallennettu";
-      continue;
-    }
+    if (!phase) { target.textContent = "Ei tallennettu"; continue; }
     const assessment = assessDpnrCleaningPhase(phaseId, phase);
     target.textContent = `${assessment.label} · ${formatNumber(phase.pressureMedianKpa)} kPa · ${Number(phase.sampleCount || 0)} näytettä`;
   }
-  const comparisonTarget = panel.querySelector("#dpnrCleaningComparison");
+  const comparisonTarget = query(panel, "#dpnrCleaningComparison");
   if (comparisonTarget) {
     const comparison = compareDpnrCleaningRuns(record?.before, record?.after);
     comparisonTarget.textContent = comparison.message;
@@ -266,12 +213,11 @@ function renderSavedResults(panel, record) {
 
 async function capturePhase(panel, phaseId) {
   const phase = DPNR_CLEANING_PHASES[phaseId];
-  const mode = panel.querySelector("#dpnrCleaningMode")?.value || "before";
-  const status = panel.querySelector("#dpnrCleaningStatus");
-  const button = panel.querySelector(`[data-dpnr-capture="${phaseId}"]`);
-  if (!phase || !button) return;
-  const first = readLiveSample();
-  if (!Number.isFinite(first?.pressureKpa)) {
+  const mode = query(panel, "#dpnrCleaningMode")?.value || "before";
+  const status = query(panel, "#dpnrCleaningStatus");
+  const button = query(panel, `[data-dpnr-capture="${phaseId}"]`);
+  if (!phase || !button || !status) return;
+  if (!Number.isFinite(readLiveSample()?.pressureKpa)) {
     status.textContent = "DPNR 217E -dataa ei vielä näy. Yhdistä autoon ja käynnistä tämän sivun DPNR-live ensin.";
     status.className = "inline-message warning";
     return;
@@ -289,9 +235,7 @@ async function capturePhase(panel, phaseId) {
   button.disabled = false;
   const summary = summarizeDpnrCleaningSamples(samples, phaseId);
   if (!summary.sampleCount) {
-    status.textContent = phaseId === "rpm3000"
-      ? "Mittaus ei saanut kelvollista 217E-dataa 2700–3300 rpm mittausikkunassa. Pidä kierrokset lähempänä 3000 rpm:ää ja yritä uudelleen."
-      : "Mittaus ei saanut kelvollista 217E-dataa valitussa käyttötilassa. Tarkista live-yhteys ja moottorin tila.";
+    status.textContent = phaseId === "rpm3000" ? "Mittaus ei saanut kelvollista 217E-dataa 2700–3300 rpm mittausikkunassa. Pidä kierrokset lähempänä 3000 rpm:ää ja yritä uudelleen." : "Mittaus ei saanut kelvollista 217E-dataa valitussa käyttötilassa. Tarkista live-yhteys ja moottorin tila.";
     status.className = "inline-message warning";
     return;
   }
@@ -308,64 +252,50 @@ async function capturePhase(panel, phaseId) {
 }
 
 async function copyReport(panel) {
-  const report = buildDpnrCleaningReport(safeReadRecord());
   try {
-    await globalThis.navigator?.clipboard?.writeText?.(report);
-    const status = panel.querySelector("#dpnrCleaningStatus");
-    status.textContent = "Ennen/jälkeen-raportti kopioitu leikepöydälle.";
-    status.className = "inline-message";
+    await globalThis.navigator?.clipboard?.writeText?.(buildDpnrCleaningReport(safeReadRecord()));
+    const status = query(panel, "#dpnrCleaningStatus");
+    if (status) { status.textContent = "Ennen/jälkeen-raportti kopioitu leikepöydälle."; status.className = "inline-message"; }
   } catch {}
 }
 
 function ensurePanel() {
   const documentObject = globalThis.document;
-  if (!documentObject || documentObject.querySelector("#dpnrCleaningTest")) return;
-  const page = documentObject.querySelector("#page-dpnr");
-  if (!page) return;
+  if (!documentObject || query(documentObject, "#dpnrCleaningTest")) return;
+  const page = query(documentObject, "#page-dpnr");
+  if (!page || typeof documentObject.createElement !== "function") return;
   stylePanel();
   const panel = documentObject.createElement("div");
   panel.id = "dpnrCleaningTest";
   panel.className = "card dpnr-cleaning-test";
-  panel.innerHTML = `
-    <h3>Paineletkujen puhdistus · ennen / jälkeen</h3>
-    <p class="hint">Vakioitu vertailu GSIC RM0150:n P1426/P2002-logiikan ympärille. Testi lukee vain jo varmennettua 217E-paine-eroa ja RPM:ää. Ei Active Testiä, pakkopolttoa tai vikakoodien poistoa.</p>
-    <ol class="ct-test-steps">
-      <li>Tee ensin kaikki kolme mittausta tilassa <strong>ENNEN puhdistusta</strong>.</li>
-      <li>Puhdista paine-eroanturin letkut/putket huolto-ohjeen mukaan ja asenna ne samoihin anturin portteihin.</li>
-      <li>Tee samat mittaukset uudelleen tilassa <strong>JÄLKEEN puhdistuksen</strong>.</li>
-      <li>Vertaa erityisesti 3000 rpm ilman kuormaa -arvoa. GSIC:n mukaan negatiivinen arvo on epälooginen ja ohjaa tarkistamaan letkujen järjestyksen/tukoksen sekä transmitting pipe -linjat.</li>
-    </ol>
-    <label for="dpnrCleaningMode">Mittauskierros</label>
-    <select id="dpnrCleaningMode"><option value="before">ENNEN puhdistusta</option><option value="after">JÄLKEEN puhdistuksen</option></select>
-    <div class="phase-grid">
-      ${Object.values(DPNR_CLEANING_PHASES).map(phase => `<div class="dpnr-cleaning-phase"><strong>${phase.label}</strong><small>${phase.instruction}</small><button class="secondary full compact" type="button" data-dpnr-capture="${phase.id}">Tallenna ${Math.round(phase.durationMs / 1000)} s</button><div class="result" data-dpnr-result="${phase.id}">Ei tallennettu</div></div>`).join("")}
-    </div>
-    <div id="dpnrCleaningStatus" class="inline-message hidden" aria-live="polite"></div>
-    <div id="dpnrCleaningComparison" class="inline-message dpnr-cleaning-comparison"></div>
-    <div class="dpnr-cleaning-actions"><button id="dpnrCleaningCopy" class="secondary" type="button">Kopioi vertailuraportti</button><button id="dpnrCleaningReset" class="secondary" type="button">Nollaa vertailu</button></div>
-  `;
-  const rawCard = page.querySelector(".raw-card");
-  page.insertBefore(panel, rawCard || null);
-  for (const button of panel.querySelectorAll("[data-dpnr-capture]")) {
-    button.addEventListener("click", () => capturePhase(panel, button.dataset.dpnrCapture));
+  panel.innerHTML = `<h3>Paineletkujen puhdistus · ennen / jälkeen</h3><p class="hint">Vakioitu vertailu GSIC RM0150:n P1426/P2002-logiikan ympärille. Testi lukee vain jo varmennettua 217E-paine-eroa ja RPM:ää. Ei Active Testiä, pakkopolttoa tai vikakoodien poistoa.</p><ol class="ct-test-steps"><li>Tee ensin kaikki kolme mittausta tilassa <strong>ENNEN puhdistusta</strong>.</li><li>Puhdista paine-eroanturin letkut/putket huolto-ohjeen mukaan ja asenna ne samoihin anturin portteihin.</li><li>Tee samat mittaukset uudelleen tilassa <strong>JÄLKEEN puhdistuksen</strong>.</li><li>Vertaa erityisesti 3000 rpm ilman kuormaa -arvoa. GSIC:n mukaan negatiivinen arvo on epälooginen ja ohjaa tarkistamaan letkujen järjestyksen/tukoksen sekä transmitting pipe -linjat.</li></ol><label for="dpnrCleaningMode">Mittauskierros</label><select id="dpnrCleaningMode"><option value="before">ENNEN puhdistusta</option><option value="after">JÄLKEEN puhdistuksen</option></select><div class="phase-grid">${Object.values(DPNR_CLEANING_PHASES).map(phase => `<div class="dpnr-cleaning-phase"><strong>${phase.label}</strong><small>${phase.instruction}</small><button class="secondary full compact" type="button" data-dpnr-capture="${phase.id}">Tallenna ${Math.round(phase.durationMs / 1000)} s</button><div class="result" data-dpnr-result="${phase.id}">Ei tallennettu</div></div>`).join("")}</div><div id="dpnrCleaningStatus" class="inline-message hidden" aria-live="polite"></div><div id="dpnrCleaningComparison" class="inline-message dpnr-cleaning-comparison"></div><div class="dpnr-cleaning-actions"><button id="dpnrCleaningCopy" class="secondary" type="button">Kopioi vertailuraportti</button><button id="dpnrCleaningReset" class="secondary" type="button">Nollaa vertailu</button></div>`;
+
+  if (typeof page.insertBefore === "function") {
+    const rawCard = query(page, ".raw-card") || query(documentObject, "#page-dpnr .raw-card");
+    page.insertBefore(panel, rawCard || null);
+  } else if (typeof page.appendChild === "function") {
+    page.appendChild(panel);
+  } else if (typeof page.append === "function") {
+    page.append(panel);
+  } else {
+    return;
   }
-  panel.querySelector("#dpnrCleaningMode")?.addEventListener("change", () => renderSavedResults(panel, safeReadRecord()));
-  panel.querySelector("#dpnrCleaningCopy")?.addEventListener("click", () => copyReport(panel));
-  panel.querySelector("#dpnrCleaningReset")?.addEventListener("click", () => {
+
+  for (const button of queryAll(panel, "[data-dpnr-capture]")) button.addEventListener?.("click", () => capturePhase(panel, button.dataset.dpnrCapture));
+  query(panel, "#dpnrCleaningMode")?.addEventListener?.("change", () => renderSavedResults(panel, safeReadRecord()));
+  query(panel, "#dpnrCleaningCopy")?.addEventListener?.("click", () => copyReport(panel));
+  query(panel, "#dpnrCleaningReset")?.addEventListener?.("click", () => {
     safeWriteRecord({ before: null, after: null });
     renderSavedResults(panel, safeReadRecord());
-    const status = panel.querySelector("#dpnrCleaningStatus");
-    status.textContent = "Ennen/jälkeen-vertailu nollattu.";
-    status.className = "inline-message";
+    const status = query(panel, "#dpnrCleaningStatus");
+    if (status) { status.textContent = "Ennen/jälkeen-vertailu nollattu."; status.className = "inline-message"; }
   });
   renderSavedResults(panel, safeReadRecord());
 }
 
-export function initializeDpnrCleaningTestUi() {
-  ensurePanel();
-}
+export function initializeDpnrCleaningTestUi() { ensurePanel(); }
 
 if (typeof document !== "undefined") {
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ensurePanel, { once: true });
+  if (document.readyState === "loading" && typeof document.addEventListener === "function") document.addEventListener("DOMContentLoaded", ensurePanel, { once: true });
   else queueMicrotask(ensurePanel);
 }
