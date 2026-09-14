@@ -458,7 +458,7 @@ test("vLinker MC+ löytää varmennetut Toyota-livearvot ja lukee saman 217E-keh
   assert.deepEqual([...new Set(commands.filter(command => /^21/.test(command)))].sort(), ["212C", "217E", "217F"]);
 });
 
-test("Toyota Read Data -sallintalista sisältää tuotantoluvut ja erilliset suutintestiluvut", () => {
+test("Toyota Read Data -sallintalista estää kentässä vastaamattoman 219C-pyynnön", () => {
   assert.deepEqual(TOYOTA_READ_DATA_PROBES.map(probe => probe.command), ["217E", "217F", "212C"]);
   assert.deepEqual(TOYOTA_READ_DATA_ALLOWED_COMMANDS.slice(0, 6), [
     "217E", "02217E0000000000",
@@ -467,7 +467,7 @@ test("Toyota Read Data -sallintalista sisältää tuotantoluvut ja erilliset suu
   ]);
   assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("2193"), true);
   assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("2196"), true);
-  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("219C"), true);
+  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("219C"), false);
   assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("21AF"), true);
   assert.equal(evaluateFullDiagnosticStep(
     { command: "217F", expected: "toyotaReadData", toyotaIdentifier: 0x7f },
@@ -488,7 +488,7 @@ test("raakaterminaali estää kirjoittavat komennot", () => {
   assert.equal(isSafeTerminalCommand("217E"), true);
   assert.equal(isSafeTerminalCommand("217F"), true);
   assert.equal(isSafeTerminalCommand("212C"), true);
-  assert.equal(isSafeTerminalCommand("219C"), true);
+  assert.equal(isSafeTerminalCommand("219C"), false);
   assert.equal(isSafeTerminalCommand("21AF"), true);
   assert.equal(isSafeTerminalCommand("2192"), false);
 });

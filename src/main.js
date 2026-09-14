@@ -87,6 +87,7 @@ import {
   vehiclePowerDefaults
 } from "./power-test.js";
 import {
+  INJECTOR_TEST_AVAILABILITY,
   INJECTOR_TEST_COMMANDS,
   INJECTOR_TEST_LIMITS,
   analyzeInjectorTest,
@@ -95,10 +96,13 @@ import {
 } from "./injector-test.js";
 import { createThemeController } from "./themes.js";
 import { classifyConnectedVehicle, parseObdVin } from "./vehicle-detection.js";
+import { ecuSurveySnapshotFromDiagnosticRun } from "./ecu-survey-diagnostic.js";
+import { buildEcuSurveyTextReport } from "./ecu-survey-report.js";
+import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const APP_VERSION = "0.7.8";
+const APP_VERSION = "0.8.1";
 const DPNR_MONITOR_METRIC_IDS = Object.freeze([
   "dpnrDifferentialPressure",
   "dpnrInletTemperature",
@@ -176,6 +180,7 @@ const state = {
   injectorTestAnalysis: null,
   injectorTestReport: "",
   injectorTestRunning: false,
+  injectorTestRestoring: false,
   injectorTestAbortRequested: false,
   powerTestRun: null,
   powerTestReport: "",
@@ -329,7 +334,7 @@ function applyVehicleProfileUi() {
     $("#clearDtcButton").disabled = isCt;
   }
   if ($("#dtcClearHint")) $("#dtcClearHint").textContent = isCt
-    ? "Flex 0.7.8 lukee CT:n moottori- ja hybridikoodit, mutta ei lähetä hybridiohjaimelle eikä väärän ECU-otsakkeen kautta mitään poistokomentoa."
+    ? "Flex 0.8.0 lukee CT:n moottori- ja hybridikoodit, mutta ei lähetä hybridiohjaimelle eikä väärän ECU-otsakkeen kautta mitään poistokomentoa."
     : "Poisto nollaa myös freeze frame -tietoja ja päästövalmiusmonitoreita.";
   if ($("#diagnosticProfileHint")) {
     $("#diagnosticProfileHint").innerHTML = isCt
@@ -338,14 +343,14 @@ function applyVehicleProfileUi() {
   }
   if ($("#injectorProfileState")) {
     $("#injectorProfileState").textContent = isIs220d
-      ? "IS220d / 2AD-FHV -profiili aktiivinen · testi käyttää vain lukevia 010C/0105/2193/2196/219C-kyselyitä."
+      ? "IS220d / 2AD-FHV -profiili aktiivinen · 45 s suutintesti ei ole käytettävissä: 219C palautti NO DATA -vastauksen kolmessa kenttäajossa kalibroinnilla 35360000."
       : "Valitse ja tunnista Lexus IS220d ennen suutintestiä.";
-    $("#injectorProfileState").className = `inline-message ${isIs220d ? "" : "warning"}`.trim();
+    $("#injectorProfileState").className = "inline-message warning";
   }
   if ($("#terminalProfileWarning")) {
     $("#terminalProfileWarning").textContent = isCt
       ? "Vain AT-komennot, lukevat OBD-moodit ja CT-profiilin vain lukevat 21C1/2101/2181/2187/2195/2198/13B0-komennot sallitaan. Mode 04 toimii vain Vikakoodit-näkymän vahvistuksesta."
-      : "Vain AT-komennot, lukevat OBD-moodit 01, 02, 03, 07, 09 ja 0A sekä IS220d-profiilin 217E/217F/212C/2193/2196/219C/21AF-lukukomennot sallitaan. Mode 04 toimii vain Vikakoodit-näkymän vahvistuksesta.";
+      : "Vain AT-komennot, lukevat OBD-moodit 01, 02, 03, 07, 09 ja 0A sekä IS220d-profiilin 217E/217F/212C/2193/2196/21AF-lukukomennot sallitaan. Kentässä vastaamaton 219C on estetty. Mode 04 toimii vain Vikakoodit-näkymän vahvistuksesta.";
   }
   $$("[data-vehicle-only]").forEach(element => {
     element.classList.toggle("hidden", element.dataset.vehicleOnly !== state.vehicleKey);
@@ -639,7 +644,7 @@ function showConnectionError(message = "") {
 }
 
 function updateConnectionButtons() {
-  const injectorBusy = state.injectorTestRunning;
+  const injectorBusy = state.injectorTestRunning || state.injectorTestRestoring;
   $("#connectButton").disabled = state.connected || state.connecting || state.reconnecting || injectorBusy;
   $("#disconnectButton").disabled = injectorBusy || (!state.connected && !state.connecting && !state.reconnecting);
   $("#deviceSelect").disabled = state.connected || state.connecting || state.reconnecting || injectorBusy;
@@ -647,8 +652,15 @@ function updateConnectionButtons() {
   $("#vehicleSelect").disabled = state.connected || state.connecting || state.reconnecting || injectorBusy;
   $("#detectVehicleButton").disabled = !state.connected || state.connecting || state.reconnecting || state.quicklynks ||
     !(state.client instanceof Elm327Client) || state.vehicleDetection.status === "testing" || injectorBusy;
-  if ($("#startInjectorTest")) $("#startInjectorTest").disabled = injectorBusy || !state.connected || state.quicklynks ||
-    !(state.client instanceof Elm327Client) || state.vehicleKey !== VEHICLE_KEYS.IS220D;
+  if ($("#startInjectorTest")) {
+    $("#startInjectorTest").disabled = injectorBusy || !INJECTOR_TEST_AVAILABILITY.supported || !state.connected || state.quicklynks ||
+      !(state.client instanceof Elm327Client) || state.vehicleKey !== VEHICLE_KEYS.IS220D;
+    if (!injectorBusy) {
+      $("#startInjectorTest").textContent = INJECTOR_TEST_AVAILABILITY.supported
+        ? "Aloita uusi 45 s testi"
+        : "Ei tuettu tällä ECU-kalibroinnilla";
+    }
+  }
 }
 
 function yesNo(value) {
@@ -1562,6 +1574,9 @@ async function saveOrShareCtPurchaseReport(share = false) {
 const INJECTOR_TEST_TARGET_MS = 45000;
 const INJECTOR_TEST_SAMPLE_INTERVAL_MS = 2500;
 const INJECTOR_TEST_MAX_SAMPLES = 18;
+const INJECTOR_TEST_STANDARD_TIMEOUT_MS = 3500;
+const INJECTOR_TEST_TOYOTA_TIMEOUT_MS = 7000;
+const INJECTOR_TEST_MAX_CONSECUTIVE_MISSES = 2;
 
 async function injectorCommand(command, timeoutMs = 5500) {
   try {
@@ -1615,15 +1630,18 @@ function finishInjectorTestUi() {
   renderInjectorProgress(run.cancelled ? "Keskeytetty hallitusti · raportti valmis" : "Valmis · tekoälyraportti muodostettu");
 }
 
-async function restoreAfterInjectorTest() {
-  if (!state.connected || !state.client) return;
+const INJECTOR_RESTORE_COMMAND_TIMEOUT_MS = 900;
+const INJECTOR_RESTORE_PROBE_TIMEOUT_MS = 1800;
+
+async function restoreAfterInjectorTest(client = state.client) {
+  if (!state.connected || !client) return;
   for (const command of INJECTOR_TEST_COMMANDS.restore) {
-    try { await state.client.command(command, 4500); } catch {}
+    try { await client.command(command, INJECTOR_RESTORE_COMMAND_TIMEOUT_MS); } catch {}
   }
   try {
-    const raw = await state.client.command("0100", 7000);
+    const raw = await client.command("0100", INJECTOR_RESTORE_PROBE_TIMEOUT_MS);
     state.ecuConnected = hasModePidResponse(raw, 0x41, 0x00);
-    state.client.ecuConnected = state.ecuConnected;
+    client.ecuConnected = state.ecuConnected;
   } catch {}
 }
 
@@ -1635,6 +1653,17 @@ async function runInjectorTest() {
   }
   if (state.quicklynks || !(state.client instanceof Elm327Client)) {
     setNotice("injectorTestNotice", "Suutintesti vaatii vLinker- tai muun ASCII-ELM327-adapterin. Quicklynksin binääripolku ei voi lähettää Toyota 219C -lukupyyntöä.", "warning");
+    return;
+  }
+  if (!INJECTOR_TEST_AVAILABILITY.supported) {
+    $("#injectorStatusBadge").className = "ct-test-badge incomplete";
+    $("#injectorStatusBadge").textContent = "EI TUETTU";
+    setNotice(
+      "injectorTestNotice",
+      `Suutintestiä ei käynnistetty eikä ${INJECTOR_TEST_AVAILABILITY.blockedCommand}-komentoa lähetetty. ${INJECTOR_TEST_AVAILABILITY.reason} Tarvitaan Techstreamillä varmennettu oikea Data List -tunniste.`,
+      "warning"
+    );
+    updateConnectionButtons();
     return;
   }
   if (!$("#injectorConditionsConfirmed").checked) {
@@ -1691,48 +1720,83 @@ async function runInjectorTest() {
   try {
     for (const command of INJECTOR_TEST_COMMANDS.setup) {
       if (state.injectorTestAbortRequested) break;
+      renderInjectorProgress(`Valmistellaan yhteyttä · ${command}`);
       const result = await injectorCommand(command, 5500);
       state.injectorTestRun.setup.push({ command, raw: result.raw, error: result.error, timestamp: Date.now() });
       if (result.error && ["ATSP6", "ATSH7E0"].includes(command)) throw new Error(`${command} epäonnistui: ${result.error}`);
     }
+    if (state.injectorTestAbortRequested) throw new Error("Testi keskeytettiin valmistelun aikana");
+
+    renderInjectorProgress("Tarkistetaan ensin Toyota 219C -suutinkorjausarvon tuki…");
+    const preflightFeedbackResult = await injectorCommand("219C", INJECTOR_TEST_TOYOTA_TIMEOUT_MS);
+    const preflightFeedbackDecoded = decodeToyotaReadDataResponse(preflightFeedbackResult.raw, 0x9c, VEHICLE_KEYS.IS220D);
+    const preflightFeedback = preflightFeedbackDecoded?.complete
+      ? [1, 2, 3, 4].map(index => preflightFeedbackDecoded.values[`injectionFeedback${index}Mm3`])
+      : [];
+    if (preflightFeedbackResult.error || preflightFeedback.length !== 4 || !preflightFeedback.every(Number.isFinite)) {
+      throw new Error(`Toyota 219C ei palauttanut kelvollisia neljän sylinterin arvoja 7 sekunnissa${preflightFeedbackResult.error ? `: ${preflightFeedbackResult.error}` : ""}`);
+    }
+
+    renderInjectorProgress("Luetaan mittausolosuhteet · jäähdytysneste 0105");
+    const coolantBaseline = await injectorCommand("0105", INJECTOR_TEST_STANDARD_TIMEOUT_MS);
+    renderInjectorProgress("Luetaan mittausolosuhteet · rail-paine 2196");
+    const railBaseline = await injectorCommand("2196", INJECTOR_TEST_TOYOTA_TIMEOUT_MS);
+    renderInjectorProgress("Luetaan mittausolosuhteet · polttoainelämpö 2193");
+    const fuelTemperatureBaseline = await injectorCommand("2193", INJECTOR_TEST_TOYOTA_TIMEOUT_MS);
+    const coolantBaselineValue = decodePidResponse("coolant", coolantBaseline.raw);
+    const railBaselineDecoded = decodeToyotaReadDataResponse(railBaseline.raw, 0x96, VEHICLE_KEYS.IS220D);
+    const fuelTemperatureBaselineDecoded = decodeToyotaReadDataResponse(fuelTemperatureBaseline.raw, 0x93, VEHICLE_KEYS.IS220D);
+    const railBaselineValue = railBaselineDecoded?.complete ? railBaselineDecoded.values.railPressureMpa : null;
+    const fuelTemperatureBaselineValue = fuelTemperatureBaselineDecoded?.complete ? fuelTemperatureBaselineDecoded.values.fuelTemperatureC : null;
+
     const measurementStartedAt = Date.now();
+    let consecutiveFeedbackMisses = 0;
     while (!state.injectorTestAbortRequested && state.injectorTestRun.samples.length < INJECTOR_TEST_MAX_SAMPLES) {
       const sequence = state.injectorTestRun.samples.length + 1;
       const roundStartedAt = Date.now();
-      const rpmResult = await injectorCommand("010C");
-      const coolantResult = await injectorCommand("0105");
-      const fuelTemperatureResult = await injectorCommand("2193");
-      const railResult = await injectorCommand("2196");
-      const feedbackResult = await injectorCommand("219C", 7000);
-      const fuelTemperature = decodeToyotaReadDataResponse(fuelTemperatureResult.raw, 0x93, VEHICLE_KEYS.IS220D);
-      const railPressure = decodeToyotaReadDataResponse(railResult.raw, 0x96, VEHICLE_KEYS.IS220D);
+      renderInjectorProgress(`Näyte ${sequence}/${INJECTOR_TEST_MAX_SAMPLES} · kierrosluku`);
+      const rpmResult = await injectorCommand("010C", INJECTOR_TEST_STANDARD_TIMEOUT_MS);
+      if (state.injectorTestAbortRequested) break;
+      renderInjectorProgress(`Näyte ${sequence}/${INJECTOR_TEST_MAX_SAMPLES} · suutinkorjaukset`);
+      const feedbackResult = sequence === 1
+        ? preflightFeedbackResult
+        : await injectorCommand("219C", INJECTOR_TEST_TOYOTA_TIMEOUT_MS);
       const feedback = decodeToyotaReadDataResponse(feedbackResult.raw, 0x9c, VEHICLE_KEYS.IS220D);
+      const feedbackMm3 = feedback?.complete ? [1, 2, 3, 4].map(index => feedback.values[`injectionFeedback${index}Mm3`]) : [];
+      if (feedbackResult.error || feedbackMm3.length !== 4 || !feedbackMm3.every(Number.isFinite)) consecutiveFeedbackMisses++;
+      else consecutiveFeedbackMisses = 0;
       const sample = {
         sequence,
         timestamp: Date.now(),
         elapsedMs: Date.now() - state.injectorTestRun.startedAt,
         values: {
           rpm: decodePidResponse("rpm", rpmResult.raw),
-          coolantC: decodePidResponse("coolant", coolantResult.raw),
-          fuelTemperatureC: fuelTemperature?.complete ? fuelTemperature.values.fuelTemperatureC : null,
-          railPressureMpa: railPressure?.complete ? railPressure.values.railPressureMpa : null,
-          feedbackMm3: feedback?.complete ? [1, 2, 3, 4].map(index => feedback.values[`injectionFeedback${index}Mm3`]) : []
+          coolantC: coolantBaselineValue,
+          fuelTemperatureC: fuelTemperatureBaselineValue,
+          railPressureMpa: railBaselineValue,
+          feedbackMm3
         },
         raw: {
           rpm: rpmResult.raw,
-          coolant: coolantResult.raw,
-          fuelTemperature: fuelTemperatureResult.raw,
-          railPressure: railResult.raw,
+          coolant: sequence === 1 ? coolantBaseline.raw : "",
+          fuelTemperature: sequence === 1 ? fuelTemperatureBaseline.raw : "",
+          railPressure: sequence === 1 ? railBaseline.raw : "",
           feedback: feedbackResult.raw
         },
         errors: Object.fromEntries([
-          ["010C", rpmResult.error], ["0105", coolantResult.error], ["2193", fuelTemperatureResult.error],
-          ["2196", railResult.error], ["219C", feedbackResult.error]
+          ["010C", rpmResult.error],
+          ["0105", sequence === 1 ? coolantBaseline.error : ""],
+          ["2193", sequence === 1 ? fuelTemperatureBaseline.error : ""],
+          ["2196", sequence === 1 ? railBaseline.error : ""],
+          ["219C", feedbackResult.error || (feedbackMm3.length === 4 ? "" : "vajaa tai puuttuva vastaus")]
         ].filter(([, error]) => error))
       };
       state.injectorTestRun.samples.push(sample);
       renderInjectorSample(sample);
       renderInjectorProgress();
+      if (consecutiveFeedbackMisses >= INJECTOR_TEST_MAX_CONSECUTIVE_MISSES) {
+        throw new Error(`Toyota 219C jäi vastaamatta ${consecutiveFeedbackMisses} peräkkäisessä näytteessä`);
+      }
       if (Date.now() - measurementStartedAt >= INJECTOR_TEST_TARGET_MS && state.injectorTestRun.samples.length >= INJECTOR_TEST_LIMITS.minimumValidSamples) break;
       const remainingDelay = INJECTOR_TEST_SAMPLE_INTERVAL_MS - (Date.now() - roundStartedAt);
       if (remainingDelay > 0) await delay(remainingDelay);
@@ -1741,17 +1805,22 @@ async function runInjectorTest() {
     state.injectorTestRun.internalError = error?.message || String(error);
     setNotice("injectorTestNotice", `Testi keskeytyi: ${state.injectorTestRun.internalError}. Jo saaduista tiedoista muodostetaan raportti.`, "error");
   } finally {
+    const restoreClient = state.client;
     state.injectorTestRun.cancelled = state.injectorTestAbortRequested;
     state.injectorTestRun.endedAt = Date.now();
-    await restoreAfterInjectorTest();
-    finishInjectorTestUi();
     state.injectorTestRunning = false;
+    state.injectorTestRestoring = true;
     state.injectorTestAbortRequested = false;
-    $("#startInjectorTest").disabled = false;
-    $("#startInjectorTest").textContent = "Aloita uusi 45 s testi";
+    finishInjectorTestUi();
+    renderInjectorProgress("Raportti valmis · palautetaan normaali ELM/CAN-yhteys…");
+    $("#startInjectorTest").textContent = "Palautetaan yhteyttä…";
     $("#cancelInjectorTest").disabled = true;
     updateConnectionButtons();
     setKeepAwake(false);
+    await delay(0);
+    await restoreAfterInjectorTest(restoreClient);
+    state.injectorTestRestoring = false;
+    updateConnectionButtons();
   }
 }
 
@@ -2737,8 +2806,17 @@ function diagnosticHasValid(run, command, requestHeader = "") {
 
 function finishFullDiagnosticUi(run) {
   run.summary = summarizeFullDiagnostic(run);
+  run.ecuSurvey = ecuSurveySnapshotFromDiagnosticRun(run);
+  const surveyHistory = recordEcuSurveySnapshot(run.ecuSurvey);
+  run.ecuSurveyHistory = {
+    persisted: surveyHistory.persisted,
+    error: surveyHistory.error,
+    storedRuns: surveyHistory.snapshots.length,
+    repeatability: surveyHistory.repeatability
+  };
   state.adapterCapabilities = run.summary.adapterCapabilities;
-  state.fullDiagnosticReport = buildFullDiagnosticReport(run);
+  const baseReport = buildFullDiagnosticReport(run);
+  state.fullDiagnosticReport = `${baseReport}\n\n${buildEcuSurveyTextReport(run.ecuSurvey, surveyHistory)}`;
   const summary = run.summary;
   const status = $("#diagnosticSummary");
   const diagnosticProbeCount = summary.toyotaProbeSummaries.length;
@@ -2863,10 +2941,6 @@ async function runGekoDiagnostic() {
   setKeepAwake(true);
 
   try {
-    await runFullDiagnosticSteps("Adapteri", [
-      ...VLINKER_CAPABILITY_PROBES
-    ]);
-
     let workingProbe = await executeFullDiagnosticStep({
       phase: "Nykytila ennen nollausta",
       ...diagnosticModeStep("0100", 0x00, "Kokeile nykyisiä ELM- ja protokolla-asetuksia", "", 12000),
@@ -2878,6 +2952,10 @@ async function runGekoDiagnostic() {
     } else {
       workingProbe = null;
     }
+
+    await runFullDiagnosticSteps("Adapteri", [
+      ...VLINKER_CAPABILITY_PROBES
+    ]);
 
     if (!workingProbe) {
       await runFullDiagnosticSteps("Hidas klooniturvallinen alustus", [

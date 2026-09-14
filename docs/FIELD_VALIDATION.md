@@ -1,6 +1,6 @@
 # IS220d OBD Flex — real-car field validation
 
-Status: **validation protocol for the current 0.6.9 development line before promoting the ECU Survey work to a numbered 0.7.0 release**.
+Status: **validation protocol for the unified 0.8.0 field-test line before release review**.
 
 This procedure is read-only. It validates transport behavior, ECU Survey topology, existing Toyota read-data paths and report provenance. It does not authorize writes, coding, Active Tests, DTC clearing or ECU programming.
 
@@ -10,8 +10,8 @@ Use an APK produced by the repository's `Flex safety and build` GitHub Actions w
 
 The workflow artifact contains:
 
-- `IS220d_OBD-Flex-0.6.9-debug.apk`
-- `IS220d_OBD-Flex-0.6.9-release.apk`
+- `Lexus_OBD-Flex-0.8.0-debug.apk`
+- `Lexus_OBD-Flex-0.8.0-release.apk`
 - `build-info.json`
 
 For field validation, prefer the debug APK so that behavior corresponds directly to the unminified build path while retaining the same functional source.
@@ -185,7 +185,7 @@ For each stored run the validation record retains:
 
 The compact history deliberately does **not** duplicate raw CAN/ELM responses or error text. Those remain in the separately saved full diagnostic reports.
 
-The **Kenttävalidointi · 0.7.0-portti** panel evaluates the latest run against previous history. A clean three-run group requires the same:
+The **Kenttävalidointi · 0.8.0-portti** panel evaluates the latest run against previous history. A clean three-run group requires the same:
 
 - survey schema/profile/safe probe;
 - embedded Build SHA;
@@ -206,13 +206,13 @@ The automatic internal gate passes only when all of these are true:
 
 A positive manufacturer response is **not** required for all three Toyota identifiers to pass this gate; the requirement is that the existing production paths were actually exercised and their detailed result remains available in the corresponding full report.
 
-When all internal checks pass, the panel reports **Valmis Techstream-vertailuun**. This is not a 0.7.0 release decision. Techstream Health Check/system inventory remains independent external evidence and is shown as pending until reviewed separately.
+When all internal checks pass, the panel reports **Valmis Techstream-vertailuun**. This is not a 0.8.0 release decision. Techstream Health Check/system inventory remains independent external evidence and is shown as pending until reviewed separately.
 
 The panel can copy a compact field-validation summary. The same summary is also appended to the full ECU Survey text report.
 
 ## Minimum evidence before calling the ECU Survey line vehicle-validated
 
-The 0.7.0 ECU Survey line should not be promoted solely because unit tests and APK builds are green.
+The 0.8.0 unified field-test line should not be promoted solely because unit tests and APK builds are green.
 
 Minimum field evidence:
 

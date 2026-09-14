@@ -4,6 +4,9 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
 import { build as bundle } from "esbuild";
+import { patchCoreForAsyncNativeBridge } from "./async-native-core-transform.mjs";
+import { IM_READINESS_BUILD_MARKER, patchMainForImReadiness } from "./im-readiness-main-transform.mjs";
+import { RESPONSIVE_UI_BUILD_MARKER, patchMainForResponsiveness } from "./responsive-ui-transform.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const buildRoot = path.join(root, ".build");
@@ -29,6 +32,29 @@ function resolveBuildSha() {
 const buildSha = resolveBuildSha();
 const buildShortSha = buildSha === "local" ? "local" : buildSha.slice(0, 12);
 const appVersion = String(packageMeta.version || "0.0.0");
+
+function patchMainAppVersion(source) {
+  const pattern = /const APP_VERSION = "[^"]+";/;
+  if (!pattern.test(source)) throw new Error("src/main.js APP_VERSION-vakiota ei löytynyt buildia varten");
+  return source.replace(pattern, `const APP_VERSION = ${JSON.stringify(appVersion)};`);
+}
+
+const buildTransformPlugin = {
+  name: "flex-build-transforms",
+  setup(build) {
+    build.onLoad({ filter: /[\\/]src[\\/]core\.js$/ }, args => ({
+      contents: patchCoreForAsyncNativeBridge(fs.readFileSync(args.path, "utf8")),
+      loader: "js"
+    }));
+    build.onLoad({ filter: /[\\/]src[\\/]main\.js$/ }, args => {
+      const versioned = patchMainAppVersion(fs.readFileSync(args.path, "utf8"));
+      return {
+        contents: patchMainForResponsiveness(patchMainForImReadiness(versioned)),
+        loader: "js"
+      };
+    });
+  }
+};
 
 for (const required of [apktoolJar, templateApk, cliPath, bundledAapt2]) {
   if (!fs.existsSync(required)) throw new Error(`Puuttuva rakennusriippuvuus: ${required}. Suorita ensin npm install.`);
@@ -96,6 +122,7 @@ async function buildVariant(label, minify, filename) {
     platform: "browser",
     target: ["chrome90"],
     minify,
+    plugins: [buildTransformPlugin],
     banner: { js: `globalThis.__IS220D_BUILD_SHA__=${JSON.stringify(buildShortSha)};` },
     outfile: path.join(nitronProject, "app.bundle.js")
   });
@@ -130,11 +157,15 @@ async function buildVariant(label, minify, filename) {
   }
   const bundleText = finalZip.readAsText("assets/app.bundle.js");
   if (!bundleText.includes(buildShortSha)) throw new Error(`${label}-APK:sta puuttuu build-SHA ${buildShortSha}`);
+  if (!bundleText.includes(`Lexus_IS220d_DPNR_ennen-jalkeen_Flex-${appVersion}`)) throw new Error(`${label}-APK:sta puuttuu DPNR ennen/jälkeen -toiminto versiolla ${appVersion}`);
+  if (!bundleText.includes("__PENDING__")) throw new Error(`${label}-APK:sta puuttuu asynkroninen OBD-silta`);
+  if (!bundleText.includes(IM_READINESS_BUILD_MARKER)) throw new Error(`${label}-APK:sta puuttuu I/M readiness -build-markkeri`);
+  if (!bundleText.includes(RESPONSIVE_UI_BUILD_MARKER)) throw new Error(`${label}-APK:sta puuttuu responsiveness-build-markkeri`);
   return output;
 }
 
-const debugOutput = await buildVariant("debug", false, "Lexus_OBD-Flex-0.7.8-debug.apk");
-const releaseOutput = await buildVariant("release", true, "Lexus_OBD-Flex-0.7.8-release.apk");
+const debugOutput = await buildVariant("debug", false, `Lexus_OBD-Flex-${appVersion}-debug.apk`);
+const releaseOutput = await buildVariant("release", true, `Lexus_OBD-Flex-${appVersion}-release.apk`);
 const buildInfo = {
   schemaVersion: 1,
   appVersion,

@@ -272,8 +272,15 @@ export const IS220D_INJECTOR_SCREENING_PROBES = deepFreeze(
   }))
 );
 
+export const IS220D_FIELD_DISABLED_COMMANDS = Object.freeze([
+  "219C",
+  "02219C0000000000"
+]);
+
 export const TOYOTA_READ_DATA_ALLOWED_COMMANDS = Object.freeze(
-  [...TOYOTA_READ_DATA_PROBES, ...IS220D_INJECTOR_SCREENING_PROBES].flatMap(probe => [probe.command, probe.rawCommand])
+  [...TOYOTA_READ_DATA_PROBES, ...IS220D_INJECTOR_SCREENING_PROBES]
+    .flatMap(probe => [probe.command, probe.rawCommand])
+    .filter(command => !IS220D_FIELD_DISABLED_COMMANDS.includes(command))
 );
 
 export function validateDiagnosticProfile(profile = IS220D_DIAGNOSTIC_PROFILE) {

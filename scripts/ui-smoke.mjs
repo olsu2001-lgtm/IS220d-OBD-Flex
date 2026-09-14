@@ -106,8 +106,11 @@ const metaTheme = new FakeElement("meta", { id: "themeColor", name: "theme-color
 const documentListeners = new Map();
 const document = {
   documentElement: root,
+  head: new FakeElement("head"),
   body: new FakeElement("body"),
+  readyState: "complete",
   visibilityState: "visible",
+  getElementById(id) { return byId.get(String(id)) || null; },
   querySelector(selector) {
     if (selector === 'meta[name="theme-color"]') return metaTheme;
     if (selector.startsWith("#")) return byId.get(selector.slice(1)) || null;

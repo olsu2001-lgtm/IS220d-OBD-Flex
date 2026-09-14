@@ -65,14 +65,15 @@ test("profiili johtaa tuotantoluvut ja erillisen vain lukevan suutintestiryhmän
     "217F", "02217F0000000000",
     "212C", "02212C0000000000"
   ]);
-  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("219C"), true);
-  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("02219C0000000000"), true);
+  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("219C"), false);
+  assert.equal(TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes("02219C0000000000"), false);
   assert.equal(getToyotaReadDataProbe("21 7E")?.id, "engine.dpnr_status");
   assert.equal(getToyotaReadDataProbe(0x2c)?.command, "212C");
   assert.equal(getToyotaReadDataProbe(0x9c)?.command, "219C");
   assert.equal(buildProfileProbeCommand(getToyotaReadDataProbe("217F"), "raw-single-frame"), "02217F0000000000");
   assert.equal(isProfileReadOnlyCommand("217E"), true);
-  assert.equal(isProfileReadOnlyCommand("219C"), true);
+  assert.equal(isProfileReadOnlyCommand("219C"), false);
+  assert.throws(() => buildProfileProbeCommand(getToyotaReadDataProbe("219C")), /turvallisuussallintalista/);
   assert.equal(isProfileReadOnlyCommand("2192"), false);
 });
 
