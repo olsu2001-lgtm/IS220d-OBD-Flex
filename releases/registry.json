@@ -18,5 +18,27 @@
     ],
     "note": "All version codes through 902 are permanently closed. This floor does not assert that every lower number was published, and legacy APK hashes have not been reconstructed."
   },
-  "releases": []
+  "releases": [
+    {
+      "versionName": "0.9.3",
+      "versionCode": 903,
+      "packageId": "fi.oliver.is220dobd",
+      "gitSha": "afb0022c0e82c572774128360eca27a856682724",
+      "artifacts": [
+        {
+          "file": "Lexus_OBD-Flex-0.9.3-debug.apk",
+          "bytes": 341651,
+          "sha256": "2096a64095392b6dc759e48219ce953ff67aec37e79427da49a3e2950344dc7e"
+        },
+        {
+          "file": "Lexus_OBD-Flex-0.9.3-release.apk",
+          "bytes": 296595,
+          "sha256": "a1bf81d369b6282dcd0abf1639b3af765067473eff941210a81345863d88f115"
+        }
+      ],
+      "buildInfoSha256": "ecac20bd43661ab2e4158d8ff5fe6edea2b16ef07448afa7b048693c4ff3b481",
+      "registeredAt": "2026-09-14T12:29:43.730Z",
+      "buildRunUrl": "https://github.com/olsu2001-lgtm/IS220d-OBD-Flex/actions/runs/34843667971"
+    }
+  ]
 }
