@@ -1,3 +1,5 @@
+import "./dpnr-cleaning-test-ui.js";
+
 export const THEME_STORAGE_KEY = "lexusObdThemePreference";
 
 export const THEME_OPTIONS = Object.freeze([
