@@ -4,10 +4,11 @@ import { readFile } from "node:fs/promises";
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("0.7.8 jatkaa versionumeroa 0.7.7:n jälkeen", async () => {
-  const [app, pkg] = await Promise.all([read("app.js"), read("package.json")]);
-  assert.match(app, /version:\s*"0\.7\.8"/);
-  assert.equal(JSON.parse(pkg).version, "0.7.8");
+test("0.9.1 versionumero täsmää Android-asetuksissa, paketissa ja käyttöliittymässä", async () => {
+  const [app, pkg, main] = await Promise.all([read("app.js"), read("package.json"), read("src/main.js")]);
+  assert.match(app, /version:\s*"0\.9\.1"/);
+  assert.equal(JSON.parse(pkg).version, "0.9.1");
+  assert.match(main, /const APP_VERSION = "0\.9\.1";/);
 });
 
 test("DPNR-näkymä näyttää tulkitut arvot, raakavasteet ja lokituksen", async () => {

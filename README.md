@@ -1,19 +1,20 @@
 # Lexus OBD Flex
 
-Flex 0.7.8 lisää Lexus IS220d / 2AD-FHV -moottorille oman DPNR-tarkistusnäkymän
-ja säilyttää 0.7.7:n vain lukevan, noin
-45 sekunnin suutinten tasapaino- ja vuotoepäilyseulonnan. Testi kerää
-lämpimällä vakaalla tyhjäkäynnillä kierrosluvun, jäähdytysnesteen ja
-polttoaineen lämpötilan, rail-paineen sekä neljän sylinterin Techstream-
-korjausarvot. Se muodostaa raakavastaukset ja mittausolosuhteet sisältävän
-TXT-raportin, joka voidaan jakaa suoraan tekoälysovellukselle. Tulos erottaa
-OBD-seulonnan varsinaisesta paluuvirta-/leak-off-testistä eikä lähetä Active
-Test-, kirjoitus-, poisto- tai regenerointikomentoja.
+Flex 0.9.1 yhdistää samaan kenttätestiversioon kolmen ajon ECU Surveyn,
+Field Test Moden, Techstream-vertailun, Evidence Support Bundle v1:n sekä
+IS220d / 2AD-FHV -moottorin DPNR-tarkistusnäkymän. Flex 0.9.1 estää nykyisellä
+`35360000`-kalibroinnilla 45 sekunnin suutintestin ennen CAN-lähetystä, koska
+sen `219C`-pyyntö palautti `NO DATA` kolmessa toistettavassa kenttäajossa.
+Korvaavaa tunnistetta ei arvata: näkymä näyttää `EI TUETTU`, kunnes oikea
+Techstream Data List -tapahtuma on varmennettu. Historiallinen TXT-raportointi
+ja analyysirajat säilyvät lähteessä tulevaa varmennettua toteutusta varten.
 
 Flex 0.7.5 korjasi 0.7.3:n APK:ssa havaitun WebView-käynnistysvirheen, joka
 esti teeman vaihdon, sivunavigaation ja Bluetooth-laitelistan toiminnan.
 Rakennus validoi nämä kolme toimintoa jatkossa myös paketoidusta
-`app.bundle.js`-tiedostosta ennen APK:n muodostamista.
+`app.bundle.js`-tiedostosta ennen APK:n muodostamista. Flex 0.9.1 lukitsee
+lisäksi Live-kuvaajan korkeuden, estää kentässä vastaamattoman `219C`-pyynnön
+ja vapauttaa käyttöliittymän ennen lyhyeksi rajattua ELM/CAN-palautusta.
 
 Paikallisesti toimiva Android-diagnostiikkasovellus Lexus CT 200h / ZWA10:lle
 ja Lexus IS220d / XE20:lle. Flex 0.7.7 säilyttää 0.7.4:n toiminnon, joka tunnistaa yhteydessä olevan auton
@@ -879,8 +880,8 @@ valitsemalle sovellukselle.
 
 - käyttäjälle näkyvä nimi: `Lexus OBD Flex`
 - `applicationId`: `fi.oliver.is220dobd` (muuttumaton)
-- `versionName`: `0.7.8`
-- `versionCode`: `708`
+- `versionName`: `0.9.1`
+- `versionCode`: `901`
 - allekirjoitusidentiteetti: sama kuin Flex 0.2.1:ssä
 
 Debug- ja release-APK käyttävät tarkoituksella samaa aiemman Flexin allekirjoitusidentiteettiä, jotta kumpikin voidaan asentaa 0.2.1:n päälle. Release-paketti sisältää minifioidun käyttöliittymäkoodin; debug-paketti sisältää lukukelpoisemman nipun.
@@ -903,6 +904,6 @@ Rakennus toimii ilman Android SDK:n tai Android Studion erillistä asennusta. Ta
 Tulokset:
 
 ```text
-dist/Lexus_OBD-Flex-0.7.8-debug.apk
-dist/Lexus_OBD-Flex-0.7.8-release.apk
+dist/Lexus_OBD-Flex-0.9.1-debug.apk
+dist/Lexus_OBD-Flex-0.9.1-release.apk
 ```

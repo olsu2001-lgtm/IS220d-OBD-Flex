@@ -1,5 +1,44 @@
 # Muutoshistoria
 
+## 0.9.1 · vLinker Classic -parituksen palautus
+
+- Säilyttää aiemmin valitun vLinker MC / MC+ Classic -laitteen laitevalikossa,
+  vaikka väärä PIN poistaisi epäonnistuneen parituksen Androidin bonded-listasta.
+- Merkitsee puuttuvan Classic-parituksen tilalla `PARITUS VAADITAAN` ja ohjaa
+  yrittämään uudelleen PIN-koodilla `1234`.
+- Estää automaattisen siirtymisen saman adapterin `vLinker MC-IOS` -BLE-kanavaan.
+- Yhtenäistää sovelluksen, Android-paketin, buildin ja dokumentaation versioon
+  `0.9.1` / `versionCode 901`.
+
+## 0.8.1 · Suutintestin fail-closed-korjaus
+
+- Estää kentässä vastaamattoman Toyota `219C` -pyynnön ennen kuljetusta
+  kalibroinnilla `35360000`.
+- Näyttää selkeän `EI TUETTU`-tilan 45 sekunnin suutintestin sijaan, kunnes
+  oikea Techstream Data List -tunniste on varmennettu.
+- Vapauttaa testiraportin ja käyttöliittymän ennen lyhyeksi rajattua
+  ELM/CAN-palautusta, jotta virhepolku ei jää näyttämään käynnissä olevalta.
+- Päivittää version arvoihin `0.8.1` / `versionCode 801`.
+
+## 0.8.0 · Yhdistetty kenttätestiversio
+
+- Palautettu 0.6.9-kehityslinjan Field Test Mode, kolmen ajon ECU Survey
+  -historia, Techstream-vertailu ja Evidence Support Bundle v1 nykyisen
+  moniajoneuvoisen käyttöliittymän päälle.
+- Säilytetty 0.7.5:n teemat, alanavigaatio, Bluetooth-korjaukset ja paketoidun
+  WebView-käyttöliittymän savutesti.
+- Säilytetty 0.7.7:n noin 45 sekunnin vain lukeva suutinten tasapainoseulonta
+  sekä tekoälylle jaettava TXT-raportti.
+- Korjattu suutintestin näennäinen jäätyminen: `219C` tarkistetaan ennen koko
+  testiä, eteneminen näytetään komentokohtaisesti ja toistuviin puuttuviin
+  vastauksiin katkaistaan hallitusti virheilmoituksella.
+- Korjattu Live-kuvaajan korkeus, joka kertautui laitteen pikselitiheyden
+  mukaan jokaisella uudelleenpiirrolla.
+- Laaja diagnostiikka kokeilee nykyisen yhteyden `0100`-lukua ennen adapterin
+  capability-kyselyjä ja mahdollista nollausta.
+- Pakettitunnus ja allekirjoitusidentiteetti säilyvät ennallaan. Versio on
+  `0.8.0` / `versionCode 800`, jotta APK asentuu Flex 0.7.7:n päälle.
+
 ## 0.7.8 · DPNR-tarkistus ja asennusjärjestyksen korjaus
 
 - Lisätty IS220d-profiilille oma DPNR-tarkistusnäkymä, joka näyttää Toyota

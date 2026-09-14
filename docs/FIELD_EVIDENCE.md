@@ -73,3 +73,24 @@ When new field reports are imported:
 3. distinguish adapter-level success from ECU-level success;
 4. label whether a result is vehicle-verified, Techstream-derived or research-only;
 5. never promote an unknown command or conversion into production solely because it appears in a historical report.
+
+## 2026-09-10 — Flex 0.8.0 repeated vehicle validation
+
+Three completed vLinker MC+ BLE runs on calibration `35360000` established a
+stable `7E0 -> 7E8` engine topology. VIN, CALID and CVN matched in every run,
+the initial and restored `0100` probes passed, and `212C` returned a complete
+`61 2C 00` response.
+
+The same runs returned `NO DATA` for `217E` and `217F` in formatted,
+response-filtered and raw single-frame forms. These are negative support
+observations, not DPNR fault verdicts.
+
+A subsequent user-started injector screen returned `NO DATA` for `219C` and
+the Android WebView remained in the synchronous restoration phase. Flex 0.8.1
+therefore field-disables `219C` before transport and exposes completed/error
+reports before running a short, bounded adapter restoration. The injector screen
+stays unavailable until the correct Data List transaction is independently
+captured with Techstream.
+
+The reports included a full Bluetooth address and VIN. Those identifiers are
+not reproduced in this repository summary.
