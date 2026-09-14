@@ -4,6 +4,12 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
 import { build as bundle } from "esbuild";
+import { readVersion, sourceSha, apkNames } from "./release-version.mjs";
+import { assertUnused, createRegistryClient } from "./release-registry.mjs";
+import { sha256, verifyArtifacts } from "./verify-release.mjs";
+import { patchCoreForAsyncNativeBridge } from "./async-native-core-transform.mjs";
+import { IM_READINESS_BUILD_MARKER, patchMainForImReadiness } from "./im-readiness-main-transform.mjs";
+import { RESPONSIVE_UI_BUILD_MARKER, patchMainForResponsiveness } from "./responsive-ui-transform.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const buildRoot = path.join(root, ".build");
@@ -16,25 +22,34 @@ const cliPath = path.join(nitronRoot, "dist", "cli.js");
 const nitronCacheRoot = path.join(buildRoot, "nitron-cache-root");
 const nitronAndroidCache = path.join(nitronCacheRoot, ".nitron", "android");
 const bundledAapt2 = path.join(root, "node_modules", "aaptjs3", "bin", "x64", "linux", "aapt2");
-const packageMeta = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+const version = readVersion();
+const buildSha = sourceSha();
+const buildShortSha = buildSha.slice(0, 12);
+const appVersion = version.versionName;
+const registrySnapshot = await createRegistryClient().read();
+assertUnused(version, registrySnapshot.registry);
+const outputNames = apkNames(appVersion);
 
-function resolveBuildSha() {
-  const fromEnvironment = String(process.env.GITHUB_SHA || "").trim();
-  if (/^[0-9a-f]{7,40}$/i.test(fromEnvironment)) return fromEnvironment.toLowerCase();
-  const result = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
-  const fromGit = String(result.stdout || "").trim();
-  return /^[0-9a-f]{7,40}$/i.test(fromGit) ? fromGit.toLowerCase() : "local";
-}
-
-const buildSha = resolveBuildSha();
-const buildShortSha = buildSha === "local" ? "local" : buildSha.slice(0, 12);
-const appVersion = String(packageMeta.version || "0.0.0");
+const buildTransformPlugin = {
+  name: "flex-build-transforms",
+  setup(build) {
+    build.onLoad({ filter: /[\\/]src[\\/]core\.js$/ }, args => ({
+      contents: patchCoreForAsyncNativeBridge(fs.readFileSync(args.path, "utf8")),
+      loader: "js"
+    }));
+    build.onLoad({ filter: /[\\/]src[\\/]main\.js$/ }, args => ({
+      contents: patchMainForResponsiveness(patchMainForImReadiness(fs.readFileSync(args.path, "utf8"))),
+      loader: "js"
+    }));
+  }
+};
 
 for (const required of [apktoolJar, templateApk, cliPath, bundledAapt2]) {
   if (!fs.existsSync(required)) throw new Error(`Puuttuva rakennusriippuvuus: ${required}. Suorita ensin npm install.`);
 }
 
 fs.rmSync(buildRoot, { recursive: true, force: true });
+fs.rmSync(path.join(root, "dist"), { recursive: true, force: true });
 fs.mkdirSync(path.join(smaliProject, "smali"), { recursive: true });
 fs.cpSync(path.join(root, "native", "smali"), path.join(smaliProject, "smali"), { recursive: true });
 fs.writeFileSync(path.join(smaliProject, "apktool.yml"), "version: 2.0.3\napkFileName: base.apk\ndoNotCompress:\n- dex\n", "utf8");
@@ -82,6 +97,7 @@ for (const name of ["app.js", "styles.css", "package.json"]) {
   fs.copyFileSync(path.join(root, name), path.join(nitronProject, name));
 }
 fs.cpSync(path.join(root, "assets"), path.join(nitronProject, "assets"), { recursive: true });
+fs.writeFileSync(path.join(nitronProject, "flex-version.json"), JSON.stringify({ ...version, gitSha: buildSha }));
 const bundledHtml = fs.readFileSync(path.join(root, "index.html"), "utf8")
   .replace('<script type="module" src="src/main.js"></script>', '<script src="app.bundle.js"></script>');
 fs.writeFileSync(path.join(nitronProject, "index.html"), bundledHtml, "utf8");
@@ -96,13 +112,15 @@ async function buildVariant(label, minify, filename) {
     platform: "browser",
     target: ["chrome90"],
     minify,
+    plugins: [buildTransformPlugin],
     banner: { js: `globalThis.__IS220D_BUILD_SHA__=${JSON.stringify(buildShortSha)};` },
     outfile: path.join(nitronProject, "app.bundle.js")
   });
   const smoke = spawnSync(process.execPath, [
     path.join(root, "scripts", "ui-smoke.mjs"),
     path.join(nitronProject, "index.html"),
-    path.join(nitronProject, "app.bundle.js")
+    path.join(nitronProject, "app.bundle.js"),
+    appVersion
   ], {
     cwd: root,
     encoding: "utf8"
@@ -130,18 +148,31 @@ async function buildVariant(label, minify, filename) {
   }
   const bundleText = finalZip.readAsText("assets/app.bundle.js");
   if (!bundleText.includes(buildShortSha)) throw new Error(`${label}-APK:sta puuttuu build-SHA ${buildShortSha}`);
+  if (!bundleText.includes("__PENDING__")) throw new Error(`${label}-APK:sta puuttuu asynkroninen OBD-silta`);
+  if (!bundleText.includes(IM_READINESS_BUILD_MARKER)) throw new Error(`${label}-APK:sta puuttuu I/M readiness -build-markkeri`);
+  if (!bundleText.includes(RESPONSIVE_UI_BUILD_MARKER)) throw new Error(`${label}-APK:sta puuttuu responsiveness-build-markkeri`);
   return output;
 }
 
-const debugOutput = await buildVariant("debug", false, "Lexus_OBD-Flex-0.7.8-debug.apk");
-const releaseOutput = await buildVariant("release", true, "Lexus_OBD-Flex-0.7.8-release.apk");
+const debugOutput = await buildVariant("debug", false, outputNames[0]);
+const releaseOutput = await buildVariant("release", true, outputNames[1]);
 const buildInfo = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   appVersion,
+  versionCode: version.versionCode,
+  packageId: version.packageId,
+  registrySha: registrySnapshot.sha,
   gitSha: buildSha,
   gitShortSha: buildShortSha,
-  outputs: [path.basename(debugOutput), path.basename(releaseOutput)]
+  outputs: outputNames,
+  artifacts: [debugOutput, releaseOutput].map(file => {
+    const bytes = fs.readFileSync(file);
+    return { file: path.basename(file), bytes: bytes.length, sha256: sha256(bytes) };
+  })
 };
 fs.writeFileSync(path.join(root, "dist", "build-info.json"), `${JSON.stringify(buildInfo, null, 2)}\n`, "utf8");
 console.log("Valmiit APK:t:", debugOutput, releaseOutput);
 console.log("Build-info:", path.join(root, "dist", "build-info.json"));
+
+verifyArtifacts();
+console.log("Both APKs verified. Register this exact build before distribution: npm run release:register");

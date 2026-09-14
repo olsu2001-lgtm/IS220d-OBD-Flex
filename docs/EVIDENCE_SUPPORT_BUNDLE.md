@@ -12,7 +12,7 @@ Typical workflow:
 
 1. install a commit-traceable Flex APK from the repository CI artifact;
 2. run the wide diagnostic three times under the same declared engine state;
-3. review the `Kenttävalidointi · 0.7.0-portti` state;
+3. review the `Kenttävalidointi · 0.8.0-portti` state;
 4. optionally import the neutral Techstream reference JSON;
 5. press **Kopioi evidenssipaketti**;
 6. paste the resulting JSON into the project analysis conversation;

@@ -38,7 +38,9 @@ The 0.6.6 report records that the physical vLinker MC+ had not yet arrived, so C
 
 ### 0.6.9 Git baseline
 
-The current Git baseline is `IS220d OBD Flex 0.6.9` / versionCode 609.
+The historical Git import baseline was `IS220d OBD Flex 0.6.9` / versionCode 609.
+For the current delivered baseline and version allocation, use the shared
+release registry described in [VERSIONING.md](VERSIONING.md).
 
 The preserved 0.6.9 report records:
 

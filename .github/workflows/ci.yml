@@ -4,70 +4,67 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+# One queue for all release branches; registry writes also compare the blob SHA.
+concurrency:
+  group: flex-release
+  cancel-in-progress: false
 
 jobs:
   test-and-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      FLEX_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Checkout
+      - name: Checkout exact source commit
         uses: actions/checkout@v4
-
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-
       - name: Install locked dependencies
         run: npm ci
-
       - name: Run regression and safety tests
         run: npm test
-
-      - name: Build debug and release APKs
+      # Main merges run tests only: reuse the registered APK instead of rebuilding
+      # the same version with a new timestamp or signature.
+      - name: Check shared release registry
+        if: github.event_name != 'push'
+        run: npm run release:check
+      - name: Build and verify debug and release APKs
+        if: github.event_name != 'push'
         run: npm run build
-
-      - name: Verify APK structure, version, signature and provenance
-        run: |
-          set -euo pipefail
-          DEBUG_APK=dist/Lexus_OBD-Flex-0.7.8-debug.apk
-          RELEASE_APK=dist/Lexus_OBD-Flex-0.7.8-release.apk
-          test -s "$DEBUG_APK"
-          test -s "$RELEASE_APK"
-          test -s dist/build-info.json
-          unzip -t "$DEBUG_APK"
-          unzip -t "$RELEASE_APK"
-          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
-          test -x "$APKSIGNER"
-          "$APKSIGNER" verify --verbose --print-certs "$DEBUG_APK"
-          "$APKSIGNER" verify --verbose --print-certs "$RELEASE_APK"
-          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
-          test -x "$AAPT"
-          "$AAPT" dump badging "$RELEASE_APK" | grep -F "package: name='fi.oliver.is220dobd' versionCode='708' versionName='0.7.8'"
-          node -e 'const fs=require("fs"); const info=JSON.parse(fs.readFileSync("dist/build-info.json","utf8")); if(info.gitSha!==process.env.GITHUB_SHA) throw new Error(`build-info SHA ${info.gitSha} != ${process.env.GITHUB_SHA}`); if(info.appVersion!=="0.7.8") throw new Error(`unexpected appVersion ${info.appVersion}`);'
-          SHORT_SHA="${GITHUB_SHA:0:12}"
-          unzip -p "$DEBUG_APK" assets/app.bundle.js | grep -Fq "$SHORT_SHA"
-          unzip -p "$RELEASE_APK" assets/app.bundle.js | grep -Fq "$SHORT_SHA"
-
-      - name: Upload field-validation APK artifact
+      - name: Register exact APK hashes before distribution
+        if: github.event_name != 'push'
+        run: npm run release:register
+      - name: Read registered version
+        if: github.event_name != 'push'
+        id: app_version
+        run: node -e 'const fs=require("fs"); const info=require("./dist/release-registration.json"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `value=${info.versionName}\n`);'
+      - name: Upload registered APK artifact
+        if: github.event_name != 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: Lexus-OBD-Flex-0.7.8-${{ github.sha }}
+          name: Lexus-OBD-Flex-${{ steps.app_version.outputs.value }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
-            dist/Lexus_OBD-Flex-0.7.8-debug.apk
-            dist/Lexus_OBD-Flex-0.7.8-release.apk
+            dist/Lexus_OBD-Flex-*.apk
             dist/build-info.json
+            dist/release-registration.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
           compression-level: 0

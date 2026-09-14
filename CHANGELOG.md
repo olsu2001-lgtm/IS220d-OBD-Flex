@@ -1,5 +1,46 @@
 # Muutoshistoria
 
+## 0.9.3 · Yhtenäinen versiointi ja julkaisulukko
+
+- Versio tulee vain package.json-tiedostosta APK:hon, näkyvään käyttöliittymään
+  ja diagnostiikkaraportteihin. Androidin versionCode on 903.
+- Poistettu kiinteät 0.8.1-APK-nimet ja vanhoja tiedostoja säilyttävä jälkinimeäminen.
+- Kaikki haarat tarkistavat yhteisen GitHub-julkaisurekisterin. Tunnisteet
+  0.9.2:een asti on suljettu; jokainen uusi toimitus rekisteröi SHA-256-tiivisteet.
+- Valmiiden debug- ja release-APK:iden versiot, allekirjoitukset, sisältö ja
+  lähdekoodin commit tarkistetaan ennen rekisteröintiä ja jakamista.
+- Pohja on toimitettu 0.9.2 / 40fc602b74877e659170341418840f2c49e22a29.
+  Ajoneuvoprotokollia tai anturitulkinnoita ei muuteta.
+
+## 0.8.1 · Suutintestin fail-closed-korjaus
+
+- Estää kentässä vastaamattoman Toyota `219C` -pyynnön ennen kuljetusta
+  kalibroinnilla `35360000`.
+- Näyttää selkeän `EI TUETTU`-tilan 45 sekunnin suutintestin sijaan, kunnes
+  oikea Techstream Data List -tunniste on varmennettu.
+- Vapauttaa testiraportin ja käyttöliittymän ennen lyhyeksi rajattua
+  ELM/CAN-palautusta, jotta virhepolku ei jää näyttämään käynnissä olevalta.
+- Päivittää version arvoihin `0.8.1` / `versionCode 801`.
+
+## 0.8.0 · Yhdistetty kenttätestiversio
+
+- Palautettu 0.6.9-kehityslinjan Field Test Mode, kolmen ajon ECU Survey
+  -historia, Techstream-vertailu ja Evidence Support Bundle v1 nykyisen
+  moniajoneuvoisen käyttöliittymän päälle.
+- Säilytetty 0.7.5:n teemat, alanavigaatio, Bluetooth-korjaukset ja paketoidun
+  WebView-käyttöliittymän savutesti.
+- Säilytetty 0.7.7:n noin 45 sekunnin vain lukeva suutinten tasapainoseulonta
+  sekä tekoälylle jaettava TXT-raportti.
+- Korjattu suutintestin näennäinen jäätyminen: `219C` tarkistetaan ennen koko
+  testiä, eteneminen näytetään komentokohtaisesti ja toistuviin puuttuviin
+  vastauksiin katkaistaan hallitusti virheilmoituksella.
+- Korjattu Live-kuvaajan korkeus, joka kertautui laitteen pikselitiheyden
+  mukaan jokaisella uudelleenpiirrolla.
+- Laaja diagnostiikka kokeilee nykyisen yhteyden `0100`-lukua ennen adapterin
+  capability-kyselyjä ja mahdollista nollausta.
+- Pakettitunnus ja allekirjoitusidentiteetti säilyvät ennallaan. Versio on
+  `0.8.0` / `versionCode 800`, jotta APK asentuu Flex 0.7.7:n päälle.
+
 ## 0.7.8 · DPNR-tarkistus ja asennusjärjestyksen korjaus
 
 - Lisätty IS220d-profiilille oma DPNR-tarkistusnäkymä, joka näyttää Toyota

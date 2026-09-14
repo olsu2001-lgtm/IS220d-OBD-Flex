@@ -9,13 +9,19 @@ This directory separates the **active development contract** from historical Dri
 3. [`PROTOCOL.md`](PROTOCOL.md) — current verified IS220d production protocol profile and Toyota allowlist.
 4. [`ECU_SURVEY.md`](ECU_SURVEY.md) — current read-only ECU Survey policy/data-model foundation and integration boundary.
 5. [`MODE09_IDENTITY.md`](MODE09_IDENTITY.md) — parsing and evidence-comparison boundary for VIN, Calibration ID, CVN and ECU-name results already collected by the wide diagnostic.
-6. [`FIELD_VALIDATION.md`](FIELD_VALIDATION.md) — commit-traceable three-run real-car validation gate before a 0.7.0 release decision.
+6. [`FIELD_VALIDATION.md`](FIELD_VALIDATION.md) — commit-traceable three-run real-car validation gate for the unified 0.8.0 field-test line.
 7. [`FIELD_TEST_MODE.md`](FIELD_TEST_MODE.md) — guided one-run-at-a-time UI wrapper for collecting the three matching validation runs with an explicit engine state.
 8. [`TECHSTREAM_REFERENCE.md`](TECHSTREAM_REFERENCE.md) — neutral external-reference schema and explicit Techstream/ECU Survey comparison boundary.
 9. [`EVIDENCE_SUPPORT_BUNDLE.md`](EVIDENCE_SUPPORT_BUNDLE.md) — compact privacy-bounded JSON export for field-validation/support analysis without raw CAN/ELM data.
 10. Executable source and regression tests — the final source of truth for shipped behavior.
 
 Historical documents never expand the active command allowlist by themselves.
+
+## Current implementation roadmaps
+
+- [`BOM_DIAGNOSTICS_ROADMAP.md`](BOM_DIAGNOSTICS_ROADMAP.md) — phased plan for importing all DIRECT/INDIRECT `Bom-kaapija` diagnostic targets, separating BOM data from signal authorization, adding component assessment rules, physical-location diagnostic groups, Techstream gap closure and field-validation gates.
+
+Roadmaps describe intended work. They do not override the development contract, protocol allowlist, current source or tests.
 
 ## Imported / reconciled project evidence
 
