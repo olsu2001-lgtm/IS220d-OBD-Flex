@@ -37,6 +37,7 @@ function deepClone(value) {
 }
 
 function finite(value) {
+  if (value === null || value === undefined || value === "") return null;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
 }
@@ -73,7 +74,7 @@ export function createDpnrCleaningTestRun(meta = {}) {
 export function summarizeDpnrCleaningCapture(samples = [], conditionId = "") {
   const condition = DPNR_CLEANING_CONDITIONS[conditionId];
   if (!condition) throw new Error(`Unknown DPNR cleaning condition: ${conditionId}`);
-  const validPressure = samples.filter(sample => Number.isFinite(Number(sample?.pressureKpa)));
+  const validPressure = samples.filter(sample => finite(sample?.pressureKpa) !== null);
   const pressureKpa = median(validPressure.map(sample => sample.pressureKpa));
   const rpm = median(samples.map(sample => sample?.rpm));
   const mafGs = median(samples.map(sample => sample?.mafGs));
@@ -174,7 +175,7 @@ export function analyzeDpnrCleaningTest(run) {
 }
 
 function number(value, decimals = 2, unit = "") {
-  return Number.isFinite(Number(value)) ? `${Number(value).toFixed(decimals)}${unit ? ` ${unit}` : ""}` : "–";
+  return finite(value) !== null ? `${Number(value).toFixed(decimals)}${unit ? ` ${unit}` : ""}` : "–";
 }
 
 function captureLines(run, stageId, conditionId) {
