@@ -112,12 +112,12 @@ test("catalog summary distinguishes implemented, ready, indirect and pending row
 
 
 
-test("continuation covers each Drive row through 25 without restarting the first batch", () => {
-  assert.deepEqual(IS220D_VIKADIAG_OBD_TEST_CATALOG.map(x => x.sourceRow), Array.from({ length: 24 }, (_, i) => i + 2));
+test("continuation covers each Drive row through 38 without restarting the first batch", () => {
+  assert.deepEqual(IS220D_VIKADIAG_OBD_TEST_CATALOG.map(x => x.sourceRow), Array.from({ length: 37 }, (_, i) => i + 2));
 });
 
 test("physical rows cannot acquire OBD evidence, pending cam row cannot prove synchronization", () => {
-  for (const row of [13, 14, 15]) {
+  for (const row of [13, 14, 15, 26, 38]) {
     const item = getVikadiagObdTestCandidateByRow(row);
     assert.equal(item.obdRole, "physical-only");
     assert.deepEqual(item.signalKeys, []);
@@ -162,4 +162,50 @@ test("review validator fails closed on unsafe or misleading metadata", () => {
   assert.throws(() => validateVikadiagObdTestCandidate(bad), /Forbidden catalog field/);
   bad = copy(18); bad.recipes[1].passThreshold = 1;
   assert.throws(() => validateVikadiagObdTestCandidate(bad), /Forbidden catalog field/);
+});
+
+
+test("reused inspection points exist and retain the same component identity", async () => {
+  const { IS220D_ALL_INSPECTION_POINTS } = await import("../src/is220d-inspection-execution-state.js");
+  const points = new Map(IS220D_ALL_INSPECTION_POINTS.map(point => [point.id, point]));
+  for (const item of IS220D_VIKADIAG_OBD_TEST_CATALOG.filter(x => x.sourceRow >= 11)) {
+    for (const ref of item.existingInspectionPoints) {
+      assert.equal(points.get(ref.pointId)?.componentId, item.componentId, ref.pointId);
+    }
+    if (item.existingInspectionPoints.length) assert.deepEqual(item.recipes, [], "do not duplicate an existing guided point");
+  }
+});
+
+test("second continuation preserves uncertain vacuum identity and excluded actuation", () => {
+  const filter = getVikadiagObdTestCandidateByRow(31);
+  assert.equal(filter.readiness, VIKADIAG_TEST_READINESS.NEEDS_SIGNAL_VERIFICATION);
+  assert.equal(filter.source.sourceConfidence, "Epävarma");
+  assert.match(filter.expectedPattern, /ei ole mahdollinen/);
+  for (const row of [28, 29, 30, 34]) {
+    assert.ok(getVikadiagObdTestCandidateByRow(row).excludedActions.includes("active-test"));
+  }
+  for (const row of [32, 33, 34, 35, 36, 37]) {
+    const item = getVikadiagObdTestCandidateByRow(row);
+    assert.equal(item.obdRole, "indirect");
+    assert.deepEqual(item.signalKeys, ["engine.rail_pressure_obd", "engine.rpm"]);
+    assert.ok(item.missingSignals.length);
+  }
+  assert.match(getVikadiagObdTestCandidateByRow(35).limitations.join(" "), /ei vuotoa provosoivaa/i);
+});
+
+test("reviewed identity stays tied to the source PNC and OE, not a similar component", () => {
+  const expected = [
+    [11,"27020","27060-26030"], [12,"28100","28100-0R010"],
+    [13,"31410","31420-53020"], [14,"37100","37100-53081"], [15,"37230","37230-30181"],
+    [16,"11301K","90919-05029"], [17,"11401G","90919-05069"],
+    [18,"17700","17700-26350"], [19,"17801","17801-26010"],
+    [21,"17940D","17940-26010"], [22,"17111","17101-26110"], [23,"17177","17171-26010"],
+    [25,"17201","17201-26011"], [29,"25819","25819-0R011"], [30,"25860","25860-0R010"],
+    [31,"23265C","90917-11036"], [33,"23930","23930-26010"], [34,"22100","22100-0R031"],
+    [37,"23122B","23769-26020"], [38,"13614A","13614-26010"]
+  ];
+  for (const [row,pnc,oe] of expected) {
+    const item = getVikadiagObdTestCandidateByRow(row);
+    assert.equal(item.pnc,pnc); assert.equal(item.oe,oe);
+  }
 });

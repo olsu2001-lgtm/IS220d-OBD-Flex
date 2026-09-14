@@ -149,4 +149,55 @@ batch. Search metadata is not a claim that a picture has been found.
 
 Validation: 13 deterministic catalog tests pass locally. Full regression/safety
 results are recorded by PR CI; release check/build/register/upload must be skipped.
-Next unreviewed Drive row: **26**.
+Batch 2 completed through row 25; continuation below.
+
+
+## Batch 3: live Drive rows 26–38 (2026-09-14)
+
+| Drive rows | Scope | Role / readiness |
+|---|---|---|
+| 26 | Turbo oil feed/return | physical-only |
+| 27 | Turbo/exhaust gaskets | indirect |
+| 28–30 | Vacuum hoses, regulator, VSV | indirect; exact branch mapping still needs manual verification |
+| 31 | Vacuum/gas filter | indirect context, blocked pending layout evidence |
+| 32–37 | Filter, sedimenter, pump, high/low-pressure pipes, check valve | indirect |
+| 38 | Pump drive coupling | physical-only; weak source confidence retained |
+
+This batch adds 16 small draft recipes and references eight existing inspection
+points. Total continuation: 28 rows, 29 draft recipes, 22 existing point references.
+Of the 28 new rows, 23 have an indirect role and five are physical-only. Two of
+the indirect rows (16 and 31) remain pending evidence. No new direct test is claimed.
+
+Missing rail target evidence reuses the intent of
+`techstream-data-list-gap.js:target-common-rail-pressure`; pump/SCV context also
+relates to `target-pump-scv-current`. These are capture targets, not polling
+authorization. The catalog does not add a PID, decoder, evidence promotion or
+request. Water-warning state, low-pressure supply measurement and vacuum branch
+feedback remain descriptive gaps without guessed identifiers.
+
+Fuel-leak/pump Active Tests and VSV actuation are excluded. The high-pressure-pipe
+recipe uses inspection with the engine stopped and previously collected context;
+it never asks for a leak-provoking drive or hand contact with a running rail leak.
+Oil feed/return and pump drive integrity stay physical-only despite possible
+secondary pressure symptoms.
+
+Manual work still pending: turbo oil routing and flange exploded views; vacuum
+routing diagrams (especially 90917-11036), valve connector views; fuel-filter and
+sedimenter locations; pump, pipe routing and drive coupling removal/inspection
+diagrams. All new `manualReference` and `assetPath` values remain null.
+
+Local catalog tests cover identity, deduplication/reuse, source provenance, missing
+evidence, physical-only boundaries and forbidden commands/thresholds. Full
+regression and safety tests run in the existing PR CI without workflow changes.
+Source work never runs the APK build. Next unreviewed Drive row: **39**.
+
+
+### Validation record
+
+- Batch 2 commit `dd236f506dea38200b24f7c1b81fbdd6e6643ec9`: local
+  regression/safety suite 479/479; PR CI run 34891293340 successful.
+  Release check, build, registration, version read and artifact upload all skipped.
+- Batch 3: local regression/safety suite 482/482, including 16 catalog tests.
+  PR CI runs on the exact pushed source head.
+- Only the catalog, its test file and this roadmap are changed. Package/lockfile,
+  release registry, protocol, decoders, production polling and CI workflow are unchanged.

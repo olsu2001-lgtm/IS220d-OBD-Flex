@@ -15,7 +15,7 @@ import {
 
 export const IS220D_VIKADIAG_OBD_TEST_CATALOG_SCHEMA_VERSION = 1;
 export const IS220D_VIKADIAG_OBD_TEST_SOURCE = "Bom-kaapija / Vikadiag_kohteet";
-export const IS220D_VIKADIAG_OBD_TEST_SOURCE_BATCH = "Drive rows 2-25 reviewed 2026-09-14";
+export const IS220D_VIKADIAG_OBD_TEST_SOURCE_BATCH = "Drive rows 2-38 reviewed 2026-09-14";
 
 export const VIKADIAG_TEST_READINESS = Object.freeze({
   IMPLEMENTED_DEDICATED: "implemented-dedicated",
@@ -1533,6 +1533,1169 @@ const reviewedContinuation = [
     },
     "note": "Ei target/actual-testiä eikä turbon ohjaustavan oletusta yleisestä D-4D-lähteestä.",
     "recipes": []
+  },
+  {
+    "sourceRow": 26,
+    "diagnosticGroup": "5. Jäähdytys, öljy ja hihnakäyttö",
+    "componentId": "engine.turbo_oil_pipes",
+    "pnc": "15474/15474A/15481/15482",
+    "oe": "15474-26020; 15491-26010; 15481-0R010/26010; 15482-26010",
+    "label": "Turbon öljynsyöttö- ja paluuputket/letkut",
+    "obdRole": "physical-only",
+    "readiness": "physical-only",
+    "symptom": "Vuoto aiheuttaa öljyn hajua, öljytahroja ja savua kuumilla osilla; tukos tai huono paluu voi aiheuttaa turbon öljyämistä, savutusta ja laakerivaurion.",
+    "signalKeys": [],
+    "operatingStates": [
+      "physical"
+    ],
+    "testMethod": "Tarkista öljyvuodot, koksaantuminen ja paluuputken/letkun painuminen jäähtyneestä moottorista.",
+    "expectedPattern": "Vuoto tai virtauseste todetaan fyysisesti.",
+    "physicalFollowUp": "Tarkista vuodot, koksaantuminen, painunut paluuletku, väärä tiivistemassa, banjopultit/tiivisteet ja öljyn paluun vapaa lasku.",
+    "limitations": [
+      "MAP ei mittaa turbon öljynsyöttöä tai paluuvirtausta.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A26:O26",
+      "row": 26,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 760-787, PNC 15474/15481/15482 ym.",
+      "sourceConfidence": "Vahva",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "Garrett turbo diagnostics/oil leakage troubleshooting",
+      "sourceNote": "Hyvä tarkistaa, jos turbon ympärillä on öljyä tai pakokaasun haju kuumana."
+    },
+    "sourceObdText": "Ei suoraa OBD-arvoa. Epäsuorasti savutus, öljynkulutus ja ahtopaineen heikkeneminen.",
+    "existingInspectionPoints": [],
+    "existingImplementation": null,
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "TURBO OIL OUTLET / TURBO OIL PIPES",
+        "15474/15474A/15481/15482",
+        "15474-26020; 15491-26010; 15481-0R010/26010; 15482-26010"
+      ],
+      "system": "MANIFOLD",
+      "componentName": "TURBO OIL OUTLET / TURBO OIL PIPES",
+      "pnc": "15474/15474A/15481/15482",
+      "oe": "15474-26020; 15491-26010; 15481-0R010/26010; 15482-26010",
+      "likelySection": "MANIFOLD / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "MAP ei mittaa turbon öljynsyöttöä tai paluuvirtausta.",
+    "recipes": [
+      {
+        "id": "vikadiag-26-physical",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "signalKeys": [],
+        "instruction": "Tarkista vuodot, koksaantuminen, painunut paluuletku, väärä tiivistemassa, banjopultit/tiivisteet ja öljyn paluun vapaa lasku.",
+        "expectedPattern": "Vuoto tai virtauseste todetaan fyysisesti.",
+        "physicalFollowUp": "Tarkista vuodot, koksaantuminen, painunut paluuletku, väärä tiivistemassa, banjopultit/tiivisteet ja öljyn paluun vapaa lasku."
+      }
+    ]
+  },
+  {
+    "sourceRow": 27,
+    "diagnosticGroup": "3. Ilma, alipaine, EGR ja pakokaasu",
+    "componentId": "engine.turbo_exhaust_gaskets",
+    "pnc": "17278/17279/04175",
+    "oe": "17278-26010; 17279-0R010; 04175-0R071",
+    "label": "Turbon ja pakosarjan tiivisteet / turbon tiivistesarja",
+    "obdRole": "indirect",
+    "readiness": "indirect-existing-signals",
+    "symptom": "Pakovuoto ennen turboahdinta voi aiheuttaa nokijälkiä, tikitystä, pakokaasun hajua, vihellystä ja heikompaa ahtopaineen nousua.",
+    "signalKeys": [
+      "engine.map",
+      "engine.egt_inlet",
+      "engine.egt_outlet"
+    ],
+    "operatingStates": [
+      "running",
+      "acceleration"
+    ],
+    "testMethod": "Tarkista laippojen nokijäljet ja vuotoääni; käytä normaalia ajolokia järjestelmäkontekstina.",
+    "expectedPattern": "Paine- ja lämpövaste arvioidaan suhteessa kuormaan, vuoto paikannetaan fyysisesti.",
+    "physicalFollowUp": "Tarkista noki laipoissa, pulttien löysyys/katkeamat, kylmänä kuuluva vuotoääni ja lämpösuojien jäljet.",
+    "limitations": [
+      "EGT-poikkeama ei yksilöi vuotavaa laippaa.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A27:O27",
+      "row": 27,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 758-759 ja 828-833, PNC 04175/17278/17279",
+      "sourceConfidence": "Todennäköinen",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "Garrett turbo diagnostics",
+      "sourceNote": "Oire voi muistuttaa turbon tai ahtovuodon vikaa."
+    },
+    "sourceObdText": "Epäsuora: MAP/boost nousee hitaasti; EGT ja DPF-data voivat näyttää oudoilta. Varmistus fyysisesti.",
+    "existingInspectionPoints": [],
+    "existingImplementation": null,
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "TURBO/EXHAUST MANIFOLD GASKETS",
+        "17278/17279/04175",
+        "17278-26010; 17279-0R010; 04175-0R071"
+      ],
+      "system": "MANIFOLD",
+      "componentName": "TURBO/EXHAUST MANIFOLD GASKETS",
+      "pnc": "17278/17279/04175",
+      "oe": "17278-26010; 17279-0R010; 04175-0R071",
+      "likelySection": "MANIFOLD / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "EGT-poikkeama ei yksilöi vuotavaa laippaa.",
+    "recipes": [
+      {
+        "id": "vikadiag-27-physical",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "signalKeys": [],
+        "instruction": "Tarkista noki laipoissa, pulttien löysyys/katkeamat, kylmänä kuuluva vuotoääni ja lämpösuojien jäljet.",
+        "expectedPattern": "Paine- ja lämpövaste arvioidaan suhteessa kuormaan, vuoto paikannetaan fyysisesti.",
+        "physicalFollowUp": "Tarkista noki laipoissa, pulttien löysyys/katkeamat, kylmänä kuuluva vuotoääni ja lämpösuojien jäljet."
+      },
+      {
+        "id": "vikadiag-27-context",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running",
+          "acceleration"
+        ],
+        "signalKeys": [
+          "engine.map",
+          "engine.egt_inlet",
+          "engine.egt_outlet"
+        ],
+        "instruction": "Tarkista laippojen nokijäljet ja vuotoääni; käytä normaalia ajolokia järjestelmäkontekstina.",
+        "expectedPattern": "Paine- ja lämpövaste arvioidaan suhteessa kuormaan, vuoto paikannetaan fyysisesti.",
+        "physicalFollowUp": "Tarkista noki laipoissa, pulttien löysyys/katkeamat, kylmänä kuuluva vuotoääni ja lämpösuojien jäljet."
+      }
+    ]
+  },
+  {
+    "sourceRow": 28,
+    "diagnosticGroup": "3. Ilma, alipaine, EGR ja pakokaasu",
+    "componentId": "engine.vacuum_hoses",
+    "pnc": "25760/25770/25780/25736/25761",
+    "oe": "25760-26021; 25760-26060; 25770-26020; 25770-26040; 25780-26011; 25736-31010; 25761-26040",
+    "label": "Alipaineletkut ja -putket",
+    "obdRole": "indirect",
+    "readiness": "indirect-existing-signals",
+    "symptom": "Haljennut tai väärin kytketty alipaineletku aiheuttaa turbon/EGR:n väärän ohjauksen: tehonpuute, yli-/aliahto, nykiminen ja limp mode/P1251.",
+    "signalKeys": [
+      "engine.map",
+      "engine.maf",
+      "engine.egr_position_toyota"
+    ],
+    "operatingStates": [
+      "running",
+      "acceleration"
+    ],
+    "testMethod": "Varmista letkujen reititys manuaalista ja tarkista tiiviys; vertaa järjestelmävastetta normaalissa ajossa.",
+    "expectedPattern": "Fyysinen alipainemittaus ja järjestelmävaste tulkitaan yhdessä.",
+    "physicalFollowUp": "Tarkista letkujen reititys, halkeamat päistä, kovettuminen, öljy/nokijäljet, takaiskuventtiilit ja alipaine käsipumpulla.",
+    "limitations": [
+      "Varmista mikä laite käyttää kutakin alipainehaaraa; ei automaattista turbo/EGR-kytkentäoletusta.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [
+      "Varmennettu alipainehaaran paine ja siihen liitetyn toimilaitteen palaute"
+    ],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A28:O28",
+      "row": 28,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 974-987 ja 945-948, PNC 25760/25770/25780/25736/25761",
+      "sourceConfidence": "Vahva",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "ToyotaOwners D-4D P1251 E-VRV/vacuum tubing -ketju",
+      "sourceNote": "Tämä on halpa ja tärkeä tarkistus nykyisen nykimisen/tehonpuutteen tutkimuksessa."
+    },
+    "sourceObdText": "MAP/boost actual vs target kuormalla, EGR-komennon vaste; active test jos Techstream tukee kyseistä venttiiliä.",
+    "existingInspectionPoints": [],
+    "existingImplementation": null,
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "VACUUM TRANSMITTING HOSES/PIPES",
+        "25760/25770/25780/25736/25761",
+        "25760-26021; 25760-26060; 25770-26020; 25770-26040; 25780-26011; 25736-31010; 25761-26040"
+      ],
+      "system": "VACUUM PIPING / AIR CLEANER",
+      "componentName": "VACUUM TRANSMITTING HOSES/PIPES",
+      "pnc": "25760/25770/25780/25736/25761",
+      "oe": "25760-26021; 25760-26060; 25770-26020; 25770-26040; 25780-26011; 25736-31010; 25761-26040",
+      "likelySection": "VACUUM PIPING / AIR CLEANER / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Varmista mikä laite käyttää kutakin alipainehaaraa; ei automaattista turbo/EGR-kytkentäoletusta.",
+    "excludedActions": [
+      "active-test"
+    ],
+    "recipes": [
+      {
+        "id": "vikadiag-28-physical",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "signalKeys": [],
+        "instruction": "Tarkista letkujen reititys, halkeamat päistä, kovettuminen, öljy/nokijäljet, takaiskuventtiilit ja alipaine käsipumpulla.",
+        "expectedPattern": "Fyysinen alipainemittaus ja järjestelmävaste tulkitaan yhdessä.",
+        "physicalFollowUp": "Tarkista letkujen reititys, halkeamat päistä, kovettuminen, öljy/nokijäljet, takaiskuventtiilit ja alipaine käsipumpulla."
+      },
+      {
+        "id": "vikadiag-28-context",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running",
+          "acceleration"
+        ],
+        "signalKeys": [
+          "engine.map",
+          "engine.maf",
+          "engine.egr_position_toyota"
+        ],
+        "instruction": "Varmista letkujen reititys manuaalista ja tarkista tiiviys; vertaa järjestelmävastetta normaalissa ajossa.",
+        "expectedPattern": "Fyysinen alipainemittaus ja järjestelmävaste tulkitaan yhdessä.",
+        "physicalFollowUp": "Tarkista letkujen reititys, halkeamat päistä, kovettuminen, öljy/nokijäljet, takaiskuventtiilit ja alipaine käsipumpulla."
+      }
+    ]
+  },
+  {
+    "sourceRow": 29,
+    "diagnosticGroup": "3. Ilma, alipaine, EGR ja pakokaasu",
+    "componentId": "engine.vacuum_regulating_valve",
+    "pnc": "25819",
+    "oe": "25819-0R011",
+    "label": "Alipaineen säätöventtiili",
+    "obdRole": "indirect",
+    "readiness": "indirect-existing-signals",
+    "symptom": "Väärä alipaineen säätö voi aiheuttaa turbon/EGR:n liian hitaan tai liian suuren liikkeen: tehonpuute, yli-/aliahto, nykäisy ja limp.",
+    "signalKeys": [
+      "engine.map",
+      "engine.maf",
+      "engine.egr_position_toyota"
+    ],
+    "operatingStates": [
+      "running",
+      "acceleration"
+    ],
+    "testMethod": "Tarkista kytkentäkaavio ja alipaine sisään/ulos; vertaa normaalia MAP/MAF/EGR-asentokontekstia.",
+    "expectedPattern": "Järjestelmän looginen vaste ei yksin todista säätöventtiiliä ehjäksi.",
+    "physicalFollowUp": "Tarkista alipaine sisään/ulos, venttiilin vuodottomuus, sähköliitin, johdot ja ohjauksen vaikutus alipaineeseen.",
+    "limitations": [
+      "Venttiilin tarkka järjestelmäkytkentä varmistettava ennen komponenttikohtaista johtopäätöstä.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [
+      "Venttiilin oma varmennettu palaute/alipainemittaus"
+    ],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A29:O29",
+      "row": 29,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 988-989, PNC 25819, OE 25819-0R011",
+      "sourceConfidence": "Todennäköinen",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "ToyotaOwners D-4D P1251 E-VRV/vacuum-ketjut",
+      "sourceNote": "Varmista kytkentäkaavio ennen venttiilin nimeämistä EGR- tai turbo-ohjaukseksi."
+    },
+    "sourceObdText": "Techstream/Flex: MAP target/actual, EGR-komento ja DTC/freeze frame; active test jos käytettävissä.",
+    "existingInspectionPoints": [
+      {
+        "file": "src/is220d-air-exhaust-inspection-points.js",
+        "pointId": "vacuum-regulator-baseline"
+      },
+      {
+        "file": "src/is220d-air-exhaust-inspection-points.js",
+        "pointId": "vacuum-regulator-system-response"
+      }
+    ],
+    "existingImplementation": "src/is220d-air-exhaust-inspection-points.js",
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "VALVE ASSY, VACUUM REGULATING",
+        "25819",
+        "25819-0R011"
+      ],
+      "system": "VACUUM PIPING",
+      "componentName": "VALVE ASSY, VACUUM REGULATING",
+      "pnc": "25819",
+      "oe": "25819-0R011",
+      "likelySection": "VACUUM PIPING / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "connector view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Venttiilin tarkka järjestelmäkytkentä varmistettava ennen komponenttikohtaista johtopäätöstä.",
+    "excludedActions": [
+      "active-test"
+    ],
+    "recipes": []
+  },
+  {
+    "sourceRow": 30,
+    "diagnosticGroup": "3. Ilma, alipaine, EGR ja pakokaasu",
+    "componentId": "engine.vacuum_switching_valve",
+    "pnc": "25860",
+    "oe": "25860-0R010",
+    "label": "Alipaineen vaihtoventtiili / VSV",
+    "obdRole": "indirect",
+    "readiness": "indirect-existing-signals",
+    "symptom": "Jumiutuva VSV voi aiheuttaa turboactuatorin/EGR:n väärän asennon, tehonpuutteen, yli-/aliahdon, P1251-tyyppisen limp moden tai satunnaisen nykäisyn.",
+    "signalKeys": [
+      "engine.map",
+      "engine.maf",
+      "engine.egr_position_toyota"
+    ],
+    "operatingStates": [
+      "running",
+      "acceleration"
+    ],
+    "testMethod": "Tarkista letkut ja liitin moottori sammuksissa; havainnoi normaalia ajolokia ilman venttiilin ohjaamista.",
+    "expectedPattern": "Järjestelmävaste voi nostaa tarkastustarpeen, mutta ei todista VSV:n liikettä.",
+    "physicalFollowUp": "Tarkista että venttiili naksuu ohjattaessa, alipaine kulkee oikeasta portista, suodatin/letkut eivät ole tukossa ja sähkövastus/johdot ovat ehjät.",
+    "limitations": [
+      "Lähteen naksautus/Active Test ei ole Flexin testivaihe.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [
+      "VSV:n varmennettu tila ja tarkka alipainekytkentä"
+    ],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A30:O30",
+      "row": 30,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 990-991, PNC 25860, OE 25860-0R010",
+      "sourceConfidence": "Vahva",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "ToyotaOwners D-4D P1251 turbo vacuum valve -ketjut",
+      "sourceNote": "Ei kannata vaihtaa ennen letkujen ja alipaineen mittausta."
+    },
+    "sourceObdText": "Techstream active test jos saatavilla; muuten MAP/boost target/actual ja freeze frame silloin kun vika tulee.",
+    "existingInspectionPoints": [
+      {
+        "file": "src/is220d-air-exhaust-inspection-points.js",
+        "pointId": "vacuum-switch-baseline"
+      },
+      {
+        "file": "src/is220d-air-exhaust-inspection-points.js",
+        "pointId": "vacuum-switch-system-response"
+      }
+    ],
+    "existingImplementation": "src/is220d-air-exhaust-inspection-points.js",
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "VALVE ASSY, VACUUM SWITCHING, NO.1",
+        "25860",
+        "25860-0R010"
+      ],
+      "system": "VACUUM PIPING",
+      "componentName": "VALVE ASSY, VACUUM SWITCHING, NO.1",
+      "pnc": "25860",
+      "oe": "25860-0R010",
+      "likelySection": "VACUUM PIPING / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "connector view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Lähteen naksautus/Active Test ei ole Flexin testivaihe.",
+    "excludedActions": [
+      "active-test"
+    ],
+    "recipes": []
+  },
+  {
+    "sourceRow": 31,
+    "diagnosticGroup": "3. Ilma, alipaine, EGR ja pakokaasu",
+    "componentId": "engine.vacuum_gas_filter",
+    "pnc": "23265C",
+    "oe": "90917-11036",
+    "label": "Alipaine-/kaasusuodatin ohjausjärjestelmässä",
+    "obdRole": "indirect",
+    "readiness": "needs-signal-verification",
+    "symptom": "Tukkeutuessaan voi hidastaa alipaineohjauksen vastetta ja aiheuttaa turbon/EGR:n satunnaista toimintaa, nykimistä tai tehonpuutetta.",
+    "signalKeys": [
+      "engine.map",
+      "engine.egr_position_toyota"
+    ],
+    "operatingStates": [
+      "running"
+    ],
+    "testMethod": "Varmista ensin suodattimen sijainti ja tehtävä alipainekaaviosta; MAP/EGR on vain taustakonteksti.",
+    "expectedPattern": "Komponentin johtopäätös ei ole mahdollinen ennen kytkentäkaavion varmennusta.",
+    "physicalFollowUp": "Tarkista virtaussuunta, läpäisevyys ja ettei suodatin ole öljystä/nokesta tukossa; vertaa uuteen osaan.",
+    "limitations": [
+      "Drive merkitsee osan tehtävän epävarmaksi; sitä ei nimetä varmistetuksi turbon suodattimeksi.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [
+      "Suodattimen kytkentäkaavio ja sen haaran varmennettu vaste"
+    ],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A31:O31",
+      "row": 31,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 966-967, PNC 23265C, OE 90917-11036",
+      "sourceConfidence": "Epävarma",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "ToyotaOwners D-4D vacuum/E-VRV -ketju; Toyota alipainejärjestelmän rakenne",
+      "sourceNote": "Tarkka tehtävä pitää varmistaa alipainekaaviosta."
+    },
+    "sourceObdText": "Ei suoraa OBD-arvoa; vaikutus näkyy vain alipaineohjatun laitteen hitaana vasteena MAP/EGR-datassa.",
+    "existingInspectionPoints": [],
+    "existingImplementation": null,
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "FILTER, GAS",
+        "23265C",
+        "90917-11036"
+      ],
+      "system": "VACUUM PIPING",
+      "componentName": "FILTER, GAS",
+      "pnc": "23265C",
+      "oe": "90917-11036",
+      "likelySection": "VACUUM PIPING / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Drive merkitsee osan tehtävän epävarmaksi; sitä ei nimetä varmistetuksi turbon suodattimeksi.",
+    "recipes": [
+      {
+        "id": "vikadiag-31-physical",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "signalKeys": [],
+        "instruction": "Tarkista virtaussuunta, läpäisevyys ja ettei suodatin ole öljystä/nokesta tukossa; vertaa uuteen osaan.",
+        "expectedPattern": "Komponentin johtopäätös ei ole mahdollinen ennen kytkentäkaavion varmennusta.",
+        "physicalFollowUp": "Tarkista virtaussuunta, läpäisevyys ja ettei suodatin ole öljystä/nokesta tukossa; vertaa uuteen osaan."
+      },
+      {
+        "id": "vikadiag-31-context",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running"
+        ],
+        "signalKeys": [
+          "engine.map",
+          "engine.egr_position_toyota"
+        ],
+        "instruction": "Varmista ensin suodattimen sijainti ja tehtävä alipainekaaviosta; MAP/EGR on vain taustakonteksti.",
+        "expectedPattern": "Komponentin johtopäätös ei ole mahdollinen ennen kytkentäkaavion varmennusta.",
+        "physicalFollowUp": "Tarkista virtaussuunta, läpäisevyys ja ettei suodatin ole öljystä/nokesta tukossa; vertaa uuteen osaan."
+      }
+    ]
+  },
+  {
+    "sourceRow": 32,
+    "diagnosticGroup": "4. Polttoainejärjestelmä",
+    "componentId": "engine.fuel_filter",
+    "pnc": "23300/23303",
+    "oe": "23300-26100; 23390-0L010",
+    "label": "Polttoainesuodatin ja suodatinelementti",
+    "obdRole": "indirect",
+    "readiness": "indirect-existing-signals",
+    "symptom": "Tukkeutuminen tai ilma suodatinpesässä aiheuttaa pitkän startin, tehonpuutteen kuormalla, nykimisen, sammumisen, low rail pressure -oireen ja joskus fuel filter -varoituksen.",
+    "signalKeys": [
+      "engine.rail_pressure_obd",
+      "engine.rpm"
+    ],
+    "operatingStates": [
+      "cranking",
+      "running",
+      "acceleration"
+    ],
+    "testMethod": "Tarkista suodatin/tiivisteet ja vertaa rail-paineen nousua sekä kuormavastetta.",
+    "expectedPattern": "Rail-paineen havaittu vaste suhteutetaan starttiin ja kuormaan.",
+    "physicalFollowUp": "Vaihda/tarkista elementti, tiivisteet ja priming; tarkista vesi/roska, käsipumpun tuntuma ja ilmavuodot suodatinpesässä.",
+    "limitations": [
+      "Tavoite puuttuu; hidas paineennousu ei yksin todista suodatinta.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [
+      "Ajoneuvovarmennettu rail-paineen tavoite"
+    ],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A32:O32",
+      "row": 32,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 1256-1259, PNC 23300/23303, OE 23300-26100/23390-0L010",
+      "sourceConfidence": "Vahva",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "ToyotaOwners 2AD-FHV fuel filter/check battery -ketju; DENSO/Delphi common rail -ohjeet",
+      "sourceNote": "Ensimmäinen tarkistus ennen pumpun, SCV:n tai suutinten epäilyä rail pressure -oireessa."
+    },
+    "sourceObdText": "Techstream/Flex: rail pressure target vs actual startissa ja kuormalla; DTC/freeze frame P0087/P0093-tyyppisissä.",
+    "existingInspectionPoints": [
+      {
+        "file": "src/is220d-fuel-inspection-points.js",
+        "pointId": "fuel-filter-baseline"
+      },
+      {
+        "file": "src/is220d-fuel-inspection-points.js",
+        "pointId": "fuel-filter-rail-build"
+      }
+    ],
+    "existingImplementation": "src/is220d-fuel-inspection-points.js",
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "FILTER ASSY, FUEL / ELEMENT SUB-ASSY",
+        "23300/23303",
+        "23300-26100; 23390-0L010"
+      ],
+      "system": "FUEL FILTER",
+      "componentName": "FILTER ASSY, FUEL / ELEMENT SUB-ASSY",
+      "pnc": "23300/23303",
+      "oe": "23300-26100; 23390-0L010",
+      "likelySection": "FUEL FILTER / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Tavoite puuttuu; hidas paineennousu ei yksin todista suodatinta.",
+    "recipes": []
+  },
+  {
+    "sourceRow": 33,
+    "diagnosticGroup": "4. Polttoainejärjestelmä",
+    "componentId": "engine.fuel_sedimenter",
+    "pnc": "23930",
+    "oe": "23930-26010",
+    "label": "Polttoaineen vedenerotin/sedimenttiyksikkö",
+    "obdRole": "indirect",
+    "readiness": "indirect-existing-signals",
+    "symptom": "Vesi tai lika polttoaineessa voi aiheuttaa fuel filter -varoituksen, ruostetta, käyntihäiriöitä, suutinvaurioita, rail pressure -häiriöitä ja huonoa käynnistymistä.",
+    "signalKeys": [
+      "engine.rail_pressure_obd",
+      "engine.rpm"
+    ],
+    "operatingStates": [
+      "cranking",
+      "running"
+    ],
+    "testMethod": "Tarkista polttoainenäyte ja tiivisteet; käytä rail/RPM-lokia käyntihäiriön kontekstina.",
+    "expectedPattern": "Näytteestä havaittu vesi/lika on fyysinen löydös; rail-vaste ei tunnista kontaminaatiota.",
+    "physicalFollowUp": "Tyhjennä/ota näyte alhaalta, tarkista veden/roskan määrä, tiivisteet, anturi ja mahdollinen vuoto.",
+    "limitations": [
+      "Flex ei mittaa veden määrää tai polttoaineen puhtautta.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [
+      "Ajoneuvovarmennettu vedenerottimen varoitustila ja rail-tavoite"
+    ],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A33:O33",
+      "row": 33,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 1270-1271, PNC 23930, OE 23930-26010",
+      "sourceConfidence": "Vahva",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "Delphi common rail fuel/water contamination -ohjeet; ToyotaOwners 2AD-FHV fuel filter -ketju",
+      "sourceNote": "Tärkeä erityisesti, jos suodattimen vaihdon jälkeen tulee varoituksia."
+    },
+    "sourceObdText": "Rail pressure target/actual, fuel filter/water warning jos ECU näyttää, DTC:t; ei korvaa näytteen tarkistusta.",
+    "existingInspectionPoints": [],
+    "existingImplementation": null,
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "SEDIMENTER ASSY, FUEL",
+        "23930",
+        "23930-26010"
+      ],
+      "system": "FUEL FILTER",
+      "componentName": "SEDIMENTER ASSY, FUEL",
+      "pnc": "23930",
+      "oe": "23930-26010",
+      "likelySection": "FUEL FILTER / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Flex ei mittaa veden määrää tai polttoaineen puhtautta.",
+    "recipes": [
+      {
+        "id": "vikadiag-33-physical",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "signalKeys": [],
+        "instruction": "Tyhjennä/ota näyte alhaalta, tarkista veden/roskan määrä, tiivisteet, anturi ja mahdollinen vuoto.",
+        "expectedPattern": "Näytteestä havaittu vesi/lika on fyysinen löydös; rail-vaste ei tunnista kontaminaatiota.",
+        "physicalFollowUp": "Tyhjennä/ota näyte alhaalta, tarkista veden/roskan määrä, tiivisteet, anturi ja mahdollinen vuoto."
+      },
+      {
+        "id": "vikadiag-33-context",
+        "kind": "cross-check",
+        "operatingStates": [
+          "cranking",
+          "running"
+        ],
+        "signalKeys": [
+          "engine.rail_pressure_obd",
+          "engine.rpm"
+        ],
+        "instruction": "Tarkista polttoainenäyte ja tiivisteet; käytä rail/RPM-lokia käyntihäiriön kontekstina.",
+        "expectedPattern": "Näytteestä havaittu vesi/lika on fyysinen löydös; rail-vaste ei tunnista kontaminaatiota.",
+        "physicalFollowUp": "Tyhjennä/ota näyte alhaalta, tarkista veden/roskan määrä, tiivisteet, anturi ja mahdollinen vuoto."
+      }
+    ]
+  },
+  {
+    "sourceRow": 34,
+    "diagnosticGroup": "4. Polttoainejärjestelmä",
+    "componentId": "engine.injection_pump",
+    "pnc": "22100",
+    "oe": "22100-0R031",
+    "label": "Common rail -korkeapainepumppu / syöttöpumppu",
+    "obdRole": "indirect",
+    "readiness": "indirect-existing-signals",
+    "symptom": "Ei rail-painetta startissa, sammuminen, limp mode, tehon katoaminen kuormalla, metallihile polttoaineessa tai rail pressure target/actual -ero.",
+    "signalKeys": [
+      "engine.rail_pressure_obd",
+      "engine.rpm"
+    ],
+    "operatingStates": [
+      "cranking",
+      "running",
+      "acceleration"
+    ],
+    "testMethod": "Sulje pois suodatin, ilma ja paluuvuodot ennen pumpun arviointia; tallenna rail/RPM.",
+    "expectedPattern": "Rail-paine reagoi starttiin/kuormaan loogisesti, mutta poikkeama voi tulla useasta osasta.",
+    "physicalFollowUp": "Ennen pumpun tuomiota tarkista tankin puoli, suodatin, ilmavuodot, SCV, paluuvuodot ja polttoainenäyte metallihileelle.",
+    "limitations": [
+      "Ei pumpun Active Testiä eikä pumpputuomiota pelkän rail-arvon perusteella.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [
+      "Ajoneuvovarmennettu rail-tavoite ja SCV-palaute"
+    ],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A34:O34",
+      "row": 34,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 1139-1140, PNC 22100, OE 22100-0R031",
+      "sourceConfidence": "Vahva",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "DENSO common rail SCV/pump-tiedot; Delphi common rail diagnostic -ohjeet",
+      "sourceNote": "Kallis osa; diagnoosin pitää erottaa pumppu, SCV, suodatin, ilmavuoto ja suuttimen paluuvuoto."
+    },
+    "sourceObdText": "Techstream: rail pressure target/actual startissa, tyhjäkäynnillä ja kuormalla; fuel leak test / pump test jos saatavilla.",
+    "existingInspectionPoints": [
+      {
+        "file": "src/is220d-fuel-inspection-points.js",
+        "pointId": "pump-preconditions"
+      },
+      {
+        "file": "src/is220d-fuel-inspection-points.js",
+        "pointId": "pump-rail-build"
+      }
+    ],
+    "existingImplementation": "src/is220d-fuel-inspection-points.js",
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "PUMP ASSY, INJECTION OR SUPPLY",
+        "22100",
+        "22100-0R031"
+      ],
+      "system": "INJECTION PUMP ASSEMBLY",
+      "componentName": "PUMP ASSY, INJECTION OR SUPPLY",
+      "pnc": "22100",
+      "oe": "22100-0R031",
+      "likelySection": "INJECTION PUMP ASSEMBLY / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Ei pumpun Active Testiä eikä pumpputuomiota pelkän rail-arvon perusteella.",
+    "excludedActions": [
+      "active-test"
+    ],
+    "recipes": []
+  },
+  {
+    "sourceRow": 35,
+    "diagnosticGroup": "4. Polttoainejärjestelmä",
+    "componentId": "engine.injection_high_pressure_pipes",
+    "pnc": "23701/23702/23703/23704",
+    "oe": "23701-26040/26050; 23702-26040/26050; 23703-26040/26050; 23704-26010",
+    "label": "Korkeapaineputket suuttimille",
+    "obdRole": "indirect",
+    "readiness": "indirect-existing-signals",
+    "symptom": "Vuoto tai halkeama voi aiheuttaa dieselin hajua, rail pressure -laskua, käyntihäiriötä, huonoa käynnistymistä tai vikakoodin polttoainepaineesta.",
+    "signalKeys": [
+      "engine.rail_pressure_obd",
+      "engine.rpm"
+    ],
+    "operatingStates": [
+      "cranking",
+      "running"
+    ],
+    "testMethod": "Tarkista vuotojäljet moottori sammuksissa; aiempi rail/RPM-loki antaa vain painekontekstin.",
+    "expectedPattern": "Fyysinen vuotolöydös ratkaisee putkiston tarkastustarpeen.",
+    "physicalFollowUp": "Tarkista visuaalisesti märkyys/valumat ja liitosten jäljet; älä tunnustele kädellä käyvän common rail -putken vuotoa.",
+    "limitations": [
+      "Käyvän korkeapaineputken vuotoa ei tunnustella kädellä; ei vuotoa provosoivaa ajokoetta.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [
+      "Ajoneuvovarmennettu rail-paineen tavoite"
+    ],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A35:O35",
+      "row": 35,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 1168-1178, PNC 23701-23704",
+      "sourceConfidence": "Vahva",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "Delphi common rail high-pressure lines/leak-off -ohjeet",
+      "sourceNote": "Korkeapaineputket ovat yleensä kertakiristettäviä valmistajan ohjeen mukaan; tarkista manuaali ennen uudelleenkäyttöä."
+    },
+    "sourceObdText": "Rail pressure target/actual ja fuel leak / pressure leak -DTC:t; vuodon varmistus fyysisesti.",
+    "existingInspectionPoints": [],
+    "existingImplementation": null,
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "PIPE SUB-ASSY, INJECTION NO.1-4",
+        "23701/23702/23703/23704",
+        "23701-26040/26050; 23702-26040/26050; 23703-26040/26050; 23704-26010"
+      ],
+      "system": "INJECTION PUMP ASSEMBLY",
+      "componentName": "PIPE SUB-ASSY, INJECTION NO.1-4",
+      "pnc": "23701/23702/23703/23704",
+      "oe": "23701-26040/26050; 23702-26040/26050; 23703-26040/26050; 23704-26010",
+      "likelySection": "INJECTION PUMP ASSEMBLY / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Käyvän korkeapaineputken vuotoa ei tunnustella kädellä; ei vuotoa provosoivaa ajokoetta.",
+    "recipes": [
+      {
+        "id": "vikadiag-35-physical",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "signalKeys": [],
+        "instruction": "Tarkista visuaalisesti märkyys/valumat ja liitosten jäljet; älä tunnustele kädellä käyvän common rail -putken vuotoa.",
+        "expectedPattern": "Fyysinen vuotolöydös ratkaisee putkiston tarkastustarpeen.",
+        "physicalFollowUp": "Tarkista visuaalisesti märkyys/valumat ja liitosten jäljet; älä tunnustele kädellä käyvän common rail -putken vuotoa."
+      },
+      {
+        "id": "vikadiag-35-context",
+        "kind": "cross-check",
+        "operatingStates": [
+          "cranking",
+          "running"
+        ],
+        "signalKeys": [
+          "engine.rail_pressure_obd",
+          "engine.rpm"
+        ],
+        "instruction": "Tarkista vuotojäljet moottori sammuksissa; aiempi rail/RPM-loki antaa vain painekontekstin.",
+        "expectedPattern": "Fyysinen vuotolöydös ratkaisee putkiston tarkastustarpeen.",
+        "physicalFollowUp": "Tarkista visuaalisesti märkyys/valumat ja liitosten jäljet; älä tunnustele kädellä käyvän common rail -putken vuotoa."
+      }
+    ]
+  },
+  {
+    "sourceRow": 36,
+    "diagnosticGroup": "4. Polttoainejärjestelmä",
+    "componentId": "engine.low_pressure_fuel_hoses",
+    "pnc": "23271H/23273H/23274D/23282D/23284A",
+    "oe": "23271-26030; 23273-26010; 23274-26020; 23282-26050; 23284-26030",
+    "label": "Matalapainepuolen polttoaineletkut",
+    "obdRole": "indirect",
+    "readiness": "indirect-existing-signals",
+    "symptom": "Ilmavuoto, litistynyt letku tai vuoto voi aiheuttaa pitkän startin, sammumisen, nykimisen, matalan rail-paineen kuormalla ja käsipumpun pehmeyden.",
+    "signalKeys": [
+      "engine.rail_pressure_obd",
+      "engine.rpm"
+    ],
+    "operatingStates": [
+      "cranking",
+      "running",
+      "acceleration"
+    ],
+    "testMethod": "Tarkista letkujen tiiviys ja litistymät; vertaa rail-paineen nousua ja kuormavastetta.",
+    "expectedPattern": "Syöttöpuolen häiriö voi näkyä rail-vasteessa, mutta letku paikannetaan fyysisesti.",
+    "physicalFollowUp": "Tarkista letkunpäät, klemmarit, halkeamat, märkyys, ilmakuplat läpinäkyvällä testiletkulla ja paineen/pumpun pysyvyys seisonnan jälkeen.",
+    "limitations": [
+      "Rail ei mittaa matalapainepuolen painetta tai ilmakuplia.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [
+      "Matalapainepuolen varmennettu paine/virtaus ja rail-tavoite"
+    ],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A36:O36",
+      "row": 36,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 1149-1167 ja 1240-1255, PNC 23271H ym.",
+      "sourceConfidence": "Vahva",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "DENSO/Delphi common rail low-pressure supply -diagnostiikka",
+      "sourceNote": "Halpa tarkistus ennen rail-painekomponenttien vaihtoa."
+    },
+    "sourceObdText": "Rail pressure cranking ja kuormalla; oire voi näkyä vasta vedossa. Ei yksin paikanna letkua.",
+    "existingInspectionPoints": [],
+    "existingImplementation": null,
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "FUEL HOSES NO.1-5",
+        "23271H/23273H/23274D/23282D/23284A",
+        "23271-26030; 23273-26010; 23274-26020; 23282-26050; 23284-26030"
+      ],
+      "system": "INJECTION PUMP ASSEMBLY / FUEL FILTER",
+      "componentName": "FUEL HOSES NO.1-5",
+      "pnc": "23271H/23273H/23274D/23282D/23284A",
+      "oe": "23271-26030; 23273-26010; 23274-26020; 23282-26050; 23284-26030",
+      "likelySection": "INJECTION PUMP ASSEMBLY / FUEL FILTER / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Rail ei mittaa matalapainepuolen painetta tai ilmakuplia.",
+    "recipes": [
+      {
+        "id": "vikadiag-36-physical",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "signalKeys": [],
+        "instruction": "Tarkista letkunpäät, klemmarit, halkeamat, märkyys, ilmakuplat läpinäkyvällä testiletkulla ja paineen/pumpun pysyvyys seisonnan jälkeen.",
+        "expectedPattern": "Syöttöpuolen häiriö voi näkyä rail-vasteessa, mutta letku paikannetaan fyysisesti.",
+        "physicalFollowUp": "Tarkista letkunpäät, klemmarit, halkeamat, märkyys, ilmakuplat läpinäkyvällä testiletkulla ja paineen/pumpun pysyvyys seisonnan jälkeen."
+      },
+      {
+        "id": "vikadiag-36-context",
+        "kind": "cross-check",
+        "operatingStates": [
+          "cranking",
+          "running",
+          "acceleration"
+        ],
+        "signalKeys": [
+          "engine.rail_pressure_obd",
+          "engine.rpm"
+        ],
+        "instruction": "Tarkista letkujen tiiviys ja litistymät; vertaa rail-paineen nousua ja kuormavastetta.",
+        "expectedPattern": "Syöttöpuolen häiriö voi näkyä rail-vasteessa, mutta letku paikannetaan fyysisesti.",
+        "physicalFollowUp": "Tarkista letkunpäät, klemmarit, halkeamat, märkyys, ilmakuplat läpinäkyvällä testiletkulla ja paineen/pumpun pysyvyys seisonnan jälkeen."
+      }
+    ]
+  },
+  {
+    "sourceRow": 37,
+    "diagnosticGroup": "4. Polttoainejärjestelmä",
+    "componentId": "engine.fuel_check_valve",
+    "pnc": "23122B",
+    "oe": "23769-26020",
+    "label": "Polttoainejärjestelmän takaiskuventtiili",
+    "obdRole": "indirect",
+    "readiness": "indirect-existing-signals",
+    "symptom": "Jos polttoaine valuu takaisin seisonnan aikana, oire voi olla pitkä startti yön jälkeen, ilmakuplat, käsipumpun tyhjeneminen ja rail pressure -hidas nousu.",
+    "signalKeys": [
+      "engine.rail_pressure_obd",
+      "engine.rpm"
+    ],
+    "operatingStates": [
+      "cranking"
+    ],
+    "testMethod": "Vertaa seisonnan jälkeistä tavallista starttia fyysisen primauksen jälkeiseen starttiin.",
+    "expectedPattern": "Primauksen jälkeen muuttunut paineennousu tukee syöttöpuolen tarkastusta, ei yksin takaiskuventtiilivikaa.",
+    "physicalFollowUp": "Prime-pumppaus ennen starttia, läpinäkyvä testiletku, seisonnan jälkeinen polttoaineen pysyvyys ja venttiilin läpäisy vain oikeaan suuntaan.",
+    "limitations": [
+      "Starttinopeus, seisonta ja lämpötila vaikuttavat vertailuun; varmista venttiilin sijainti.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [
+      "Ajoneuvovarmennettu rail-tavoite"
+    ],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A37:O37",
+      "row": 37,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 1147-1148, PNC 23122B, OE 23769-26020",
+      "sourceConfidence": "Todennäköinen",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "DENSO/Delphi common rail fuel drain-back -periaate",
+      "sourceNote": "Varmista venttiilin tarkka sijainti putkistossa ennen osan epäilyä."
+    },
+    "sourceObdText": "Rail pressure cranking: paine nousee hitaasti ensimmäisellä startilla mutta paremmin primauksen jälkeen.",
+    "existingInspectionPoints": [],
+    "existingImplementation": null,
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "VALVE, CHECK",
+        "23122B",
+        "23769-26020"
+      ],
+      "system": "INJECTION PUMP ASSEMBLY",
+      "componentName": "VALVE, CHECK",
+      "pnc": "23122B",
+      "oe": "23769-26020",
+      "likelySection": "INJECTION PUMP ASSEMBLY / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Starttinopeus, seisonta ja lämpötila vaikuttavat vertailuun; varmista venttiilin sijainti.",
+    "recipes": [
+      {
+        "id": "vikadiag-37-physical",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "signalKeys": [],
+        "instruction": "Prime-pumppaus ennen starttia, läpinäkyvä testiletku, seisonnan jälkeinen polttoaineen pysyvyys ja venttiilin läpäisy vain oikeaan suuntaan.",
+        "expectedPattern": "Primauksen jälkeen muuttunut paineennousu tukee syöttöpuolen tarkastusta, ei yksin takaiskuventtiilivikaa.",
+        "physicalFollowUp": "Prime-pumppaus ennen starttia, läpinäkyvä testiletku, seisonnan jälkeinen polttoaineen pysyvyys ja venttiilin läpäisy vain oikeaan suuntaan."
+      },
+      {
+        "id": "vikadiag-37-context",
+        "kind": "cross-check",
+        "operatingStates": [
+          "cranking"
+        ],
+        "signalKeys": [
+          "engine.rail_pressure_obd",
+          "engine.rpm"
+        ],
+        "instruction": "Vertaa seisonnan jälkeistä tavallista starttia fyysisen primauksen jälkeiseen starttiin.",
+        "expectedPattern": "Primauksen jälkeen muuttunut paineennousu tukee syöttöpuolen tarkastusta, ei yksin takaiskuventtiilivikaa.",
+        "physicalFollowUp": "Prime-pumppaus ennen starttia, läpinäkyvä testiletku, seisonnan jälkeinen polttoaineen pysyvyys ja venttiilin läpäisy vain oikeaan suuntaan."
+      }
+    ]
+  },
+  {
+    "sourceRow": 38,
+    "diagnosticGroup": "4. Polttoainejärjestelmä",
+    "componentId": "engine.supply_pump_drive_coupling",
+    "pnc": "13614A",
+    "oe": "13614-26010",
+    "label": "Syöttöpumpun mekaaninen käyttökytkin/kytkentä",
+    "obdRole": "physical-only",
+    "readiness": "physical-only",
+    "symptom": "Mekaaninen välys tai rikkoutuminen voi aiheuttaa pumpun pyörimättömyyttä, no-startia, matalaa rail-painetta, epänormaalia ääntä tai metallijätettä.",
+    "signalKeys": [],
+    "operatingStates": [
+      "physical"
+    ],
+    "testMethod": "Mekaaninen tarkastus vasta muiden no-start/rail-paineen syiden poissulun jälkeen manuaalin mukaan.",
+    "expectedPattern": "Pumpun käyttökytkimen vaurio todetaan mekaanisesti.",
+    "physicalFollowUp": "Tarkista vain jos rail-paine ei nouse ja sähkö/suodatin/SCV/suuttimet on poissuljettu; vaatii mekaanisen tarkastuksen pumpun irrotuksen yhteydessä.",
+    "limitations": [
+      "Drive-lähteen rakennelogiikka on epävarma; matala rail-paine ei todista käyttökytkintä.",
+      "Ei automaattista osan hyväksymistä/hylkäystä eikä uusia numeerisia rajoja."
+    ],
+    "missingSignals": [],
+    "source": {
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8",
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "range": "A38:O38",
+      "row": 38,
+      "reviewedAt": "2026-09-14",
+      "bomSource": "BOM rivit 1133-1134, PNC 13614A, OE 13614-26010",
+      "sourceConfidence": "Epävarma",
+      "sourceStatus": "Erä 2 valmis",
+      "externalSource": "DENSO common rail pump -rakennelogiikka; BOM service-BOM",
+      "sourceNote": "Harvinainen epäily; pidä viimeisenä mekaanisena tarkistuksena."
+    },
+    "sourceObdText": "Rail pressure cranking pysyy matalana vaikka SCV/sähkö näyttää toimivan; ei yksin todista kytkintä.",
+    "existingInspectionPoints": [],
+    "existingImplementation": null,
+    "manualVisual": {
+      "required": true,
+      "status": "pending-extract",
+      "source": "Lexus IS250/220D repair manual",
+      "searchTerms": [
+        "2AD-FHV",
+        "COUPLING, SUPPLY PUMP DRIVE, NO.1",
+        "13614A",
+        "13614-26010"
+      ],
+      "system": "INJECTION PUMP ASSEMBLY",
+      "componentName": "COUPLING, SUPPLY PUMP DRIVE, NO.1",
+      "pnc": "13614A",
+      "oe": "13614-26010",
+      "likelySection": "INJECTION PUMP ASSEMBLY / components / inspection",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ],
+      "assetPath": null,
+      "manualReference": null
+    },
+    "note": "Drive-lähteen rakennelogiikka on epävarma; matala rail-paine ei todista käyttökytkintä.",
+    "recipes": [
+      {
+        "id": "vikadiag-38-physical",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "signalKeys": [],
+        "instruction": "Tarkista vain jos rail-paine ei nouse ja sähkö/suodatin/SCV/suuttimet on poissuljettu; vaatii mekaanisen tarkastuksen pumpun irrotuksen yhteydessä.",
+        "expectedPattern": "Pumpun käyttökytkimen vaurio todetaan mekaanisesti.",
+        "physicalFollowUp": "Tarkista vain jos rail-paine ei nouse ja sähkö/suodatin/SCV/suuttimet on poissuljettu; vaatii mekaanisen tarkastuksen pumpun irrotuksen yhteydessä."
+      }
+    ]
   }
 ];
 
