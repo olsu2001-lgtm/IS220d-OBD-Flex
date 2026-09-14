@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "legacy": {
+    "maxVersion": "0.9.2",
+    "maxVersionCode": 902,
+    "recordedAt": "2026-09-14",
+    "sourceCommit": "40fc602b74877e659170341418840f2c49e22a29",
+    "evidence": [
+      {
+        "type": "successful-ci",
+        "url": "https://github.com/olsu2001-lgtm/IS220d-OBD-Flex/actions/runs/34837566263"
+      },
+      {
+        "type": "delivered-archive",
+        "name": "Lexus-OBD-Flex-0.9.2-CI229.zip",
+        "url": "https://drive.google.com/file/d/17pFAgs6OzAngaaJyqIOHuT-do6iZwD7S/view"
+      }
+    ],
+    "note": "All version codes through 902 are permanently closed. This floor does not assert that every lower number was published, and legacy APK hashes have not been reconstructed."
+  },
+  "releases": []
+}
