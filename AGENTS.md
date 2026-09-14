@@ -7,7 +7,7 @@ read-only Android diagnostic application for a Lexus IS220d / XE20 / 2AD-FHV.
 
 - Application name: `IS220d OBD Flex`
 - Package ID: `fi.oliver.is220dobd`
-- Current baseline: `0.9.1` / versionCode `901`
+- Current baseline: `0.9.2` / versionCode `902`
 - `IS220d OBD Classic` is a separate project. Never import, merge or synchronize
   Classic code, transports, versioning or lifecycle into this repository.
 
@@ -47,19 +47,24 @@ builds or vehicle identity matter to a task.
   architecture and roadmap.
 
 Historical evidence never overrides this contract, `docs/SAFETY.md`,
-`docs/PROTOCOL.md`, current source or current regression tests. The 0.9.1
-baseline retains reviewed read-only multi-vehicle workflows and field-disables the injector transaction
+`docs/PROTOCOL.md`, current source or current regression tests. The 0.9.2
+baseline retains reviewed read-only multi-vehicle workflows, the field-disabled
+injector transaction and the GSIC-grounded DPNR hose-cleaning before/after test
 with explicit profile separation, evidence labels and matching tests.
 
 ## Change workflow
 
-1. Work on a dedicated branch; do not push an unreviewed change to `main`.
-2. Make the smallest change that satisfies the issue.
-3. Add or update deterministic tests for every behavior change.
-4. Run `npm ci`, `npm test` and `npm run build`.
-5. Verify that package ID, version, permissions and command allowlists did not
+1. Before choosing any new app version, inspect both the FLEX app Drive folder
+   and the latest GitHub build/CI history. Never reuse a version number that has
+   already been built or published, even if an older source branch still shows
+   a lower baseline.
+2. Work on a dedicated branch; do not push an unreviewed change to `main`.
+3. Make the smallest change that satisfies the issue.
+4. Add or update deterministic tests for every behavior change.
+5. Run `npm ci`, `npm test` and `npm run build`.
+6. Verify that package ID, version, permissions and command allowlists did not
    change unexpectedly.
-6. Describe safety impact, tests and field-verification status in the pull
+7. Describe safety impact, tests and field-verification status in the pull
    request. Simulated success is not vehicle verification.
 
 ## Evidence policy
