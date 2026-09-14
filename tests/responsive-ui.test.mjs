@@ -39,3 +39,19 @@ test("responsiveness-transformi on idempotentti ja failaa kiinni rakenteen muutt
   assert.equal(patchMainForResponsiveness(once), once);
   assert.throws(() => patchMainForResponsiveness('const APP_VERSION = "0.8.1";'), /appendTerminal/);
 });
+
+test("responsiveness-transformi säilyttää versionumeron myös versiopäivityksessä", () => {
+  for (const version of ["0.8.1", "0.9.1", "1.2.3"]) {
+    const source = mainSource.replace(/^const APP_VERSION = "\d+\.\d+\.\d+";$/m, `const APP_VERSION = "${version}";`);
+    const patched = patchMainForResponsiveness(source);
+    assert.equal(patched.match(/^const APP_VERSION = "[^"]+";$/gm)?.length, 1);
+    assert.ok(patched.includes(`const APP_VERSION = "${version}";`));
+    assert.ok(patched.includes(RESPONSIVE_UI_BUILD_MARKER));
+  }
+});
+
+test("responsiveness-transformi hylkää puuttuvan tai moniselitteisen versionumeron", () => {
+  const withoutVersion = mainSource.replace(/^const APP_VERSION = "\d+\.\d+\.\d+";$/m, "");
+  assert.throws(() => patchMainForResponsiveness(withoutVersion), /APP_VERSION anchor/);
+  assert.throws(() => patchMainForResponsiveness(`${mainSource}\nconst APP_VERSION = "9.9.9";`), /APP_VERSION anchor/);
+});
