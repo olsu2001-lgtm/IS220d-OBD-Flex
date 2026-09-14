@@ -22,18 +22,41 @@ bootstrap evidence is the Drive 0.9.2-CI229 archive and successful CI229 at comm
 that every possible lower number was published or that legacy duplicate APKs
 have been individually hashed. Original legacy files remain unchanged.
 
-## Workflow
+## Development without delivery
 
-1. Read the live registry, latest CI runs and FLEX app Drive folder. Select the
-   latest delivered source commit, then create a dedicated development branch.
-2. Run `npm run version:next` with a GitHub token authorized to read this private
-   repository. It uses the global maximum, including releases from other branches.
-   A prepared unused version is retained; the registry is rechecked at publication.
-3. Implement the change, update the changelog, run `npm ci` and `npm test`, and
-   commit all source changes. Do not distribute from a dirty checkout.
-4. Open a pull request. CI checks out the **head commit**, checks the live registry,
-   builds both APKs from clean output directories, runs the UI smoke test and
-   verifies the manifest, package identity, signature, source and SHA-256 hashes.
+Source development and version allocation are separate operations.
+
+- A normal `fix/*`, `feat/*` or `work/*` branch keeps the currently delivered
+  `package.json:version`. It may contain new source and tests without reserving a
+  release identifier.
+- Pull requests from ordinary development branches run regression/safety tests
+  only. They do not build, register or upload APKs.
+- It is therefore normal for a development branch to contain a package version
+  that is already present in the release registry. `npm run build` remains
+  fail-closed in that state and must not be bypassed.
+- Allocate a new version only when the user explicitly requests a changed APK or
+  release. At that point reread the live registry and run `npm run version:next`.
+- Use a `release/*` branch only for deliberate APK publication. The CI workflow
+  treats that prefix as publication intent. A manual workflow dispatch publishes
+  only when its `publish` input is explicitly true.
+
+This split lets agents develop and review code without burning version numbers,
+while every delivered binary still receives a unique immutable identity.
+
+## Release workflow
+
+1. Read the live registry, latest CI history and FLEX app Drive folder. Select the
+   latest delivered source commit and reconcile any later unshipped source work.
+2. On a normal development branch, implement the change, update documentation and
+   run `npm ci` plus `npm test`. Do **not** run `version:next` just to develop or
+   review source code.
+3. When an APK delivery is explicitly requested, reread the live registry, run
+   `npm run version:next`, commit both package files and use a `release/*` branch
+   (or an explicitly authorized manual publish dispatch). The command chooses an
+   unused version from the global maximum, including releases from other branches.
+4. Release CI checks out the **head commit**, checks the live registry, builds both
+   APKs from clean output directories, runs the UI smoke test and verifies the
+   manifest, package identity, signature, source and SHA-256 hashes.
 5. CI runs `npm run release:register`, rereading the registry and atomically
    appending a record with the existing GitHub blob SHA. A concurrent publication
    causes a conflict and blocks upload. Only then is the artifact uploaded.
@@ -42,18 +65,22 @@ have been individually hashed. Original legacy files remain unchanged.
    the APK hash against the live registry before delivery; never infer its version
    from the outer ZIP name. Report versionName, versionCode and source commit.
 
-`npm run build` also enforces the live registry check locally. Without authorized
-registry access it fails closed; use CI rather than introducing an offline bypass.
-`npm run release:verify` checks already built files; it does not register or approve
-publication. GitHub access is a build-time operation, never an Android permission.
+`npm run build` enforces the live registry check locally. If the current package
+version is already registered, that failure is intentional: keep testing source
+with `npm test` until a new delivery has actually been requested. Without
+authorized registry access a release build also fails closed. Never introduce an
+offline bypass. `npm run release:verify` checks already built files; it does not
+register or approve publication. GitHub access is a build-time operation, never an
+Android permission.
 
 ## Retries and version ordering
 
 - Every changed delivery needs a new version, including test APK deliveries.
-- Once registered, that identifier is consumed. A rerun cannot replace it, even
-  for the same source commit. Retrieve the existing artifact or prepare a new
-  version. If upload failed after registration, the version remains consumed.
-- A failed build before registration can be fixed and retried; no artifact has
+- Source-only commits and test-only pull requests do not consume versions.
+- Once registered, an identifier is consumed. A rerun cannot replace it, even for
+  the same source commit. Retrieve the existing artifact or prepare a new version.
+  If upload failed after registration, the version remains consumed.
+- A failed build before registration can be fixed and retried if no artifact has
   been distributed. Never upload a partial build.
 - Main-branch merge pushes run regression tests without publishing another APK;
   the previously registered APK remains the release artifact.
