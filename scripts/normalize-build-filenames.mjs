@@ -17,7 +17,7 @@ for (const variant of ["debug", "release"]) {
   const desiredPath = path.join(dist, desiredName);
 
   if (!fs.existsSync(desiredPath)) {
-    const legacyName = `Lexus_OBD-Flex-0.8.1-${variant}.apk`;
+    const legacyName = `Lexus_OBD-Flex-0.9.1-${variant}.apk`;
     const legacyPath = path.join(dist, legacyName);
     if (!fs.existsSync(legacyPath)) {
       throw new Error(`Buildistä puuttuu ${variant}-APK: ${desiredName}`);
