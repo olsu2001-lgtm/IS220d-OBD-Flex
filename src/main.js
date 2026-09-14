@@ -103,7 +103,7 @@ import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const APP_VERSION = "0.8.1";
+const APP_VERSION = "0.9.1";
 const DPNR_MONITOR_METRIC_IDS = Object.freeze([
   "dpnrDifferentialPressure",
   "dpnrInletTemperature",
@@ -335,7 +335,7 @@ function applyVehicleProfileUi() {
     $("#clearDtcButton").disabled = isCt;
   }
   if ($("#dtcClearHint")) $("#dtcClearHint").textContent = isCt
-    ? "Flex 0.8.0 lukee CT:n moottori- ja hybridikoodit, mutta ei lähetä hybridiohjaimelle eikä väärän ECU-otsakkeen kautta mitään poistokomentoa."
+    ? "Flex 0.9.1 lukee CT:n moottori- ja hybridikoodit, mutta ei lähetä hybridiohjaimelle eikä väärän ECU-otsakkeen kautta mitään poistokomentoa."
     : "Poisto nollaa myös freeze frame -tietoja ja päästövalmiusmonitoreita.";
   if ($("#diagnosticProfileHint")) {
     $("#diagnosticProfileHint").innerHTML = isCt
