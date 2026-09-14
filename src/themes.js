@@ -1,4 +1,4 @@
-import "./dpnr-cleaning-test-ui.js";
+import "./dpnr-cleaning-test-bootstrap.js";
 
 export const THEME_STORAGE_KEY = "lexusObdThemePreference";
 
