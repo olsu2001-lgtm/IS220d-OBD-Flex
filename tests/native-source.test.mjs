@@ -56,12 +56,12 @@ test("Bluetooth Classic SPP ja tavallinen ASCII-ELM327 säilyvät lähteessä", 
   assert.match(core, /this\.command\("ATL0"/);
 });
 
-test("0.9.0 ei pyydä internetoikeutta ja säilyttää Flex-pakettitunnuksen", async () => {
+test("0.9.1 ei pyydä internetoikeutta ja säilyttää Flex-pakettitunnuksen", async () => {
   const app = await read("app.js");
 
   assert.match(app, /packageId:\s*"fi\.oliver\.is220dobd"/);
   assert.match(app, /name:\s*"Lexus OBD Flex"/);
-  assert.match(app, /version:\s*"0\.9\.0"/);
+  assert.match(app, /version:\s*"0\.9\.1"/);
   assert.equal(app.includes("android.permission.INTERNET"), false);
 });
 
@@ -329,7 +329,7 @@ test("automaattinen ELM/CAN-diagnostiikka jatkaa NO DATA -tilanteesta raporttiin
   assert.match(main, /saveOrShareFullDiagnostic/);
 });
 
-test("0.8.1 säilyttää suutintestiraportin mutta estää kentässä vastaamattoman 219C:n", async () => {
+test("0.9.1 säilyttää suutintestiraportin mutta estää kentässä vastaamattoman 219C:n", async () => {
   const [main, html, injector, profile] = await Promise.all([
     read("src/main.js"),
     read("index.html"),
