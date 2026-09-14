@@ -33,6 +33,12 @@ const buildSha = resolveBuildSha();
 const buildShortSha = buildSha === "local" ? "local" : buildSha.slice(0, 12);
 const appVersion = String(packageMeta.version || "0.0.0");
 
+function patchMainAppVersion(source) {
+  const pattern = /const APP_VERSION = "[^"]+";/;
+  if (!pattern.test(source)) throw new Error("src/main.js APP_VERSION-vakiota ei löytynyt buildia varten");
+  return source.replace(pattern, `const APP_VERSION = ${JSON.stringify(appVersion)};`);
+}
+
 const buildTransformPlugin = {
   name: "flex-build-transforms",
   setup(build) {
@@ -40,10 +46,13 @@ const buildTransformPlugin = {
       contents: patchCoreForAsyncNativeBridge(fs.readFileSync(args.path, "utf8")),
       loader: "js"
     }));
-    build.onLoad({ filter: /[\\/]src[\\/]main\.js$/ }, args => ({
-      contents: patchMainForResponsiveness(patchMainForImReadiness(fs.readFileSync(args.path, "utf8"))),
-      loader: "js"
-    }));
+    build.onLoad({ filter: /[\\/]src[\\/]main\.js$/ }, args => {
+      const versioned = patchMainAppVersion(fs.readFileSync(args.path, "utf8"));
+      return {
+        contents: patchMainForResponsiveness(patchMainForImReadiness(versioned)),
+        loader: "js"
+      };
+    });
   }
 };
 
@@ -148,14 +157,15 @@ async function buildVariant(label, minify, filename) {
   }
   const bundleText = finalZip.readAsText("assets/app.bundle.js");
   if (!bundleText.includes(buildShortSha)) throw new Error(`${label}-APK:sta puuttuu build-SHA ${buildShortSha}`);
+  if (!bundleText.includes(`Lexus_IS220d_DPNR_ennen-jalkeen_Flex-${appVersion}`)) throw new Error(`${label}-APK:sta puuttuu DPNR ennen/jälkeen -toiminto versiolla ${appVersion}`);
   if (!bundleText.includes("__PENDING__")) throw new Error(`${label}-APK:sta puuttuu asynkroninen OBD-silta`);
   if (!bundleText.includes(IM_READINESS_BUILD_MARKER)) throw new Error(`${label}-APK:sta puuttuu I/M readiness -build-markkeri`);
   if (!bundleText.includes(RESPONSIVE_UI_BUILD_MARKER)) throw new Error(`${label}-APK:sta puuttuu responsiveness-build-markkeri`);
   return output;
 }
 
-const debugOutput = await buildVariant("debug", false, "Lexus_OBD-Flex-0.8.1-debug.apk");
-const releaseOutput = await buildVariant("release", true, "Lexus_OBD-Flex-0.8.1-release.apk");
+const debugOutput = await buildVariant("debug", false, `Lexus_OBD-Flex-${appVersion}-debug.apk`);
+const releaseOutput = await buildVariant("release", true, `Lexus_OBD-Flex-${appVersion}-release.apk`);
 const buildInfo = {
   schemaVersion: 1,
   appVersion,
