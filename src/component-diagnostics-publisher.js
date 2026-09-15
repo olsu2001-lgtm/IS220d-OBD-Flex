@@ -23,11 +23,37 @@ let inspectionExecutionStateModulePromise = null;
 let captureHistoryModulePromise = null;
 let techstreamDataListGapModulePromise = null;
 let nextInspectionModulePromise = null;
+let componentDiagnosticsNavigationPromise = null;
 
 function loadPageModule() {
   if (!hasFullBrowserDom()) return null;
   if (!pageModulePromise) pageModulePromise = import("./component-diagnostics-page.js");
   return pageModulePromise;
+}
+
+function installComponentDiagnosticsNavigation() {
+  const pagePromise = loadPageModule();
+  if (!pagePromise) return null;
+  if (!componentDiagnosticsNavigationPromise) {
+    componentDiagnosticsNavigationPromise = pagePromise.then(() => {
+      const button = document.querySelector("#nav-component-diagnostics");
+      const page = document.querySelector("#page-component-diagnostics");
+      if (!button || !page) return false;
+      if (button.dataset.dynamicNavigationBound === "1") return true;
+      button.dataset.dynamicNavigationBound = "1";
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".page").forEach(candidate => {
+          candidate.classList.toggle("active", candidate.id === "page-component-diagnostics");
+        });
+        document.querySelectorAll(".nav-item").forEach(candidate => {
+          candidate.classList.toggle("active", candidate === button);
+        });
+        window.scrollTo({ top: 0, behavior: "instant" });
+      });
+      return true;
+    }).catch(() => false);
+  }
+  return componentDiagnosticsNavigationPromise;
 }
 
 function loadGroupOverviewModule() {
@@ -141,6 +167,7 @@ function loadNextInspectionModule() {
 export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}) {
   const pagePromise = loadPageModule();
   if (!pagePromise) return;
+  installComponentDiagnosticsNavigation();
   const overviewPromise = loadGroupOverviewModule();
   const vikadiagObdDiagnosticPagePromise = loadVikadiagObdDiagnosticPageModule();
   const guidedSessionPromise = loadGuidedSessionModule();
@@ -196,6 +223,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
 }
 
 loadPageModule();
+installComponentDiagnosticsNavigation();
 loadGroupOverviewModule();
 loadVikadiagObdDiagnosticPageModule();
 loadGuidedSessionModule();
