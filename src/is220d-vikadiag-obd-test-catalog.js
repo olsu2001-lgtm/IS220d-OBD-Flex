@@ -1,3 +1,4 @@
+import { getIs220dRepairManualVisuals } from "./is220d-repair-manual-visuals.js";
 import {
   getIs220dDiagnosticSignal,
   isProductionAuthorizedIs220dSignal
@@ -5224,6 +5225,18 @@ const reviewedCatalog = [...firstBatch, ...[...reviewedContinuation, ...chassisC
 
 const seenRows = new Set();
 for (const candidate of reviewedCatalog) {
+  const visuals = getIs220dRepairManualVisuals(candidate.componentId);
+  if (visuals.length) {
+    candidate.manualVisual = {
+      ...candidate.manualVisual,
+      status: "available",
+      assetPath: visuals[0].assetPath,
+      manualReference: visuals[0].manualReference,
+      imageSourcePath: visuals[0].sourceImagePath,
+      figureReviewed: true,
+      visualIds: visuals.map(visual => visual.id)
+    };
+  }
   validateVikadiagObdTestCandidate(candidate);
   if (seenRows.has(candidate.sourceRow)) throw new Error(`Duplicate Vikadiag source row ${candidate.sourceRow}`);
   seenRows.add(candidate.sourceRow);

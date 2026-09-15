@@ -1,3 +1,4 @@
+import { buildIs220dRepairManualVisualsHtml } from "./is220d-repair-manual-visuals.js";
 export const DPNR_CLEANING_TEST_STORAGE_KEY = "lexusIs220dDpnrCleaningTestV1";
 
 export const DPNR_CLEANING_PHASES = Object.freeze({
@@ -269,6 +270,8 @@ function ensurePanel() {
   panel.id = "dpnrCleaningTest";
   panel.className = "card dpnr-cleaning-test";
   panel.innerHTML = `<h3>Paineletkujen puhdistus · ennen / jälkeen</h3><p class="hint">Vakioitu vertailu GSIC RM0150:n P1426/P2002-logiikan ympärille. Testi lukee vain jo varmennettua 217E-paine-eroa ja RPM:ää. Ei Active Testiä, pakkopolttoa tai vikakoodien poistoa.</p><ol class="ct-test-steps"><li>Tee ensin kaikki kolme mittausta tilassa <strong>ENNEN puhdistusta</strong>.</li><li>Puhdista paine-eroanturin letkut/putket huolto-ohjeen mukaan ja asenna ne samoihin anturin portteihin.</li><li>Tee samat mittaukset uudelleen tilassa <strong>JÄLKEEN puhdistuksen</strong>.</li><li>Vertaa erityisesti 3000 rpm ilman kuormaa -arvoa. GSIC:n mukaan negatiivinen arvo on epälooginen ja ohjaa tarkistamaan letkujen järjestyksen/tukoksen sekä transmitting pipe -linjat.</li></ol><label for="dpnrCleaningMode">Mittauskierros</label><select id="dpnrCleaningMode"><option value="before">ENNEN puhdistusta</option><option value="after">JÄLKEEN puhdistuksen</option></select><div class="phase-grid">${Object.values(DPNR_CLEANING_PHASES).map(phase => `<div class="dpnr-cleaning-phase"><strong>${phase.label}</strong><small>${phase.instruction}</small><button class="secondary full compact" type="button" data-dpnr-capture="${phase.id}">Tallenna ${Math.round(phase.durationMs / 1000)} s</button><div class="result" data-dpnr-result="${phase.id}">Ei tallennettu</div></div>`).join("")}</div><div id="dpnrCleaningStatus" class="inline-message hidden" aria-live="polite"></div><div id="dpnrCleaningComparison" class="inline-message dpnr-cleaning-comparison"></div><div class="dpnr-cleaning-actions"><button id="dpnrCleaningCopy" class="secondary" type="button">Kopioi vertailuraportti</button><button id="dpnrCleaningReset" class="secondary" type="button">Nollaa vertailu</button></div>`;
+
+  panel.innerHTML += buildIs220dRepairManualVisualsHtml("engine.dpnr_differential_pressure_sensor");
 
   if (typeof page.insertBefore === "function") {
     const rawCard = query(page, ".raw-card") || query(documentObject, "#page-dpnr .raw-card");

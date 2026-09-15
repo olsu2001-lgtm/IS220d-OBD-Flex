@@ -283,3 +283,12 @@ Validation:
   release registry, production read-only boundaries and workflows remain unchanged.
 
 Next unreviewed row: **69**.
+
+## First reviewed image integration (2026-09-15)
+
+Six original RM0150 images now support rows 2, 4, 5, 40, 45 and 46.
+The shared visual mapping feeds the catalog, existing component/inspection
+cards and both DPNR panels. This supersedes the pending/source-identified
+image status in the historical batch notes above. Other rows stay pending.
+See [source provenance and release preparation](REPAIR_MANUAL_VISUALS.md).
+No additional Drive rows, signal decoders, app version or APK were introduced.

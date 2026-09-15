@@ -80,7 +80,13 @@ test("every reviewed diagnostic row has a repair-manual visual extraction plan",
     assert.equal(candidate.manualVisual.required, true, `row ${candidate.sourceRow} must require a manual visual`);
     assert.equal(candidate.manualVisual.source, "Lexus IS250/220D repair manual");
     assert.ok(candidate.manualVisual.searchTerms.length > 0, `row ${candidate.sourceRow} needs manual search terms`);
-    assert.equal(candidate.manualVisual.assetPath, null, `row ${candidate.sourceRow} must not pretend an image has already been extracted`);
+    if ([2, 4, 5, 40, 45, 46].includes(candidate.sourceRow)) {
+      assert.equal(candidate.manualVisual.status, "available");
+      assert.match(candidate.manualVisual.assetPath, /^assets\/repair-manual\/.+\.png$/);
+      assert.ok(candidate.manualVisual.visualIds.length);
+    } else {
+      assert.equal(candidate.manualVisual.assetPath, null);
+    }
   }
 });
 
@@ -106,7 +112,7 @@ test("catalog summary distinguishes implemented, ready, indirect and pending row
     needsSignalVerification: 1,
     blocked: 0,
     physicalOnly: 0,
-    manualVisualPending: 9
+    manualVisualPending: 6
   });
 });
 
@@ -136,7 +142,7 @@ test("continuation has traceable evidence, source rows and unclaimed manual visu
     assert.equal(item.source.spreadsheetId, "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8");
     assert.equal(item.source.sheet, "Vikadiag_kohteet");
     if ([40, 45, 46].includes(item.sourceRow)) {
-      assert.equal(item.manualVisual.status, "source-identified");
+      assert.equal(item.manualVisual.status, "available");
       assert.equal(item.manualVisual.figureReviewed, true);
       assert.match(item.manualVisual.manualReference, /rm0150\/repair2\/html\/contents\/rm/);
       assert.match(item.manualVisual.imageSourcePath, /\.png$/);
@@ -240,7 +246,7 @@ test("manual-grounded parking brake distinction does not silently rewrite Drive 
   assert.match(rear.sourceClarification.manualSection, /rm000000v5v006x/);
   assert.equal(rear.manualVisual.imageSourcePath, "rm0150/repair2/img/c124896e02.png");
   assert.equal(getVikadiagObdTestCandidateByRow(40).manualVisual.imageSourcePath, "rm0150/repair2/img/c109132.png");
-  assert.equal(rear.manualVisual.assetPath, null);
+  assert.equal(rear.manualVisual.assetPath, "assets/repair-manual/c124896e02.png");
 });
 
 test("lower-arm OE shorthand retains independently read side and date evidence", () => {
