@@ -59,6 +59,19 @@ export function activateComponentDiagnosticsPage(documentObject = globalThis.doc
   return true;
 }
 
+export function bindComponentDiagnosticsNavigation(
+  button,
+  documentObject = globalThis.document,
+  windowObject = globalThis.window
+) {
+  if (!button || typeof button.addEventListener !== "function") return false;
+  button.dataset ||= {};
+  if (button.dataset.dynamicNavigationBound === "1") return true;
+  button.dataset.dynamicNavigationBound = "1";
+  button.addEventListener("click", () => activateComponentDiagnosticsPage(documentObject, windowObject));
+  return true;
+}
+
 function installComponentDiagnosticsNavigation() {
   const pagePromise = loadPageModule();
   if (!pagePromise) return null;
@@ -68,10 +81,7 @@ function installComponentDiagnosticsNavigation() {
       const page = document.querySelector("#page-component-diagnostics");
       if (!button || !page) return false;
       syncComponentDiagnosticsNavigationVisibility();
-      if (button.dataset.dynamicNavigationBound === "1") return true;
-      button.dataset.dynamicNavigationBound = "1";
-      button.addEventListener("click", () => activateComponentDiagnosticsPage());
-      return true;
+      return bindComponentDiagnosticsNavigation(button);
     }).catch(() => false);
   }
   return componentDiagnosticsNavigationPromise;
