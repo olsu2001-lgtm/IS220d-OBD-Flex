@@ -31,6 +31,24 @@ function loadPageModule() {
   return pageModulePromise;
 }
 
+export function activateComponentDiagnosticsPage(documentObject = globalThis.document, windowObject = globalThis.window) {
+  if (!documentObject || typeof documentObject.querySelector !== "function") return false;
+  const button = documentObject.querySelector("#nav-component-diagnostics");
+  const page = documentObject.querySelector("#page-component-diagnostics");
+  if (!button || !page) return false;
+  if (button.classList?.contains?.("hidden")) return false;
+
+  documentObject.querySelectorAll?.(".page")?.forEach?.(candidate => {
+    candidate.classList?.toggle?.("active", candidate.id === "page-component-diagnostics");
+  });
+  page.classList?.remove?.("hidden");
+  documentObject.querySelectorAll?.(".nav-item")?.forEach?.(candidate => {
+    candidate.classList?.toggle?.("active", candidate === button);
+  });
+  windowObject?.scrollTo?.({ top: 0, behavior: "instant" });
+  return true;
+}
+
 function installComponentDiagnosticsNavigation() {
   const pagePromise = loadPageModule();
   if (!pagePromise) return null;
@@ -41,15 +59,7 @@ function installComponentDiagnosticsNavigation() {
       if (!button || !page) return false;
       if (button.dataset.dynamicNavigationBound === "1") return true;
       button.dataset.dynamicNavigationBound = "1";
-      button.addEventListener("click", () => {
-        document.querySelectorAll(".page").forEach(candidate => {
-          candidate.classList.toggle("active", candidate.id === "page-component-diagnostics");
-        });
-        document.querySelectorAll(".nav-item").forEach(candidate => {
-          candidate.classList.toggle("active", candidate === button);
-        });
-        window.scrollTo({ top: 0, behavior: "instant" });
-      });
+      button.addEventListener("click", () => activateComponentDiagnosticsPage());
       return true;
     }).catch(() => false);
   }
