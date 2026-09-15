@@ -31,6 +31,16 @@ function loadPageModule() {
   return pageModulePromise;
 }
 
+export function syncComponentDiagnosticsNavigationVisibility(documentObject = globalThis.document) {
+  if (!documentObject || typeof documentObject.querySelector !== "function") return false;
+  const button = documentObject.querySelector("#nav-component-diagnostics");
+  const is220dReferenceNav = documentObject.querySelector("#nav-dpnr");
+  if (!button || !is220dReferenceNav) return false;
+  const shouldBeVisible = !is220dReferenceNav.classList?.contains?.("hidden");
+  button.classList?.toggle?.("hidden", !shouldBeVisible);
+  return shouldBeVisible;
+}
+
 export function activateComponentDiagnosticsPage(documentObject = globalThis.document, windowObject = globalThis.window) {
   if (!documentObject || typeof documentObject.querySelector !== "function") return false;
   const button = documentObject.querySelector("#nav-component-diagnostics");
@@ -57,6 +67,7 @@ function installComponentDiagnosticsNavigation() {
       const button = document.querySelector("#nav-component-diagnostics");
       const page = document.querySelector("#page-component-diagnostics");
       if (!button || !page) return false;
+      syncComponentDiagnosticsNavigationVisibility();
       if (button.dataset.dynamicNavigationBound === "1") return true;
       button.dataset.dynamicNavigationBound = "1";
       button.addEventListener("click", () => activateComponentDiagnosticsPage());
