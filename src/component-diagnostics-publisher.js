@@ -12,6 +12,7 @@ const hasFullBrowserDom = () => {
 
 let pageModulePromise = null;
 let groupOverviewModulePromise = null;
+let vikadiagObdDiagnosticPageModulePromise = null;
 let guidedSessionModulePromise = null;
 let operatingStateModulePromise = null;
 let componentInspectionPointsModulePromise = null;
@@ -36,6 +37,15 @@ function loadGroupOverviewModule() {
     groupOverviewModulePromise = pagePromise.then(() => import("./component-diagnostic-group-overview.js"));
   }
   return groupOverviewModulePromise;
+}
+
+function loadVikadiagObdDiagnosticPageModule() {
+  const pagePromise = loadPageModule();
+  if (!pagePromise) return null;
+  if (!vikadiagObdDiagnosticPageModulePromise) {
+    vikadiagObdDiagnosticPageModulePromise = pagePromise.then(() => import("./vikadiag-obd-diagnostic-page.js"));
+  }
+  return vikadiagObdDiagnosticPageModulePromise;
 }
 
 function loadGuidedSessionModule() {
@@ -132,6 +142,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
   const pagePromise = loadPageModule();
   if (!pagePromise) return;
   const overviewPromise = loadGroupOverviewModule();
+  const vikadiagObdDiagnosticPagePromise = loadVikadiagObdDiagnosticPageModule();
   const guidedSessionPromise = loadGuidedSessionModule();
   const operatingStatePromise = loadOperatingStateModule();
   const componentInspectionPointsPromise = loadComponentInspectionPointsModule();
@@ -147,6 +158,9 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
     .catch(() => {});
   overviewPromise
     ?.then(module => module.publishIs220dDiagnosticGroupOverview(coverage, meta))
+    .catch(() => {});
+  vikadiagObdDiagnosticPagePromise
+    ?.then(module => module.publishVikadiagObdDiagnosticCatalog())
     .catch(() => {});
   guidedSessionPromise
     ?.then(module => module.publishIs220dGuidedDiagnosticSession(coverage, meta))
@@ -183,6 +197,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
 
 loadPageModule();
 loadGroupOverviewModule();
+loadVikadiagObdDiagnosticPageModule();
 loadGuidedSessionModule();
 loadOperatingStateModule();
 loadComponentInspectionPointsModule();
