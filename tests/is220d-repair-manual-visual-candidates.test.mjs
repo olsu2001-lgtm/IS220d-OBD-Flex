@@ -6,15 +6,15 @@ import {
 } from "../src/is220d-repair-manual-visual-candidates.js";
 import { getIs220dRepairManualVisuals } from "../src/is220d-repair-manual-visuals.js";
 
-const EXPECTED_ROWS = [11, 12, 18, 20, 21, 24, 25, 26, 28, 29, 30, 32, 33, 35, 37, 61, 63, 64, 65, 66, 67, 68];
+const EXPECTED_ROWS = [11, 12, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 35, 36, 37, 61, 63, 64, 65, 66, 67, 68];
 
-test("manual-image candidate review keeps exact 2AD-FHV sources for twenty-two diagnostic components", () => {
-  assert.equal(IS220D_REPAIR_MANUAL_VISUAL_CANDIDATES.length, 22);
+test("manual-image candidate review keeps exact 2AD-FHV sources for twenty-six diagnostic components", () => {
+  assert.equal(IS220D_REPAIR_MANUAL_VISUAL_CANDIDATES.length, 26);
   assert.deepEqual(
     [...IS220D_REPAIR_MANUAL_VISUAL_CANDIDATES].map(x => x.sourceRow).sort((a,b) => a-b),
     EXPECTED_ROWS
   );
-  assert.equal(new Set(IS220D_REPAIR_MANUAL_VISUAL_CANDIDATES.map(x => x.componentId)).size, 22);
+  assert.equal(new Set(IS220D_REPAIR_MANUAL_VISUAL_CANDIDATES.map(x => x.componentId)).size, 26);
   for (const item of IS220D_REPAIR_MANUAL_VISUAL_CANDIDATES) {
     assert.equal(item.engineFamily, "2AD-FHV");
     assert.equal(item.status, "source-identified");
@@ -45,10 +45,13 @@ test("cooling candidates reject the visually similar 4GR-FSE component pages", (
   assert.equal(getIs220dRepairManualVisualCandidate("engine.radiator")?.manualReference, "rm0150/repair2/html/contents/rm000000v1x00jx.html");
 });
 
-test("shared figures are mapped only where the figure explicitly shows the reviewed component", () => {
+test("shared figures are mapped only where the figure or source step supports the reviewed component", () => {
   assert.equal(getIs220dRepairManualVisualCandidate("engine.air_cleaner_housing")?.sourceImagePath, "rm0150/repair2/img/a133283e01.png");
   assert.equal(getIs220dRepairManualVisualCandidate("engine.air_cleaner_hose")?.sourceImagePath, "rm0150/repair2/img/a133283e01.png");
+  assert.equal(getIs220dRepairManualVisualCandidate("engine.intake_manifold")?.sourceImagePath, "rm0150/repair2/img/a131695.png");
+  assert.equal(getIs220dRepairManualVisualCandidate("engine.intake_manifold_gasket")?.sourceImagePath, "rm0150/repair2/img/a131695.png");
   assert.equal(getIs220dRepairManualVisualCandidate("engine.exhaust_manifold_gasket")?.sourceImagePath, "rm0150/repair2/img/a122201e01.png");
+  assert.equal(getIs220dRepairManualVisualCandidate("engine.turbo_exhaust_gaskets")?.sourceImagePath, "rm0150/repair2/img/a122201e01.png");
   assert.equal(getIs220dRepairManualVisualCandidate("engine.turbo_oil_pipes")?.sourceImagePath, "rm0150/repair2/img/a122209e03.png");
   assert.equal(getIs220dRepairManualVisualCandidate("engine.vacuum_hoses")?.sourceImagePath, "rm0150/repair2/img/a122208e01.png");
   assert.match(getIs220dRepairManualVisualCandidate("engine.vacuum_hoses")?.caption || "", /paikallinen esimerkki/i);
@@ -56,10 +59,12 @@ test("shared figures are mapped only where the figure explicitly shows the revie
   assert.equal(getIs220dRepairManualVisualCandidate("engine.expansion_tank_cap")?.sourceImagePath, "rm0150/repair2/img/a134875e01.png");
 });
 
-test("newly reviewed fuel and belt-drive figures keep exact component identities", () => {
+test("reviewed fuel and belt-drive figures keep exact component identities", () => {
   assert.equal(getIs220dRepairManualVisualCandidate("engine.fuel_filter")?.sourceImagePath, "rm0150/repair2/img/a135220e01.png");
   assert.equal(getIs220dRepairManualVisualCandidate("engine.fuel_sedimenter")?.sourceImagePath, "rm0150/repair2/img/a133199e01.png");
   assert.equal(getIs220dRepairManualVisualCandidate("engine.injection_high_pressure_pipes")?.sourceImagePath, "rm0150/repair2/img/a130379e01.png");
+  assert.equal(getIs220dRepairManualVisualCandidate("engine.low_pressure_fuel_hoses")?.sourceImagePath, "rm0150/repair2/img/a134252.png");
+  assert.equal(getIs220dRepairManualVisualCandidate("engine.low_pressure_fuel_hoses")?.manualReference, "rm0150/repair2/html/contents/rm0000024nj000x.html");
   assert.equal(getIs220dRepairManualVisualCandidate("engine.fuel_check_valve")?.sourceImagePath, "rm0150/repair2/img/a133848e02.png");
   assert.equal(getIs220dRepairManualVisualCandidate("engine.idler_pulleys")?.sourceImagePath, "rm0150/repair2/img/a131681.png");
   const tensioner = getIs220dRepairManualVisualCandidate("engine.belt_tensioner");
@@ -69,8 +74,9 @@ test("newly reviewed fuel and belt-drive figures keep exact component identities
   assert.match(tensioner?.caption || "", /V-RIBBED BELT TENSIONER ASSEMBLY/);
 });
 
-test("candidate registry does not infer an SCV or unrelated component from nearby manual drawings", () => {
+test("candidate registry does not infer an SCV, air filter image or uncertain gas filter from nearby drawings", () => {
   assert.equal(getIs220dRepairManualVisualCandidate("engine.scv"), null);
   assert.equal(getIs220dRepairManualVisualCandidate("engine.air_filter"), null);
+  assert.equal(getIs220dRepairManualVisualCandidate("engine.vacuum_gas_filter"), null);
   assert.equal(getIs220dRepairManualVisualCandidate("not.a.real.component"), null);
 });
