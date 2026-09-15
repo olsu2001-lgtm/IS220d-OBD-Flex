@@ -2,6 +2,152 @@
 // No generated illustrations or vehicle commands. See docs/REPAIR_MANUAL_VISUALS.md.
 const visuals = [
   {
+    "assetPath": "assets/repair-manual/a122191e01.png",
+    "caption": "Kampiakselianturi ja sen johto alkuperäisessä moottoritilassa.",
+    "componentIds": [
+      "engine.crank_position_sensor"
+    ],
+    "figureReviewed": true,
+    "id": "crank-location",
+    "manualReference": "rm0150/repair2/html/contents/rm000001blw006x.html",
+    "reviewedAt": "2026-09-15",
+    "section": "COMPONENTS",
+    "sha256": "78271cd2c035c8bbabb0f5dd4a24c470a4bea250ac7ce4f4e44f125e7cf04979",
+    "sourceHtmlSha256": "bcec145063d36325197d5229400a82a3392508c56651b6463c553fd8f87c6850",
+    "sourceImagePath": "rm0150/repair2/img/a122191e01.png",
+    "sourceRows": [
+      17
+    ],
+    "status": "available",
+    "title": "Kampiakselianturin sijainti"
+  },
+  {
+    "assetPath": "assets/repair-manual/a122190e01.png",
+    "caption": "Nokka-akselianturi ja liitin. Kuva ei varmista nokka- ja kampisignaalin synkronointia.",
+    "componentIds": [
+      "engine.cam_position_sensor"
+    ],
+    "figureReviewed": true,
+    "id": "cam-location",
+    "manualReference": "rm0150/repair2/html/contents/rm000001blr006x.html",
+    "reviewedAt": "2026-09-15",
+    "section": "COMPONENTS",
+    "sha256": "6fd3510dec0bfea90b10e4a208080d9bfe042e3f3229e6879b3700f74122e032",
+    "sourceHtmlSha256": "9a96a6ae8978e0de26fba822137a87354ef196ea4ba99cf8d679344e00e35dc5",
+    "sourceImagePath": "rm0150/repair2/img/a122190e01.png",
+    "sourceRows": [
+      16
+    ],
+    "status": "available",
+    "title": "Nokka-akselianturin sijainti"
+  },
+  {
+    "assetPath": "assets/repair-manual/a122207e01.png",
+    "caption": "Manuaalin UPPER- ja LOWER-anturit sekä johtojen kiinnitys DPNR-kokonaisuudessa. Tarkista anturien tunnistus ennen irrotusta.",
+    "componentIds": [
+      "engine.exhaust_gas_temperature_sensor_1",
+      "engine.exhaust_gas_temperature_sensor_2"
+    ],
+    "figureReviewed": true,
+    "id": "egt-layout",
+    "manualReference": "rm0150/repair2/html/contents/rm000001aw8003x.html",
+    "reviewedAt": "2026-09-15",
+    "section": "COMPONENTS",
+    "sha256": "bd389adb1cc31a44c7361372813a1101bbb8b8fd9a51f89ed153f820dc2ae28b",
+    "sourceHtmlSha256": "34d0675b6a583107abe2c3a9a8a782221df84182e82295e8ed9af999440deedf",
+    "sourceImagePath": "rm0150/repair2/img/a122207e01.png",
+    "sourceRows": [
+      6,
+      7
+    ],
+    "status": "available",
+    "title": "Pakolämpöanturien sijainnit"
+  },
+  {
+    "assetPath": "assets/repair-manual/a122199e01.png",
+    "caption": "Pakokaasun lisäpolttoainesuutin, kiinnitin ja polttoaineputki. Ei pääsuutin eikä Active Test -ohje.",
+    "componentIds": [
+      "engine.exhaust_fuel_addition_injector"
+    ],
+    "figureReviewed": true,
+    "id": "exhaust-injector-location",
+    "manualReference": "rm0150/repair2/html/contents/rm000001aw7003x.html",
+    "reviewedAt": "2026-09-15",
+    "section": "COMPONENTS",
+    "sha256": "57ad0b110de6a49e92728d0b8cf6d6c7dad021f59a271f7473996b24038cf084",
+    "sourceHtmlSha256": "4df3ef05283b4beb55c861607006c0190dd0be631975f7c646e7012f27271044",
+    "sourceImagePath": "rm0150/repair2/img/a122199e01.png",
+    "sourceRows": [
+      9
+    ],
+    "status": "available",
+    "title": "Lisäpolttoainesuuttimen sijainti"
+  },
+  {
+    "assetPath": "assets/repair-manual/a130378e01.png",
+    "caption": "Pumppu, putkiliitännät ja erillinen käyttökytkin. Kuva ei osoita SCV-venttiilin tarkkaa sijaintia eikä ohjaa avaamaan paineellista järjestelmää.",
+    "componentIds": [
+      "engine.injection_pump",
+      "engine.supply_pump_drive_coupling"
+    ],
+    "figureReviewed": true,
+    "id": "supply-pump-layout",
+    "manualReference": "rm0150/repair2/html/contents/rm000001at0004x.html",
+    "reviewedAt": "2026-09-15",
+    "section": "COMPONENTS",
+    "sha256": "4aa60fc8954a4ff28514738b5e4feb6f37b40dbbbea3ce2de8b3053cd55f90c5",
+    "sourceHtmlSha256": "097f84266d03269268465f89ea0451ab6a77ab4e0860ce549915c0a59efba068",
+    "sourceImagePath": "rm0150/repair2/img/a130378e01.png",
+    "sourceRows": [
+      34,
+      38
+    ],
+    "status": "available",
+    "title": "Syöttöpumppu ja käyttökytkin"
+  },
+  {
+    "assetPath": "assets/repair-manual/a133848e02.png",
+    "caption": "Neljä pääsuutinta, kiinnikkeet, tiivisteet ja paluuputkisto. Paineellisia liitoksia ei avata tämän kuvan perusteella.",
+    "componentIds": [
+      "engine.main_injectors"
+    ],
+    "figureReviewed": true,
+    "id": "main-injectors-layout",
+    "manualReference": "rm0150/repair2/html/contents/rm000001asw004x.html",
+    "reviewedAt": "2026-09-15",
+    "section": "COMPONENTS",
+    "sha256": "9b81505b0aa2e9d3dbfccbd46f3f99c7344a02a0813531aeff3857201f337c61",
+    "sourceHtmlSha256": "0ca4df6ecd1739ad8e8d2560bff582b2256f2a57a6e1f9520b02dac02db42fad",
+    "sourceImagePath": "rm0150/repair2/img/a133848e02.png",
+    "sourceRows": [
+      8
+    ],
+    "status": "available",
+    "title": "Pääsuuttimet ja paluuputkisto"
+  },
+  {
+    "assetPath": "assets/repair-manual/a119089e01.png",
+    "caption": "Jäähdytysnesteen lämpötila-anturi ja liitin. Tarkastus tehdään jäähtyneestä moottorista.",
+    "componentIds": [
+      "engine.coolant_temperature_sensor"
+    ],
+    "figureReviewed": true,
+    "id": "coolant-sensor-location",
+    "manualReference": "rm0150/repair2/html/contents/rm000001bm3006x.html",
+    "reviewedAt": "2026-09-15",
+    "section": "COMPONENTS",
+    "sha256": "0b2ecdb2a8d1330a40a76bbe2215852424d4b4006ec37406882450f60d0c07e9",
+    "sourceHtmlSha256": "35e4031194a2f1e5ce28a5e8c0c340908285df06ba2300ac4888929e6701aabb",
+    "sourceImagePath": "rm0150/repair2/img/a119089e01.png",
+    "sourceRows": [
+      152,
+      254,
+      330
+    ],
+    "status": "available",
+    "title": "Jäähdytysnesteanturin sijainti"
+  },
+  {
     "assetPath": "assets/repair-manual/a122206e01.png",
     "caption": "Anturi sekä No. 1- ja No. 2 -paineletkut moottoritilassa.",
     "componentIds": [
@@ -145,4 +291,3 @@ export function buildIs220dRepairManualVisualsHtml(componentId) {
     ${matches.map(v => `<figure style="margin:12px 0"><img src="${escapeHtml(v.assetPath)}" alt="${escapeHtml(v.title)}" loading="lazy" style="display:block;max-width:100%;height:auto;background:white">
     <figcaption><strong>${escapeHtml(v.title)}</strong><p>${escapeHtml(v.caption)}</p><small>Lexus IS250/220D · RM0150 · ${escapeHtml(v.section)} · ${escapeHtml(v.sourceImagePath.split("/").at(-1))}</small></figcaption></figure>`).join("")}</details>`;
 }
-

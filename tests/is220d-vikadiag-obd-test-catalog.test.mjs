@@ -80,7 +80,7 @@ test("every reviewed diagnostic row has a repair-manual visual extraction plan",
     assert.equal(candidate.manualVisual.required, true, `row ${candidate.sourceRow} must require a manual visual`);
     assert.equal(candidate.manualVisual.source, "Lexus IS250/220D repair manual");
     assert.ok(candidate.manualVisual.searchTerms.length > 0, `row ${candidate.sourceRow} needs manual search terms`);
-    if ([2, 4, 5, 40, 45, 46].includes(candidate.sourceRow)) {
+    if ([2, 4, 5, 6, 7, 8, 9, 16, 17, 34, 38, 40, 45, 46].includes(candidate.sourceRow)) {
       assert.equal(candidate.manualVisual.status, "available");
       assert.match(candidate.manualVisual.assetPath, /^assets\/repair-manual\/.+\.png$/);
       assert.ok(candidate.manualVisual.visualIds.length);
@@ -112,7 +112,7 @@ test("catalog summary distinguishes implemented, ready, indirect and pending row
     needsSignalVerification: 1,
     blocked: 0,
     physicalOnly: 0,
-    manualVisualPending: 6
+    manualVisualPending: 2
   });
 });
 
@@ -141,7 +141,7 @@ test("continuation has traceable evidence, source rows and unclaimed manual visu
     assert.equal(validateVikadiagObdTestCandidate(item), item);
     assert.equal(item.source.spreadsheetId, "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8");
     assert.equal(item.source.sheet, "Vikadiag_kohteet");
-    if ([40, 45, 46].includes(item.sourceRow)) {
+    if ([16, 17, 34, 38, 40, 45, 46].includes(item.sourceRow)) {
       assert.equal(item.manualVisual.status, "available");
       assert.equal(item.manualVisual.figureReviewed, true);
       assert.match(item.manualVisual.manualReference, /rm0150\/repair2\/html\/contents\/rm/);

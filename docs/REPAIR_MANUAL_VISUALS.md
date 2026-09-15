@@ -1,5 +1,42 @@
 # Repair-manual visuals: source preparation
 
+## Second image batch (2026-09-15)
+
+Seven more original COMPONENTS PNGs were extracted and visually reviewed.
+There are now 13 unique images supporting 15 component identities. Within the
+row-by-row catalog, available image plans cover rows 2, 4–9, 16–17, 34, 38,
+40 and 45–46 (14 rows). ECT reuses existing inspection-point references
+152/254/330; those rows have not been newly reviewed in the row-by-row catalog.
+
+| Component | Source image | Source section |
+| --- | --- | --- |
+| Kampiakselianturin sijainti | a122191e01.png | rm000001blw006x.html |
+| Nokka-akselianturin sijainti | a122190e01.png | rm000001blr006x.html |
+| Pakolämpöanturien sijainnit | a122207e01.png | rm000001aw8003x.html |
+| Lisäpolttoainesuuttimen sijainti | a122199e01.png | rm000001aw7003x.html |
+| Syöttöpumppu ja käyttökytkin | a130378e01.png | rm000001at0004x.html |
+| Pääsuuttimet ja paluuputkisto | a133848e02.png | rm000001asw004x.html |
+| Jäähdytysnesteanturin sijainti | a119089e01.png | rm000001bm3006x.html |
+
+The existing fuel, air/exhaust and starting/charging inspection renderers now
+call the same reviewed-image renderer as the general component views.
+No parallel inspection system, new ECU data, thresholds or signal authorization
+was added. The camshaft row stays pending signal verification; the pump coupling
+stays physical-only. Main injectors and exhaust fuel addition injector have
+separate images. The supply-pump image is not mapped to SCV because it does not
+identify that valve explicitly. The EGT picture retains UPPER/LOWER labels and
+does not invent an ECU byte-to-location mapping.
+
+Local full regression/safety suite: **495/495 passed**. Tests additionally exercise
+actual HTML rendering of fuel, air/exhaust and starting scopes and verify that
+pictures do not change diagnostic readiness. Source begins from image-batch head
+dd45e9a9788d5e9dc1cf8bbe1b7566abde53ae42; package/lockfile, registry and
+publication workflow remain unchanged. DPNR's missing-live-data field check
+remains open. Next row-by-row catalog work still starts at row 69.
+
+
+## First image batch (historical)
+
 Six original PNGs were extracted byte-for-byte from the user-supplied
 IS250,220D.iso / RM0150 and visually reviewed on 2026-09-15. No AI illustration,
 redrawing or image modification is used. Source image and HTML paths and their

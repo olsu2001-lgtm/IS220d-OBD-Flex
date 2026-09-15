@@ -1,3 +1,4 @@
+import { buildIs220dRepairManualVisualsHtml } from "./is220d-repair-manual-visuals.js";
 import { getIs220dDiagnosticSignal } from "./is220d-diagnostic-signals.js";
 
 export const IS220D_FUEL_INSPECTION_POINT_SCHEMA_VERSION = 1;
@@ -293,7 +294,7 @@ export function buildIs220dFuelInspectionScopeHtml(scope) {
     return `<article class="bom-fuel-point-card" data-bom-fuel-point="${escapeHtml(point.id)}">
       <div class="bom-fuel-point-head"><div><span>${escapeHtml(kindLabel(point.kind))}</span><strong>${escapeHtml(point.label)}</strong></div><small>${escapeHtml(point.states.map(state => state.label).join(" · "))}</small></div>
       <div class="bom-fuel-point-component">${escapeHtml(point.componentLabel)} · PNC ${escapeHtml(point.pnc)} · OE ${escapeHtml(point.oe)}</div>
-      <p>${escapeHtml(point.instruction)}</p>
+      <p>${escapeHtml(point.instruction)}</p>${buildIs220dRepairManualVisualsHtml(point.componentId)}
       <div class="bom-fuel-point-pattern"><strong>Odotettu kuvio</strong><span>${escapeHtml(point.expectedPattern)}</span></div>
       <div class="bom-fuel-point-limit"><strong>Raja</strong><span>${escapeHtml(point.limitation)}</span></div>
       <details><summary>Jatkotoimi ja lähde</summary><div>${escapeHtml(point.physicalFollowUp)}</div><div>Evidenssi: ${escapeHtml(evidenceText)}</div><div class="bom-fuel-point-source">${escapeHtml(point.sourceSheet)} · rivit ${escapeHtml(point.sourceRows.join(", "))}</div></details>

@@ -292,3 +292,14 @@ cards and both DPNR panels. This supersedes the pending/source-identified
 image status in the historical batch notes above. Other rows stay pending.
 See [source provenance and release preparation](REPAIR_MANUAL_VISUALS.md).
 No additional Drive rows, signal decoders, app version or APK were introduced.
+
+### Second reviewed image integration
+
+Seven additional original figures cover EGT1/2, main/exhaust injectors,
+cam/crank sensors, supply pump/drive coupling and ECT. Total: 13 images,
+14 catalog rows with available images, plus the existing ECT inspection component.
+Rows 6–9, 16–17, 34 and 38 now have available images; previous batch notes
+are historical. ECT source-row references are reused from existing inspection
+points, not newly completed catalog reviews. The next catalog row remains 69.
+Fuel, air/exhaust and starting/charging scopes reuse the shared renderer.
+Full local regression/safety suite passed 495/495. No version or release change.
