@@ -8,6 +8,7 @@ const DPNR_PAGE_AUTOSTART = `  if (name === "dpnr") {
     if (
       state.vehicleKey === VEHICLE_KEYS.IS220D &&
       state.connected &&
+      state.ecuConnected &&
       !state.liveActive &&
       !state.quicklynks &&
       !state.diagnosticRunning &&
