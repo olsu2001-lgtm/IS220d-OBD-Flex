@@ -112,8 +112,8 @@ test("catalog summary distinguishes implemented, ready, indirect and pending row
 
 
 
-test("continuation covers each Drive row through 53 without restarting the first batch", () => {
-  assert.deepEqual(IS220D_VIKADIAG_OBD_TEST_CATALOG.map(x => x.sourceRow), Array.from({ length: 52 }, (_, i) => i + 2));
+test("continuation covers each Drive row through 68 without restarting the first batch", () => {
+  assert.deepEqual(IS220D_VIKADIAG_OBD_TEST_CATALOG.map(x => x.sourceRow), Array.from({ length: 67 }, (_, i) => i + 2));
 });
 
 test("physical rows cannot acquire OBD evidence, pending cam row cannot prove synchronization", () => {
@@ -251,4 +251,63 @@ test("lower-arm OE shorthand retains independently read side and date evidence",
     [2860, "LH", "48640-53020"], [2861, "LH", "48640-30290"]
   ]);
   assert.equal(arms.partEvidence.status, "bom-identified-not-order-approved");
+});
+
+test("rows 54-68 distinguish physical coverage from pending ABS and EPS evidence", () => {
+  for (const row of [54, 55, 56, 60, 63]) {
+    const item = getVikadiagObdTestCandidateByRow(row);
+    assert.equal(item.obdRole, "physical-only");
+    assert.deepEqual(item.signalKeys, []);
+    assert.equal(item.recipes.length, 1);
+  }
+  for (const row of [57, 58, 59]) {
+    const item = getVikadiagObdTestCandidateByRow(row);
+    assert.equal(item.obdRole, "indirect");
+    assert.equal(item.readiness, VIKADIAG_TEST_READINESS.NEEDS_SIGNAL_VERIFICATION);
+    assert.ok(item.missingSignals.length);
+  }
+  for (const row of [57, 58]) {
+    const item = getVikadiagObdTestCandidateByRow(row);
+    assert.deepEqual(item.signalKeys, []);
+    assert.deepEqual(item.recipes.map(r => r.kind), ["physical"]);
+  }
+  assert.deepEqual(getVikadiagObdTestCandidateByRow(59).signalKeys, ["engine.ecu_voltage"]);
+});
+
+test("cooling and belt recipes use only existing temperature or voltage context", () => {
+  for (const row of [61, 62, 64, 65, 66, 67, 68]) {
+    const item = getVikadiagObdTestCandidateByRow(row);
+    assert.equal(item.obdRole, "indirect");
+    assert.equal(item.readiness, "indirect-existing-signals");
+    assert.deepEqual(item.signalKeys, [[64, 65].includes(row) ? "engine.ecu_voltage" : "engine.coolant_temperature"]);
+    assert.deepEqual(item.recipes.map(r => r.kind), ["physical", "cross-check"]);
+    assert.deepEqual(item.recipes[0].signalKeys, []);
+    assert.doesNotMatch(item.recipes[0].instruction, /ECT|ECU-jännite/);
+    assert.deepEqual(item.recipes[1].signalKeys, item.signalKeys);
+    assert.equal(item.manualVisual.status, "pending-extract");
+  }
+});
+
+test("fan actuation and unsafe source procedures stay outside executable recipes", () => {
+  const fan = getVikadiagObdTestCandidateByRow(67);
+  assert.match(fan.sourceObdText, /active test/i);
+  assert.ok(fan.excludedActions.includes("active-test"));
+  assert.ok(fan.excludedActions.includes("ecu-write"));
+  assert.equal(fan.missingSignals.length, 2);
+  assert.doesNotMatch(fan.recipes.map(r => r.instruction).join(" "), /active test|suora syöttö/i);
+  const belt = getVikadiagObdTestCandidateByRow(65);
+  assert.match(belt.sourcePhysicalText, /Suihkepullotesti/);
+  assert.doesNotMatch(belt.recipes.map(r => r.instruction).join(" "), /suihkepullo/i);
+  assert.match(getVikadiagObdTestCandidateByRow(68).limitations.join(" "), /kuumaa korkkia ei avata/);
+});
+
+test("new row identities remain exact live Drive evidence including grouped OE values", () => {
+  const expected = [[39,"47028","47028-53020"],[40,"44610","44610-53290"],[41,"44730/44750/44773","44730-28010; 44750-53150; 44750-53130"],[42,"04465/43512","04465-53040; 43512-30310"],[43,"47730/47750","47730-53060; 47750-53060"],[44,"47715A/47715D/47769","47715-22070; 47715-52190; 47769-50010"],[45,"04466/42431","04466-22190; 42431-30290"],[46,"47730B/47750A","47830-53070; 47850-53070"],[47,"47814/47769A/47775D","47814-30300; 47879-30300; 47875-30340"],[48,"43330K/43340A","43330-39625; 43340-39505"],[49,"48610/48630","48610-59065; 48630-59065"],[50,"48620/48640","48620-53020/30290; 48640-53020/30290"],[51,"48510/48520","48510-80359; 48520-59395"],[52,"48680","48680-53030"],[53,"48810/48820B/48815","48810-53010; 48820-53010; 48815-30570"],[54,"48530/48540","48530-80416; 48530-80416"],[55,"48231A/48231B","48231-53231"],[56,"48705/48706B/48710A/48720A/48730F/48740F","48705-53020; 48706-53020; 48710-53020; 48730-30090; 48740-30110"],[57,"43501C/43502C","43550-30020; 43560-30010"],[58,"42450A/42450B","42410-30020"],[59,"44200","44200-53130"],[60,"45460/45470/45503","45463-30130; 45464-30060; 45503-30070"],[61,"16100","16100-29495"],[62,"16271/16272A","16271-26010; 16272-26010"],[63,"16603/16604","16603-0R010; 16604-26011"],[64,"16620","16620-0R010"],[65,"16361A","90916-W2014"],[66,"16400","16400-26400"],[67,"16361/16363","16361-26110; 16363-26060; 16363-26070"],[68,"16470/16471","16470-26110; 16475-28120; 16475-51010"]];
+  for (const [row, pnc, oe] of expected) {
+    const item = getVikadiagObdTestCandidateByRow(row);
+    assert.equal(item.pnc, pnc);
+    assert.equal(item.oe, oe);
+    assert.equal(item.source.row, row);
+    assert.equal(item.source.range, `A${row}:O${row}`);
+  }
 });

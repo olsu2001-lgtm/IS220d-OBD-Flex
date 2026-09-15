@@ -15,7 +15,7 @@ import {
 
 export const IS220D_VIKADIAG_OBD_TEST_CATALOG_SCHEMA_VERSION = 1;
 export const IS220D_VIKADIAG_OBD_TEST_SOURCE = "Bom-kaapija / Vikadiag_kohteet";
-export const IS220D_VIKADIAG_OBD_TEST_SOURCE_BATCH = "Drive rows 2-53; latest review 2026-09-15";
+export const IS220D_VIKADIAG_OBD_TEST_SOURCE_BATCH = "Drive rows 2-68; latest review 2026-09-15";
 
 export const VIKADIAG_TEST_READINESS = Object.freeze({
   IMPLEMENTED_DEDICATED: "implemented-dedicated",
@@ -3907,7 +3907,1314 @@ const chassisContinuation = [
   }
 ];
 
-const reviewedCatalog = [...firstBatch, ...[...reviewedContinuation, ...chassisContinuation].map(candidate => ({
+const coolingContinuation = [
+  {
+    "componentId": "chassis.rear_shocks",
+    "diagnosticGroup": "9. Jarrut, ohjaus ja alusta",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Vuoto tai vaimennuspuute on fyysisen jatkotarkastuksen peruste.",
+    "label": "Takaiskarit",
+    "limitations": [
+      "Rivin sama RH/LH-OE säilyy lähdetietona, ei uutena sopivuusvarmennuksena.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "ABSORBER ASSY, SHOCK, REAR RH/LH",
+      "likelySection": "REAR SPRING SHOCK ABSORBER / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "48530-80416; 48530-80416",
+      "pnc": "48530/48540",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "ABSORBER ASSY, SHOCK, REAR RH/LH",
+        "48530/48540",
+        "48530-80416; 48530-80416"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "REAR SPRING SHOCK ABSORBER",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "Rivin sama RH/LH-OE säilyy lähdetietona, ei uutena sopivuusvarmennuksena.",
+    "obdRole": "physical-only",
+    "oe": "48530-80416; 48530-80416",
+    "operatingStates": [
+      "physical"
+    ],
+    "physicalFollowUp": "Tarkista takaiskarien vuodot, puslat, yläkiinnitys ja rengaskuluma.",
+    "pnc": "48530/48540",
+    "readiness": "physical-only",
+    "recipes": [
+      {
+        "expectedPattern": "Vuoto tai vaimennuspuute on fyysisen jatkotarkastuksen peruste.",
+        "id": "vikadiag-54-physical",
+        "instruction": "Tarkista takaiskarien vuodot, puslat, yläkiinnitys ja rengaskuluma.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista takaiskarien vuodot, puslat, yläkiinnitys ja rengaskuluma.",
+        "signalKeys": []
+      }
+    ],
+    "signalKeys": [],
+    "source": {
+      "bomSource": "BOM rivit 2936-2945, PNC 48530/48540",
+      "externalSource": "Monroe worn shock symptoms/inspection",
+      "range": "A54:O54",
+      "reviewedAt": "2026-09-15",
+      "row": 54,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "LH jakaa näkyvän OE-numeron RH-rivin kanssa tämän BOM-otteen perusteella; varmista ennen tilausta.",
+      "sourceStatus": "Erä 3 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Ei suoraa OBD-varmistusta.",
+    "sourcePhysicalText": "Tarkista öljyvuoto, puslat, yläpään tuenta, renkaiden kulumajälki ja koeajossa perän rauhoittuminen töyssyn jälkeen.",
+    "sourceRow": 54,
+    "symptom": "Perän pompotus, huono pito kaarteessa, kolina takaa, renkaan kuppikuluminen, öljyvuoto tai perän levottomuus nopeassa suunnanvaihdossa.",
+    "testMethod": "Tarkista takaiskarien vuodot, puslat, yläkiinnitys ja rengaskuluma."
+  },
+  {
+    "componentId": "chassis.rear_springs",
+    "diagnosticGroup": "9. Jarrut, ohjaus ja alusta",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Katkennut pää tai väärä istuvuus on fyysinen löydös; puoliero ei yksin todista jousivikaa.",
+    "label": "Takajouset",
+    "limitations": [
+      "Ei OBD-korkeussignaalia tälle jouselle eikä arvattua korkeuden hyväksymisrajaa.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "SPRING, COIL, REAR RH/LH",
+      "likelySection": "REAR SPRING SHOCK ABSORBER / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "48231-53231",
+      "pnc": "48231A/48231B",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "SPRING, COIL, REAR RH/LH",
+        "48231A/48231B",
+        "48231-53231"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "REAR SPRING SHOCK ABSORBER",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "Ei OBD-korkeussignaalia tälle jouselle eikä arvattua korkeuden hyväksymisrajaa.",
+    "obdRole": "physical-only",
+    "oe": "48231-53231",
+    "operatingStates": [
+      "physical"
+    ],
+    "physicalFollowUp": "Tarkista jousen päät, murtumat, istuvuus ja kumieristeet; vertaa puolten korkeutta samalla kuormalla ja alustalla.",
+    "pnc": "48231A/48231B",
+    "readiness": "physical-only",
+    "recipes": [
+      {
+        "expectedPattern": "Katkennut pää tai väärä istuvuus on fyysinen löydös; puoliero ei yksin todista jousivikaa.",
+        "id": "vikadiag-55-physical",
+        "instruction": "Tarkista jousen päät, murtumat, istuvuus ja kumieristeet; vertaa puolten korkeutta samalla kuormalla ja alustalla.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista jousen päät, murtumat, istuvuus ja kumieristeet; vertaa puolten korkeutta samalla kuormalla ja alustalla.",
+        "signalKeys": []
+      }
+    ],
+    "signalKeys": [],
+    "source": {
+      "bomSource": "BOM rivit 2918-2921, PNC 48231A/48231B, OE 48231-53231",
+      "externalSource": "Yleinen jousen murtuma-/korkeusdiagnoosi; Monroe ride-control inspection",
+      "range": "A55:O55",
+      "reviewedAt": "2026-09-15",
+      "row": 55,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Takajouset kannattaa tarkistaa samalla kun käsitellään takapään kolinoita.",
+      "sourceStatus": "Erä 3 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Ei OBD-varmistusta.",
+    "sourcePhysicalText": "Tarkista jousen päät, murtumat alalaakeripinnassa, auton korkeus puolieroina, kumieristeet ja jousen istuvuus.",
+    "sourceRow": 55,
+    "symptom": "Perän roikkuminen, vino korkeus, kolina, katkennut jousen pää, katsastushuomautus tai renkaan muuttunut asento.",
+    "testMethod": "Tarkista jousen päät, murtumat, istuvuus ja kumieristeet; vertaa puolten korkeutta samalla kuormalla ja alustalla."
+  },
+  {
+    "componentId": "chassis.rear_links_arms",
+    "diagnosticGroup": "9. Jarrut, ohjaus ja alusta",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Paikannettu välys ja suuntausmittaus tukevat vian erottelua.",
+    "label": "Takapään tukivarret ja toe-linkit",
+    "limitations": [
+      "ABS/VSC-reaktio ei mittaa toe-linkin välystä; lähteen yhdistetty OE-lista ei varmista kaikkia yksittäisiä varsia.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "REAR SUSPENSION LINKS / ARMS",
+      "likelySection": "REAR SPRING SHOCK ABSORBER / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "48705-53020; 48706-53020; 48710-53020; 48730-30090; 48740-30110",
+      "pnc": "48705/48706B/48710A/48720A/48730F/48740F",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "REAR SUSPENSION LINKS / ARMS",
+        "48705/48706B/48710A/48720A/48730F/48740F",
+        "48705-53020; 48706-53020; 48710-53020; 48730-30090; 48740-30110"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "REAR SPRING SHOCK ABSORBER",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "ABS/VSC-reaktio ei mittaa toe-linkin välystä; lähteen yhdistetty OE-lista ei varmista kaikkia yksittäisiä varsia.",
+    "obdRole": "physical-only",
+    "oe": "48705-53020; 48706-53020; 48710-53020; 48730-30090; 48740-30110",
+    "operatingStates": [
+      "physical"
+    ],
+    "physicalFollowUp": "Tarkista takatukivarsien puslat, nivelet ja säätöpultit sekä pyöränkulmat korjauksen jälkeen.",
+    "pnc": "48705/48706B/48710A/48720A/48730F/48740F",
+    "readiness": "physical-only",
+    "recipes": [
+      {
+        "expectedPattern": "Paikannettu välys ja suuntausmittaus tukevat vian erottelua.",
+        "id": "vikadiag-56-physical",
+        "instruction": "Tarkista takatukivarsien puslat, nivelet ja säätöpultit sekä pyöränkulmat korjauksen jälkeen.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista takatukivarsien puslat, nivelet ja säätöpultit sekä pyöränkulmat korjauksen jälkeen.",
+        "signalKeys": []
+      }
+    ],
+    "signalKeys": [],
+    "source": {
+      "bomSource": "BOM rivit 2946-2957, PNC 48705/48706B/48710A/48730F/48740F",
+      "externalSource": "MOOG control arm bushing symptoms; LexusOwners suspension noise -foorumihavainnot",
+      "range": "A56:O56",
+      "reviewedAt": "2026-09-15",
+      "row": 56,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Takapään säätöosissa ruoste voi olla käytännön suurin ongelma, vaikka itse varsi ei olisi poikki.",
+      "sourceStatus": "Erä 3 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Ei suoraa OBD-varmistusta; ABS/ajonvakautus voi reagoida vain seurauksena, jos pyöräkulmat/pyöränopeudet ovat epäloogisia.",
+    "sourcePhysicalText": "Tarkista puslat sorkkaraudalla, nivelten suojakumit, ruosteiset säätöpultit, jäljet varren liikkumisesta ja tee nelipyöräsuuntaus korjauksen jälkeen.",
+    "sourceRow": 56,
+    "symptom": "Takapään kolina, perän vaeltelu, renkaan epätasainen kuluminen, aurauskulman muuttuminen, epävakaus urissa tai jarrutuksessa.",
+    "testMethod": "Tarkista takatukivarsien puslat, nivelet ja säätöpultit sekä pyöränkulmat korjauksen jälkeen."
+  },
+  {
+    "componentId": "drivetrain.front_hubs",
+    "diagnosticGroup": "8. Kardaani, perä, akselit ja navat",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Laakerin karheus/välys todetaan fyysisesti. Elektroninen kulmakohtainen vertailu ei ole nykyisellä evidenssillä mahdollinen.",
+    "label": "Etunavat / etupyörän laakeriyksiköt",
+    "limitations": [
+      "Moottorin RPM tai yleinen ajonopeus ei korvaa neljää ABS-pyöränopeutta.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "HUB SUB-ASSY, FRONT AXLE, RH/LH",
+      "likelySection": "FRONT AXLE HUB / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "43550-30020; 43560-30010",
+      "pnc": "43501C/43502C",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "HUB SUB-ASSY, FRONT AXLE, RH/LH",
+        "43501C/43502C",
+        "43550-30020; 43560-30010"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "FRONT AXLE HUB",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [
+      "Ajoneuvovarmennetut ABS-pyöränopeudet neljälle pyörälle ja lähde-ECU:n tunnistus"
+    ],
+    "note": "Moottorin RPM tai yleinen ajonopeus ei korvaa neljää ABS-pyöränopeutta.",
+    "obdRole": "indirect",
+    "oe": "43550-30020; 43560-30010",
+    "operatingStates": [
+      "physical"
+    ],
+    "physicalFollowUp": "Tarkista tuetun auton navan välys, pyörityksen karheus ja anturi-/magneettikehäalue; pyöränopeusvertailu jää odottamaan varmennettua ABS-signaalia.",
+    "pnc": "43501C/43502C",
+    "readiness": "needs-signal-verification",
+    "recipes": [
+      {
+        "expectedPattern": "Laakerin karheus/välys todetaan fyysisesti. Elektroninen kulmakohtainen vertailu ei ole nykyisellä evidenssillä mahdollinen.",
+        "id": "vikadiag-57-physical",
+        "instruction": "Tarkista tuetun auton navan välys, pyörityksen karheus ja anturi-/magneettikehäalue; pyöränopeusvertailu jää odottamaan varmennettua ABS-signaalia.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista tuetun auton navan välys, pyörityksen karheus ja anturi-/magneettikehäalue; pyöränopeusvertailu jää odottamaan varmennettua ABS-signaalia.",
+        "signalKeys": []
+      }
+    ],
+    "signalKeys": [],
+    "source": {
+      "bomSource": "BOM rivit 2350-2355, PNC 43501C/43502C",
+      "externalSource": "SKF wheel bearing/ABS sensor guidance; ClubLexus wheel bearing ABS lights -ketjut",
+      "range": "A57:O57",
+      "reviewedAt": "2026-09-15",
+      "row": 57,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Koska ABS-anturi on sähköinen, tämä linkittyy myös OBD/Techstream-ryhmään.",
+      "sourceStatus": "Erä 3 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "ABS/VSC live data: pyöränopeusanturin signaalin tasaisuus hitaassa ajossa; DTC:t jos anturisignaali katoaa.",
+    "sourcePhysicalText": "Ravista pyörää, kuuntele pyörittäessä, vertaa ääntä kaarteessa kuormituksen mukaan, tarkista lämpötila ja navan magneettikehä/anturin alue.",
+    "sourceRow": 57,
+    "symptom": "Nopeuden mukaan kasvava humina, kaarteessa muuttuva ääni, välys pyörässä, ABS/VSC-valo jos anturi/kehä/signaali häiriintyy.",
+    "testMethod": "Tarkista tuetun auton navan välys, pyörityksen karheus ja anturi-/magneettikehäalue; pyöränopeusvertailu jää odottamaan varmennettua ABS-signaalia."
+  },
+  {
+    "componentId": "drivetrain.rear_hubs",
+    "diagnosticGroup": "8. Kardaani, perä, akselit ja navat",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Fyysinen laakerilöydös ja anturihäiriö erotetaan; sujuva pyöränopeus ei yksin todista laakeria ehjäksi.",
+    "label": "Takanavat / takapyörän laakeriyksiköt",
+    "limitations": [
+      "Yleinen moottorin DTC-luku ei varmista kulmakohtaista ABS-vikaa.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "HUB & BEARING ASSY, REAR AXLE, RH/LH",
+      "likelySection": "REAR AXLE SHAFT HUB / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "42410-30020",
+      "pnc": "42450A/42450B",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "HUB & BEARING ASSY, REAR AXLE, RH/LH",
+        "42450A/42450B",
+        "42410-30020"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "REAR AXLE SHAFT HUB",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [
+      "Ajoneuvovarmennetut ABS-pyöränopeudet neljälle pyörälle ja lähde-ECU:n tunnistus"
+    ],
+    "note": "Yleinen moottorin DTC-luku ei varmista kulmakohtaista ABS-vikaa.",
+    "obdRole": "indirect",
+    "oe": "42410-30020",
+    "operatingStates": [
+      "physical"
+    ],
+    "physicalFollowUp": "Tarkista takanavan välys, karheus ja anturi-/magneettikehäalue; pidä pyöränopeustesti odottamassa ABS-evidenssiä.",
+    "pnc": "42450A/42450B",
+    "readiness": "needs-signal-verification",
+    "recipes": [
+      {
+        "expectedPattern": "Fyysinen laakerilöydös ja anturihäiriö erotetaan; sujuva pyöränopeus ei yksin todista laakeria ehjäksi.",
+        "id": "vikadiag-58-physical",
+        "instruction": "Tarkista takanavan välys, karheus ja anturi-/magneettikehäalue; pidä pyöränopeustesti odottamassa ABS-evidenssiä.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista takanavan välys, karheus ja anturi-/magneettikehäalue; pidä pyöränopeustesti odottamassa ABS-evidenssiä.",
+        "signalKeys": []
+      }
+    ],
+    "signalKeys": [],
+    "source": {
+      "bomSource": "BOM rivit 2297-2300, PNC 42450A/42450B, OE 42410-30020",
+      "externalSource": "SKF wheel bearing/ABS sensor guidance; ClubLexus wheel bearing/ABS light -ketjut",
+      "range": "A58:O58",
+      "reviewedAt": "2026-09-15",
+      "row": 58,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Takanavassa sama OE näkyy RH/LH-riveillä tässä BOMissa.",
+      "sourceStatus": "Erä 3 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "ABS/VSC live wheel speed -arvot hitaassa ajossa; DTC kertoo yleensä kulman, mutta mekaaninen laakeri pitää kuunnella/tarkistaa.",
+    "sourcePhysicalText": "Pyöritä ja kuuntele nostettuna, ravista pyörää, tarkista lämpö, laakerin karheus ja ABS-anturin/magneettikehän kunto.",
+    "sourceRow": 58,
+    "symptom": "Takaa kuuluva humina tai jyrinä, ääni muuttuu kaarrekuormalla, välys, lämpeneminen tai ABS/VSC-oire pyöränopeussignaalin häiriintyessä.",
+    "testMethod": "Tarkista takanavan välys, karheus ja anturi-/magneettikehäalue; pidä pyöränopeustesti odottamassa ABS-evidenssiä."
+  },
+  {
+    "componentId": "steering.eps_rack",
+    "diagnosticGroup": "9. Jarrut, ohjaus ja alusta",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Jännitepoikkeama ohjaa akun ja syöttöjen tarkastukseen, mutta EPS:n oma arvio odottaa varmennettuja signaaleja.",
+    "label": "Sähkötehostettu ohjausvaihde / hammastanko",
+    "limitations": [
+      "Moottori-ECU:n jännite ei ole EPS:n liittimen jännite eikä kuvaa ohjausmomenttia tai kulmaa.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista.",
+      "Mekaaniset tarkastukset tehdään turvallisesti tuettuna ja moottori sammuksissa; lämpötilaseuranta ei oikeuta jatkamaan ajoa ylikuumenemisen tai nestevuodon aikana."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "LINK ASSY, POWER STEERING",
+      "likelySection": "FRONT STEERING GEAR LINK / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "44200-53130",
+      "pnc": "44200",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "LINK ASSY, POWER STEERING",
+        "44200",
+        "44200-53130"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "FRONT STEERING GEAR LINK",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [
+      "EPS:n varmennettu syöttöjännite, ohjausmomentti ja ohjauskulma"
+    ],
+    "note": "Moottori-ECU:n jännite ei ole EPS:n liittimen jännite eikä kuvaa ohjausmomenttia tai kulmaa.",
+    "obdRole": "indirect",
+    "oe": "44200-53130",
+    "operatingStates": [
+      "physical",
+      "running"
+    ],
+    "physicalFollowUp": "Tarkista sammutetun auton ohjausvaihteen kiinnitys, suojakumit ja välykset manuaalin mukaan.",
+    "pnc": "44200",
+    "readiness": "needs-signal-verification",
+    "recipes": [
+      {
+        "expectedPattern": "Jännitepoikkeama ohjaa akun ja syöttöjen tarkastukseen, mutta EPS:n oma arvio odottaa varmennettuja signaaleja.",
+        "id": "vikadiag-59-physical",
+        "instruction": "Tarkista sammutetun auton ohjausvaihteen kiinnitys, suojakumit ja välykset manuaalin mukaan.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista sammutetun auton ohjausvaihteen kiinnitys, suojakumit ja välykset manuaalin mukaan.",
+        "signalKeys": []
+      },
+      {
+        "expectedPattern": "Jännitepoikkeama ohjaa akun ja syöttöjen tarkastukseen, mutta EPS:n oma arvio odottaa varmennettuja signaaleja.",
+        "id": "vikadiag-59-context",
+        "instruction": "Tarkista ohjausvaihteen kiinnitys, suojakumit ja välykset; vertaa olemassa olevaa ECU-jännitettä vain auton sähköjärjestelmän taustakontekstina.",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running"
+        ],
+        "physicalFollowUp": "Tarkista sammutetun auton ohjausvaihteen kiinnitys, suojakumit ja välykset manuaalin mukaan.",
+        "signalKeys": [
+          "engine.ecu_voltage"
+        ]
+      }
+    ],
+    "signalKeys": [
+      "engine.ecu_voltage"
+    ],
+    "source": {
+      "bomSource": "BOM rivit 2471-2472, PNC 44200, OE 44200-53130",
+      "externalSource": "LexusOwners IS220d power steering issues / steering clunk -ketjut; ClubLexus rack and pinion discussions",
+      "range": "A59:O59",
+      "reviewedAt": "2026-09-15",
+      "row": 59,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Pidä erillään satulatappien ja tukivarsien kolinoista; molemmat voivat kuulua ohjattaessa.",
+      "sourceStatus": "Erä 3 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Techstream: EPS/PS DTC:t, jännitetaso ja mahdolliset momentti-/kulma-arvot jos saatavilla. Tavallinen moottori-OBD ei riitä.",
+    "sourcePhysicalText": "Tarkista välys raidetankojen irrotuksella/pyörää ravistamalla, kiinnityspultit, kumisuojien vuodot/repeämät, nivelten välys ja akun/jännitteiden vaikutus EPS:ään.",
+    "sourceRow": 59,
+    "symptom": "Kolina ohjauksessa, raskas tai nykivä ohjaus, välys, ohjaus ei palauta, EPS/PS-varoitus tai täysi tehostuksen puute.",
+    "testMethod": "Tarkista ohjausvaihteen kiinnitys, suojakumit ja välykset; vertaa olemassa olevaa ECU-jännitettä vain auton sähköjärjestelmän taustakontekstina."
+  },
+  {
+    "componentId": "steering.tie_rods",
+    "diagnosticGroup": "9. Jarrut, ohjaus ja alusta",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Välys paikannetaan niveleen; ohjausvaihde ja muut nivelet erotellaan.",
+    "label": "Raidetangon päät ja sisemmät raidetangot",
+    "limitations": [
+      "EPS-kulma/momentti ei mittaa raidetangon nivelvälystä.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "TIE RODS / STEERING RACK ENDS",
+      "likelySection": "FRONT STEERING GEAR LINK / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "45463-30130; 45464-30060; 45503-30070",
+      "pnc": "45460/45470/45503",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "TIE RODS / STEERING RACK ENDS",
+        "45460/45470/45503",
+        "45463-30130; 45464-30060; 45503-30070"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "FRONT STEERING GEAR LINK",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "EPS-kulma/momentti ei mittaa raidetangon nivelvälystä.",
+    "obdRole": "physical-only",
+    "oe": "45463-30130; 45464-30060; 45503-30070",
+    "operatingStates": [
+      "physical"
+    ],
+    "physicalFollowUp": "Tarkista raidetankojen sisä- ja ulkonivelten välys ja suojakumit; varmistuta aurauskulmista korjauksen jälkeen.",
+    "pnc": "45460/45470/45503",
+    "readiness": "physical-only",
+    "recipes": [
+      {
+        "expectedPattern": "Välys paikannetaan niveleen; ohjausvaihde ja muut nivelet erotellaan.",
+        "id": "vikadiag-60-physical",
+        "instruction": "Tarkista raidetankojen sisä- ja ulkonivelten välys ja suojakumit; varmistuta aurauskulmista korjauksen jälkeen.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista raidetankojen sisä- ja ulkonivelten välys ja suojakumit; varmistuta aurauskulmista korjauksen jälkeen.",
+        "signalKeys": []
+      }
+    ],
+    "signalKeys": [],
+    "source": {
+      "bomSource": "BOM rivit 2477-2484, PNC 45460/45470/45503",
+      "externalSource": "LexusOwners steering knocking/clunk -ketjut; MOOG steering/suspension inspection -periaate",
+      "range": "A60:O60",
+      "reviewedAt": "2026-09-15",
+      "row": 60,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Suuntauksen tarve kirjataan aina tämän rivin huomioksi.",
+      "sourceStatus": "Erä 3 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Ei suoraa OBD-varmistusta; EPS voi näyttää ohjauskulmaa/momenttia, mutta nivelvälys todetaan fyysisesti.",
+    "sourcePhysicalText": "Ravista pyörää 3–9-suunnassa, tunnustele sisemmän/ulomman nivelen välys, tarkista suojakumi ja tee aurauskulmien mittaus vaihdon jälkeen.",
+    "sourceRow": 60,
+    "symptom": "Välys ohjauksessa, kolina, renkaan epätasainen kuluma, auto vaeltelee tai ratti jää vinoon suuntauksen jälkeen.",
+    "testMethod": "Tarkista raidetankojen sisä- ja ulkonivelten välys ja suojakumit; varmistuta aurauskulmista korjauksen jälkeen."
+  },
+  {
+    "componentId": "engine.water_pump",
+    "diagnosticGroup": "5. Jäähdytys, öljy ja hihnakäyttö",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Lämpökäyrä suhteutetaan fyysiseen neste-/vuototarkastukseen, ei yksittäiseen pumpputuomioon.",
+    "label": "Vesipumppu",
+    "limitations": [
+      "ECT ei mittaa pumpun virtausta; termostaatti, ilma, korkki ja muut vuodot voivat selittää oireen.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista.",
+      "Mekaaniset tarkastukset tehdään turvallisesti tuettuna ja moottori sammuksissa; lämpötilaseuranta ei oikeuta jatkamaan ajoa ylikuumenemisen tai nestevuodon aikana."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "PUMP ASSY, ENGINE WATER",
+      "likelySection": "WATER PUMP / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "16100-29495",
+      "pnc": "16100",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "PUMP ASSY, ENGINE WATER",
+        "16100",
+        "16100-29495"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "WATER PUMP",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "ECT ei mittaa pumpun virtausta; termostaatti, ilma, korkki ja muut vuodot voivat selittää oireen.",
+    "obdRole": "indirect",
+    "oe": "16100-29495",
+    "operatingStates": [
+      "physical",
+      "running"
+    ],
+    "physicalFollowUp": "Tarkista kylmän järjestelmän vuodot ja pumpun mekaaninen kunto moottori sammuksissa.",
+    "pnc": "16100",
+    "readiness": "indirect-existing-signals",
+    "recipes": [
+      {
+        "expectedPattern": "Lämpökäyrä suhteutetaan fyysiseen neste-/vuototarkastukseen, ei yksittäiseen pumpputuomioon.",
+        "id": "vikadiag-61-physical",
+        "instruction": "Tarkista kylmän järjestelmän vuodot ja pumpun mekaaninen kunto moottori sammuksissa.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista kylmän järjestelmän vuodot ja pumpun mekaaninen kunto moottori sammuksissa.",
+        "signalKeys": []
+      },
+      {
+        "expectedPattern": "Lämpökäyrä suhteutetaan fyysiseen neste-/vuototarkastukseen, ei yksittäiseen pumpputuomioon.",
+        "id": "vikadiag-61-context",
+        "instruction": "Tarkista kylmän järjestelmän vuodot ja pumpun mekaaninen perusta; seuraa ECT:n käyttäytymistä normaalissa käynnissä ilman ylikuumenemisen provosointia.",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running"
+        ],
+        "physicalFollowUp": "Tarkista kylmän järjestelmän vuodot ja pumpun mekaaninen kunto moottori sammuksissa.",
+        "signalKeys": [
+          "engine.coolant_temperature"
+        ]
+      }
+    ],
+    "signalKeys": [
+      "engine.coolant_temperature"
+    ],
+    "source": {
+      "bomSource": "BOM rivit 634-635, PNC 16100, OE 16100-29495",
+      "externalSource": "ClubLexus/LexusOwners 2IS/IS220d water pump ja coolant/overheat -tapaukset; Gates cooling/accessory drive diagnosis",
+      "range": "A61:O61",
+      "reviewedAt": "2026-09-15",
+      "row": 61,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "IS220d:n jäähdytysongelmissa pitää erottaa vesipumppu, ilma/lukko, termostaatti, korkki, vuoto ja 2AD-kansipahviriski.",
+      "sourceStatus": "Erä 4 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Techstream/Flex: coolant temp nousu ajossa ja paikallaan; vertaa sisälämmitykseen, tuulettimien käynnistymiseen ja mahdollisiin ylikuumenemis-/ECT-koodeihin.",
+    "sourcePhysicalText": "Paineista järjestelmä kylmänä, tarkista vesipumpun vuotojäljet, välys/laakeriääni, hihnapyörän linjaus ja nestejäljet moottorin etuosassa.",
+    "sourceRow": 61,
+    "symptom": "Jäähdytysnesteen katoaminen, vinkuva/rahiseva laakeriääni, vuoto vesipumpun reiästä/akselilta, lämpöjen nousu, heikko sisälämmitys tai paineen kertyminen jäähdytysjärjestelmään.",
+    "testMethod": "Tarkista kylmän järjestelmän vuodot ja pumpun mekaaninen perusta; seuraa ECT:n käyttäytymistä normaalissa käynnissä ilman ylikuumenemisen provosointia."
+  },
+  {
+    "componentId": "engine.water_pump_gaskets",
+    "diagnosticGroup": "5. Jäähdytys, öljy ja hihnakäyttö",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Vuotokohta todetaan fyysisesti; ECT:n muutos ei paikanna tiivistettä.",
+    "label": "Vesipumpun tiivisteet",
+    "limitations": [
+      "Kuumaa paineistettua järjestelmää ei avata eikä tiivistevuotoa testata ylikuumentamalla.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista.",
+      "Mekaaniset tarkastukset tehdään turvallisesti tuettuna ja moottori sammuksissa; lämpötilaseuranta ei oikeuta jatkamaan ajoa ylikuumenemisen tai nestevuodon aikana."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "GASKET, WATER PUMP / GASKET, WATER PUMP NO.2",
+      "likelySection": "WATER PUMP / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "16271-26010; 16272-26010",
+      "pnc": "16271/16272A",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "GASKET, WATER PUMP / GASKET, WATER PUMP NO.2",
+        "16271/16272A",
+        "16271-26010; 16272-26010"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "WATER PUMP",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "Kuumaa paineistettua järjestelmää ei avata eikä tiivistevuotoa testata ylikuumentamalla.",
+    "obdRole": "indirect",
+    "oe": "16271-26010; 16272-26010",
+    "operatingStates": [
+      "physical",
+      "running"
+    ],
+    "physicalFollowUp": "Tarkista jäähtyneestä moottorista pumpun liitospinnan sakka ja vuoto.",
+    "pnc": "16271/16272A",
+    "readiness": "indirect-existing-signals",
+    "recipes": [
+      {
+        "expectedPattern": "Vuotokohta todetaan fyysisesti; ECT:n muutos ei paikanna tiivistettä.",
+        "id": "vikadiag-62-physical",
+        "instruction": "Tarkista jäähtyneestä moottorista pumpun liitospinnan sakka ja vuoto.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista jäähtyneestä moottorista pumpun liitospinnan sakka ja vuoto.",
+        "signalKeys": []
+      },
+      {
+        "expectedPattern": "Vuotokohta todetaan fyysisesti; ECT:n muutos ei paikanna tiivistettä.",
+        "id": "vikadiag-62-context",
+        "instruction": "Tarkista jäähtyneestä moottorista pumpun liitospinnan sakka/vuoto; käytä ECT-lokia vain lämpötilakontekstina.",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running"
+        ],
+        "physicalFollowUp": "Tarkista jäähtyneestä moottorista pumpun liitospinnan sakka ja vuoto.",
+        "signalKeys": [
+          "engine.coolant_temperature"
+        ]
+      }
+    ],
+    "signalKeys": [
+      "engine.coolant_temperature"
+    ],
+    "source": {
+      "bomSource": "BOM rivit 204-205 ja 636-637, PNC 16272A/16271",
+      "externalSource": "Yleinen Toyota/Lexus jäähdytysvuodon diagnostiikka; ClubLexus coolant leak -tapaukset",
+      "range": "A62:O62",
+      "reviewedAt": "2026-09-15",
+      "row": 62,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Halpa mutta kriittinen osa; vanha tiiviste voi vuotaa vasta lämpimänä/paineessa.",
+      "sourceStatus": "Erä 4 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "OBD ei paikanna tiivistevuotoa; seuraa coolant temp -arvoa ja nestetason muutoksen yhteyttä kuormaan.",
+    "sourcePhysicalText": "Painekoe, UV-väri tarvittaessa, peili/valo liitospintaan, tarkistus sekä kylmänä että kuumana. Vaihda tiiviste aina pumpun irrotuksessa.",
+    "sourceRow": 62,
+    "symptom": "Vuoto pumpun ja lohkon/kotelon liitoksesta, makea jäähdytysnesteen haju, kuivunut vaalea/punertava sakka ja hitaasti laskeva nestepinta.",
+    "testMethod": "Tarkista jäähtyneestä moottorista pumpun liitospinnan sakka/vuoto; käytä ECT-lokia vain lämpötilakontekstina."
+  },
+  {
+    "componentId": "engine.belt_idler_pulleys",
+    "diagnosticGroup": "5. Jäähdytys, öljy ja hihnakäyttö",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Karheus, välys tai linjausvirhe on fyysinen löydös.",
+    "label": "Apulaitehihnan ohjainrullat",
+    "limitations": [
+      "Latauspoikkeama ei paikanna yksittäistä ohjainrullaa.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "PULLEY SUB-ASSY, IDLER, NO.1 / NO.2",
+      "likelySection": "WATER PUMP / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "16603-0R010; 16604-26011",
+      "pnc": "16603/16604",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "PULLEY SUB-ASSY, IDLER, NO.1 / NO.2",
+        "16603/16604",
+        "16603-0R010; 16604-26011"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "WATER PUMP",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "Latauspoikkeama ei paikanna yksittäistä ohjainrullaa.",
+    "obdRole": "physical-only",
+    "oe": "16603-0R010; 16604-26011",
+    "operatingStates": [
+      "physical"
+    ],
+    "physicalFollowUp": "Tarkista sammutetun moottorin rullat, linjaus ja hihnan kulumakuva; irrotetun hihnan jälkeen pyöritä rullia käsin manuaalin mukaan.",
+    "pnc": "16603/16604",
+    "readiness": "physical-only",
+    "recipes": [
+      {
+        "expectedPattern": "Karheus, välys tai linjausvirhe on fyysinen löydös.",
+        "id": "vikadiag-63-physical",
+        "instruction": "Tarkista sammutetun moottorin rullat, linjaus ja hihnan kulumakuva; irrotetun hihnan jälkeen pyöritä rullia käsin manuaalin mukaan.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista sammutetun moottorin rullat, linjaus ja hihnan kulumakuva; irrotetun hihnan jälkeen pyöritä rullia käsin manuaalin mukaan.",
+        "signalKeys": []
+      }
+    ],
+    "signalKeys": [],
+    "source": {
+      "bomSource": "BOM rivit 638-641, PNC 16603/16604",
+      "externalSource": "Gates accessory belt drive / idler-tensioner diagnosis",
+      "range": "A63:O63",
+      "reviewedAt": "2026-09-15",
+      "row": 63,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Tarkista samalla kun hihna vaihdetaan; ääni voi kuulostaa laturilta tai vesipumpulta.",
+      "sourceStatus": "Erä 4 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Ei varsinaista OBD-tarkistusta; epäsuorasti latausjännitteen tai ilmastoinnin häiriöt voivat seurata hihnaongelmasta.",
+    "sourcePhysicalText": "Kuuntele stetoskoopilla, tarkista rullan välys, karheus, linjaus ja hihnan kulumakuva. Irrota hihna ja pyöritä rullaa käsin.",
+    "sourceRow": 63,
+    "symptom": "Ulvova/rahiseva ääni, hihnan sivuttaisliike, hihnan epätasainen kuluminen, laturin/ilmastoinnin toimintahäiriöt ja pahimmillaan hihnan irtoaminen.",
+    "testMethod": "Tarkista sammutetun moottorin rullat, linjaus ja hihnan kulumakuva; irrotetun hihnan jälkeen pyöritä rullia käsin manuaalin mukaan."
+  },
+  {
+    "componentId": "engine.belt_tensioner",
+    "diagnosticGroup": "5. Jäähdytys, öljy ja hihnakäyttö",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Jännite ja käynti arvioidaan yhdessä fyysisten hihnahavaintojen kanssa.",
+    "label": "Apulaitehihnan kiristin",
+    "limitations": [
+      "ECU-jännite ei mittaa hihnan kireyttä; laturi, akku ja johdot ovat vaihtoehtoisia selittäjiä.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista.",
+      "Mekaaniset tarkastukset tehdään turvallisesti tuettuna ja moottori sammuksissa; lämpötilaseuranta ei oikeuta jatkamaan ajoa ylikuumenemisen tai nestevuodon aikana."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "TENSIONER ASSY, V-RIBBED BELT",
+      "likelySection": "WATER PUMP / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "16620-0R010",
+      "pnc": "16620",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "TENSIONER ASSY, V-RIBBED BELT",
+        "16620",
+        "16620-0R010"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "WATER PUMP",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "ECU-jännite ei mittaa hihnan kireyttä; laturi, akku ja johdot ovat vaihtoehtoisia selittäjiä.",
+    "obdRole": "indirect",
+    "oe": "16620-0R010",
+    "operatingStates": [
+      "physical",
+      "running"
+    ],
+    "physicalFollowUp": "Tarkista kiristimen, rullan ja hihnan mekaaninen kunto moottori sammuksissa manuaalin mukaan.",
+    "pnc": "16620",
+    "readiness": "indirect-existing-signals",
+    "recipes": [
+      {
+        "expectedPattern": "Jännite ja käynti arvioidaan yhdessä fyysisten hihnahavaintojen kanssa.",
+        "id": "vikadiag-64-physical",
+        "instruction": "Tarkista kiristimen, rullan ja hihnan mekaaninen kunto moottori sammuksissa manuaalin mukaan.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista kiristimen, rullan ja hihnan mekaaninen kunto moottori sammuksissa manuaalin mukaan.",
+        "signalKeys": []
+      },
+      {
+        "expectedPattern": "Jännite ja käynti arvioidaan yhdessä fyysisten hihnahavaintojen kanssa.",
+        "id": "vikadiag-64-context",
+        "instruction": "Tarkista kiristimen, rullan ja hihnan mekaaninen kunto; seuraa ECU-jännitteen käyttäytymistä normaalissa käynnissä erillisenä sähköisenä kontekstina.",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running"
+        ],
+        "physicalFollowUp": "Tarkista kiristimen, rullan ja hihnan mekaaninen kunto moottori sammuksissa manuaalin mukaan.",
+        "signalKeys": [
+          "engine.ecu_voltage"
+        ]
+      }
+    ],
+    "signalKeys": [
+      "engine.ecu_voltage"
+    ],
+    "source": {
+      "bomSource": "BOM rivit 642-643, PNC 16620, OE 16620-0R010",
+      "externalSource": "Gates tensioner failure signs ja TT004-15 tensioner diagnosis",
+      "range": "A64:O64",
+      "reviewedAt": "2026-09-15",
+      "row": 64,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Kiristin voi rikkoa uuden hihnan tai oireilla laturivialta näyttävänä jänniteongelmana.",
+      "sourceStatus": "Erä 4 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "OBD: seuraa ECU-jännitettä/latausta vain epäsuorana merkkinä. Varmistus mekaanisella tarkastuksella ja yleismittarilla.",
+    "sourcePhysicalText": "Tarkista kiristimen osoitin/raja, jousen liike, vaimennus, rullan välys, linjaus ja hihnan kulumakuva. Tarkista myös laturin vapaakytkin.",
+    "sourceRow": 64,
+    "symptom": "Hihnan vinkuminen, kiristimen hyppiminen tyhjäkäynnillä, rämisevä ääni, hihnan luisto, lataus- tai ilmastointiongelmat, apulaitelaakerien ennenaikainen rasitus.",
+    "testMethod": "Tarkista kiristimen, rullan ja hihnan mekaaninen kunto; seuraa ECU-jännitteen käyttäytymistä normaalissa käynnissä erillisenä sähköisenä kontekstina."
+  },
+  {
+    "componentId": "engine.accessory_belt",
+    "diagnosticGroup": "5. Jäähdytys, öljy ja hihnakäyttö",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Hihnan vaurio todetaan visuaalisesti; kuormaan liittyvä jännitepoikkeama ohjaa hihna-/laturijärjestelmään.",
+    "label": "Moniurahihna / apulaitehihna",
+    "limitations": [
+      "Ei suihkepullotestiä käyvän hihnan lähellä tässä ohjeessa; jännite ei paikanna luistoa.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista.",
+      "Mekaaniset tarkastukset tehdään turvallisesti tuettuna ja moottori sammuksissa; lämpötilaseuranta ei oikeuta jatkamaan ajoa ylikuumenemisen tai nestevuodon aikana."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "BELT, V(FOR FAN & ALTERNATOR)",
+      "likelySection": "V BELT / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "90916-W2014",
+      "pnc": "16361A",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "BELT, V(FOR FAN & ALTERNATOR)",
+        "16361A",
+        "90916-W2014"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "V BELT",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "Ei suihkepullotestiä käyvän hihnan lähellä tässä ohjeessa; jännite ei paikanna luistoa.",
+    "obdRole": "indirect",
+    "oe": "90916-W2014",
+    "operatingStates": [
+      "physical",
+      "running"
+    ],
+    "physicalFollowUp": "Tarkista hihnan urat, pinnat, lika ja linjaus moottori sammuksissa.",
+    "pnc": "16361A",
+    "readiness": "indirect-existing-signals",
+    "recipes": [
+      {
+        "expectedPattern": "Hihnan vaurio todetaan visuaalisesti; kuormaan liittyvä jännitepoikkeama ohjaa hihna-/laturijärjestelmään.",
+        "id": "vikadiag-65-physical",
+        "instruction": "Tarkista hihnan urat, pinnat, lika ja linjaus moottori sammuksissa.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista hihnan urat, pinnat, lika ja linjaus moottori sammuksissa.",
+        "signalKeys": []
+      },
+      {
+        "expectedPattern": "Hihnan vaurio todetaan visuaalisesti; kuormaan liittyvä jännitepoikkeama ohjaa hihna-/laturijärjestelmään.",
+        "id": "vikadiag-65-context",
+        "instruction": "Tarkista hihnan urat, pinnat, lika ja linjaus moottori sammuksissa; käytä normaalia ECU-jännitelokia vain latauskontekstina.",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running"
+        ],
+        "physicalFollowUp": "Tarkista hihnan urat, pinnat, lika ja linjaus moottori sammuksissa.",
+        "signalKeys": [
+          "engine.ecu_voltage"
+        ]
+      }
+    ],
+    "signalKeys": [
+      "engine.ecu_voltage"
+    ],
+    "source": {
+      "bomSource": "BOM rivit 754-757, PNC 16361A, OE 90916-W2014",
+      "externalSource": "Gates Micro-V belt wear symptoms ja belt noise spray bottle test",
+      "range": "A65:O65",
+      "reviewedAt": "2026-09-15",
+      "row": 65,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Jos hihna vaihdetaan, kiristin ja rullat kannattaa tarkistaa samalla.",
+      "sourceStatus": "Erä 4 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Ei suoraa OBD-arvoa; ECU-jännite/lataus voi pudota, jos hihna luistaa laturilla.",
+    "sourcePhysicalText": "Tarkista urien kuluma, halkeamat, öljy/jäähdytysneste hihnalla, linjaus ja kiristin. Suihkepullotesti voi auttaa erottamaan linjaus- ja kireysongelmaa.",
+    "sourceRow": 65,
+    "symptom": "Vinkuminen kylmänä, luisto kuormalla, halkeamat, kiillottunut pinta, reunan rispaantuminen, laturin latauksen tai ilmastoinnin heikkeneminen.",
+    "testMethod": "Tarkista hihnan urat, pinnat, lika ja linjaus moottori sammuksissa; käytä normaalia ECU-jännitelokia vain latauskontekstina."
+  },
+  {
+    "componentId": "engine.radiator",
+    "diagnosticGroup": "5. Jäähdytys, öljy ja hihnakäyttö",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Lämpötilan kehitys tulkitaan fyysisten vuoto-/kennohavaintojen rinnalla.",
+    "label": "Jäähdytin",
+    "limitations": [
+      "ECT ei mittaa kennon paikallista tukosta; IR-havainto ja puhaltimen toiminta ovat fyysisiä lisätietoja.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista.",
+      "Mekaaniset tarkastukset tehdään turvallisesti tuettuna ja moottori sammuksissa; lämpötilaseuranta ei oikeuta jatkamaan ajoa ylikuumenemisen tai nestevuodon aikana."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "RADIATOR ASSY",
+      "likelySection": "RADIATOR WATER OUTLET / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "16400-26400",
+      "pnc": "16400",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "RADIATOR ASSY",
+        "16400",
+        "16400-26400"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "RADIATOR WATER OUTLET",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "ECT ei mittaa kennon paikallista tukosta; IR-havainto ja puhaltimen toiminta ovat fyysisiä lisätietoja.",
+    "obdRole": "indirect",
+    "oe": "16400-26400",
+    "operatingStates": [
+      "physical",
+      "running"
+    ],
+    "physicalFollowUp": "Tarkista kylmän järjestelmän vuodot ja kennon ulkoinen tukos.",
+    "pnc": "16400",
+    "readiness": "indirect-existing-signals",
+    "recipes": [
+      {
+        "expectedPattern": "Lämpötilan kehitys tulkitaan fyysisten vuoto-/kennohavaintojen rinnalla.",
+        "id": "vikadiag-66-physical",
+        "instruction": "Tarkista kylmän järjestelmän vuodot ja kennon ulkoinen tukos.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista kylmän järjestelmän vuodot ja kennon ulkoinen tukos.",
+        "signalKeys": []
+      },
+      {
+        "expectedPattern": "Lämpötilan kehitys tulkitaan fyysisten vuoto-/kennohavaintojen rinnalla.",
+        "id": "vikadiag-66-context",
+        "instruction": "Tarkista kylmän järjestelmän vuodot ja kennon ulkoinen tukos; seuraa ECT:tä normaalissa käynnissä ja aiemmasta ajolokista.",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running"
+        ],
+        "physicalFollowUp": "Tarkista kylmän järjestelmän vuodot ja kennon ulkoinen tukos.",
+        "signalKeys": [
+          "engine.coolant_temperature"
+        ]
+      }
+    ],
+    "signalKeys": [
+      "engine.coolant_temperature"
+    ],
+    "source": {
+      "bomSource": "BOM rivit 667-668, PNC 16400, OE 16400-26400",
+      "externalSource": "ClubLexus/IS220d coolant spraying/overheat -ketjut; yleinen jäähdytysjärjestelmän painekoe",
+      "range": "A66:O66",
+      "reviewedAt": "2026-09-15",
+      "row": 66,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "2AD-FHV:ssä ylikuumeneminen pitää erottaa myös kansipahvi-/ilmakuplaongelmasta.",
+      "sourceStatus": "Erä 4 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Techstream/Flex: coolant temp ajossa, tyhjäkäynnillä ja puhaltimen käynnistyessä. Ei kerro suoraan kennon osittaista tukosta.",
+    "sourcePhysicalText": "Painekoe, vuotojäljet kennoissa ja päädyissä, lämpökameralla/IR-mittarilla kylmät alueet, letkujen lämpöero ja korkin/ylivuodon tarkistus.",
+    "sourceRow": 66,
+    "symptom": "Nestetason lasku, ylikuumeneminen kuormalla/paikallaan, ulkoinen vuoto, tukkeutunut kenno, kylmä alakulma tai keulan lämpöjen heikko poistuminen.",
+    "testMethod": "Tarkista kylmän järjestelmän vuodot ja kennon ulkoinen tukos; seuraa ECT:tä normaalissa käynnissä ja aiemmasta ajolokista."
+  },
+  {
+    "componentId": "engine.cooling_fans",
+    "diagnosticGroup": "5. Jäähdytys, öljy ja hihnakäyttö",
+    "excludedActions": [
+      "active-test",
+      "ecu-write"
+    ],
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "ECT ja näkyvä puhaltimen käynti antavat vain järjestelmäkontekstin; pyyntö/toteuma-vertailu ei ole mahdollinen.",
+    "label": "Jäähdyttimen puhaltimet ja moottorit",
+    "limitations": [
+      "Ei Active Testiä, suoraa syöttöä tai ECU-ohjausta Flex-reseptissä; pyörivään tai itsestään käynnistyvään puhaltimeen ei kosketa.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista.",
+      "Mekaaniset tarkastukset tehdään turvallisesti tuettuna ja moottori sammuksissa; lämpötilaseuranta ei oikeuta jatkamaan ajoa ylikuumenemisen tai nestevuodon aikana."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "FAN / MOTOR, COOLING FAN",
+      "likelySection": "RADIATOR WATER OUTLET / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "16361-26110; 16363-26060; 16363-26070",
+      "pnc": "16361/16363",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "FAN / MOTOR, COOLING FAN",
+        "16361/16363",
+        "16361-26110; 16363-26060; 16363-26070"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "RADIATOR WATER OUTLET",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [
+      "Puhaltimen varmennettu pyyntö ja pyörimis-/nopeuspalaute",
+      "Ilmastoinnin varmennettu paine/pyyntö"
+    ],
+    "note": "Ei Active Testiä, suoraa syöttöä tai ECU-ohjausta Flex-reseptissä; pyörivään tai itsestään käynnistyvään puhaltimeen ei kosketa.",
+    "obdRole": "indirect",
+    "oe": "16361-26110; 16363-26060; 16363-26070",
+    "operatingStates": [
+      "physical",
+      "running"
+    ],
+    "physicalFollowUp": "Tarkista sammutetun auton liittimet ja sulakkeet manuaalin mukaan; estä puhaltimen tahaton käynnistyminen ennen kosketusta manuaalin turvamenettelyllä.",
+    "pnc": "16361/16363",
+    "readiness": "indirect-existing-signals",
+    "recipes": [
+      {
+        "expectedPattern": "ECT ja näkyvä puhaltimen käynti antavat vain järjestelmäkontekstin; pyyntö/toteuma-vertailu ei ole mahdollinen.",
+        "id": "vikadiag-67-physical",
+        "instruction": "Tarkista sammutetun auton liittimet ja sulakkeet manuaalin mukaan; estä puhaltimen tahaton käynnistyminen ennen kosketusta manuaalin turvamenettelyllä.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista sammutetun auton liittimet ja sulakkeet manuaalin mukaan; estä puhaltimen tahaton käynnistyminen ennen kosketusta manuaalin turvamenettelyllä.",
+        "signalKeys": []
+      },
+      {
+        "expectedPattern": "ECT ja näkyvä puhaltimen käynti antavat vain järjestelmäkontekstin; pyyntö/toteuma-vertailu ei ole mahdollinen.",
+        "id": "vikadiag-67-context",
+        "instruction": "Tarkista sammutetun auton liittimet ja sulakkeet manuaalin mukaan; havainnoi luonnollista puhaltimen toimintaa etäältä ja seuraa ECT:tä.",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running"
+        ],
+        "physicalFollowUp": "Tarkista sammutetun auton liittimet ja sulakkeet manuaalin mukaan; estä puhaltimen tahaton käynnistyminen ennen kosketusta manuaalin turvamenettelyllä.",
+        "signalKeys": [
+          "engine.coolant_temperature"
+        ]
+      }
+    ],
+    "signalKeys": [
+      "engine.coolant_temperature"
+    ],
+    "source": {
+      "bomSource": "BOM rivit 659-666, PNC 16361/16363",
+      "externalSource": "Toyota/Lexus jäähdytyspuhaltimen diagnostiikkaperiaate; ClubLexus ylikuumenemistapaukset",
+      "range": "A67:O67",
+      "reviewedAt": "2026-09-15",
+      "row": 67,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Todennäköinen",
+      "sourceNote": "OBD voi näyttää pyynnön/lämpötilan, mutta ei aina moottorin mekaanista pyörimistä.",
+      "sourceStatus": "Erä 4 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Techstream active test / fan command jos saatavilla; seuraa coolant temp ja A/C pressure/pyyntöä. Varmista käskyn ja todellisen pyörimisen vastaavuus.",
+    "sourcePhysicalText": "Testaa sulakkeet/releet, liittimet, puhaltimen vapaa pyörintä, suora syöttö tarvittaessa ja että kenno ei ole tukossa roskasta.",
+    "sourceRow": 67,
+    "symptom": "Lämmöt nousevat paikallaan, ilmastointi heikkenee pysähdyksissä, puhaltimet eivät käynnisty tai käyvät vain toisella nopeudella/puolella.",
+    "testMethod": "Tarkista sammutetun auton liittimet ja sulakkeet manuaalin mukaan; havainnoi luonnollista puhaltimen toimintaa etäältä ja seuraa ECT:tä."
+  },
+  {
+    "componentId": "engine.expansion_tank_cap",
+    "diagnosticGroup": "5. Jäähdytys, öljy ja hihnakäyttö",
+    "existingImplementation": null,
+    "existingInspectionPoints": [],
+    "expectedPattern": "Korkin tiiviys todetaan painetesterillä, ei ECT-arvosta.",
+    "label": "Paisuntasäiliö ja korkki",
+    "limitations": [
+      "Ei arvattua korkin avautumispainetta; kuumaa korkkia ei avata.",
+      "Ei automaattista osan hyväksymistä tai vikatuomiota. Puuttuva näyte ei ole nolla; numeeriset korjausrajat varmennetaan erikseen manuaalista.",
+      "Mekaaniset tarkastukset tehdään turvallisesti tuettuna ja moottori sammuksissa; lämpötilaseuranta ei oikeuta jatkamaan ajoa ylikuumenemisen tai nestevuodon aikana."
+    ],
+    "manualVisual": {
+      "assetPath": null,
+      "componentName": "TANK ASSY, RADIATOR RESERVE / CAP SUB-ASSY",
+      "likelySection": "RADIATOR WATER OUTLET / COMPONENTS / INSPECTION",
+      "manualReference": null,
+      "oe": "16470-26110; 16475-28120; 16475-51010",
+      "pnc": "16470/16471",
+      "required": true,
+      "searchTerms": [
+        "IS220d ALE20",
+        "TANK ASSY, RADIATOR RESERVE / CAP SUB-ASSY",
+        "16470/16471",
+        "16470-26110; 16475-28120; 16475-51010"
+      ],
+      "source": "Lexus IS250/220D repair manual",
+      "status": "pending-extract",
+      "system": "RADIATOR WATER OUTLET",
+      "targetViews": [
+        "location",
+        "inspection diagram",
+        "exploded view"
+      ]
+    },
+    "missingSignals": [],
+    "note": "Ei arvattua korkin avautumispainetta; kuumaa korkkia ei avata.",
+    "obdRole": "indirect",
+    "oe": "16470-26110; 16475-28120; 16475-51010",
+    "operatingStates": [
+      "physical",
+      "running"
+    ],
+    "physicalFollowUp": "Tarkista jäähtyneenä säiliön halkeamat, korkin tiiviste ja ylivuotoreitti; korkin painekoe tehdään manuaalin mukaan.",
+    "pnc": "16470/16471",
+    "readiness": "indirect-existing-signals",
+    "recipes": [
+      {
+        "expectedPattern": "Korkin tiiviys todetaan painetesterillä, ei ECT-arvosta.",
+        "id": "vikadiag-68-physical",
+        "instruction": "Tarkista jäähtyneenä säiliön halkeamat, korkin tiiviste ja ylivuotoreitti; korkin painekoe tehdään manuaalin mukaan.",
+        "kind": "physical",
+        "operatingStates": [
+          "physical"
+        ],
+        "physicalFollowUp": "Tarkista jäähtyneenä säiliön halkeamat, korkin tiiviste ja ylivuotoreitti; korkin painekoe tehdään manuaalin mukaan.",
+        "signalKeys": []
+      },
+      {
+        "expectedPattern": "Korkin tiiviys todetaan painetesterillä, ei ECT-arvosta.",
+        "id": "vikadiag-68-context",
+        "instruction": "Tarkista jäähtyneenä säiliön halkeamat, korkin tiiviste ja ylivuotoreitti; korkin painekoe tehdään manuaalin mukaan. ECT-loki on vain lämpötilakonteksti.",
+        "kind": "cross-check",
+        "operatingStates": [
+          "running"
+        ],
+        "physicalFollowUp": "Tarkista jäähtyneenä säiliön halkeamat, korkin tiiviste ja ylivuotoreitti; korkin painekoe tehdään manuaalin mukaan.",
+        "signalKeys": [
+          "engine.coolant_temperature"
+        ]
+      }
+    ],
+    "signalKeys": [
+      "engine.coolant_temperature"
+    ],
+    "source": {
+      "bomSource": "BOM rivit 693-697, PNC 16470/16471",
+      "externalSource": "ClubLexus IS220d coolant spraying -tapaukset; yleinen cooling system pressure cap -diagnostiikka",
+      "range": "A68:O68",
+      "reviewedAt": "2026-09-15",
+      "row": 68,
+      "sheet": "Vikadiag_kohteet",
+      "sheetId": 910002,
+      "sourceConfidence": "Vahva",
+      "sourceNote": "Halpa tarkistus ennen isompia päätelmiä kansipahvista.",
+      "sourceStatus": "Erä 4 valmis",
+      "spreadsheetId": "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8"
+    },
+    "sourceObdText": "Coolant temp -trendit ja ylikuumenemiskoodit; korkin toiminta pitää testata fyysisesti painetesterillä.",
+    "sourcePhysicalText": "Paineista korkki ja järjestelmä, tarkista säiliön hiushalkeamat, letkut, korkin tiiviste ja ylivuotoreitti.",
+    "sourceRow": 68,
+    "symptom": "Nestettä työntyy yli, järjestelmä ei pidä painetta, letkut kovettuvat tai jäävät pehmeiksi, neste häviää ilman selvää vuotoa, lämmöt heittelevät.",
+    "testMethod": "Tarkista jäähtyneenä säiliön halkeamat, korkin tiiviste ja ylivuotoreitti; korkin painekoe tehdään manuaalin mukaan. ECT-loki on vain lämpötilakonteksti."
+  }
+];
+
+const reviewedCatalog = [...firstBatch, ...[...reviewedContinuation, ...chassisContinuation, ...coolingContinuation].map(candidate => ({
   ...candidate,
   signalEvidence: candidate.signalKeys.map(key => {
     const signal = getIs220dDiagnosticSignal(key);
@@ -3950,4 +5257,3 @@ export function summarizeVikadiagObdTestCatalog(catalog = IS220D_VIKADIAG_OBD_TE
   }
   return Object.freeze(summary);
 }
-

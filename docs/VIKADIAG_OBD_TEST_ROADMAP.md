@@ -241,3 +241,45 @@ This is traceable source evidence, not approval to order a part.
 
 Local full regression/safety suite: **485/485 passed**, including 19 catalog tests.
 Next unreviewed row after this batch: **54**.
+
+## Batch 5: live Drive rows 54–68 (2026-09-15)
+
+| Rows | Review classification | Existing evidence |
+| --- | --- | --- |
+| 54–56, 60, 63 | physical-only | No electronic measurement of these parts |
+| 57–58 | indirect / pending-evidence | Four-wheel ABS speeds and ECU identity missing |
+| 59 | indirect / pending-evidence | ECU voltage is context, not EPS terminal voltage; EPS torque/angle/supply missing |
+| 61–62, 66–68 | indirect | Existing coolant-temperature signal only |
+| 64–65 | indirect | Existing ECU-voltage signal only |
+
+This batch adds fifteen physical recipes and eight separate context recipes.
+Combined batches 4–5 cover every row 39–68 exactly once: 20 physical-only,
+7 indirect with existing context, and 3 indirect pending signal verification.
+No new direct part test, PID, decoder, transport path or UI is introduced.
+Fan command/actual-speed and A/C request/pressure remain explicit evidence gaps.
+The fan Active Test mentioned by Drive is excluded; no direct power-feed procedure
+or spray-bottle test near a moving belt is adopted.
+
+Physical recipes are separated from signal-dependent observations. Mechanical
+inspection is performed with the engine stopped and safe support as applicable;
+cooling inspection starts cold. Temperature context must not provoke overheating
+or justify driving with a coolant leak. No invented pressure, temperature, wear,
+torque or voltage acceptance limits are added.
+
+Manual searches remain pending for rear shocks/springs/links, hub and sensor-ring
+views, EPS rack/connectors, tie rods, water pump/seals, idlers/tensioner/belt routing,
+radiator, fans/connectors and expansion tank/cap. Each row records its original
+PNC/OE and component/system search metadata. Grouped part numbers and row 54's
+shared RH/LH number remain source claims, not new fitment verification.
+
+Validation:
+- Batch 4 commit `49233dba57ea00b4b02a711ff71ee572cf4eddd0`: PR CI
+  [34926567656](https://github.com/olsu2001-lgtm/IS220d-OBD-Flex/actions/runs/34926567656)
+  passed regression/safety; registry check, APK build, hash registration,
+  version read and artifact upload all skipped.
+- Batch 5 local full regression/safety suite: **489/489 passed**, including
+  23 catalog tests. PR CI validates the exact pushed source head.
+- Only catalog, deterministic tests and roadmap changed; package/lockfile version,
+  release registry, production read-only boundaries and workflows remain unchanged.
+
+Next unreviewed row: **69**.
