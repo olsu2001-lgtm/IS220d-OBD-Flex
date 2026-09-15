@@ -44,11 +44,12 @@ packaged images.
 
 ## Second image batch (2026-09-15)
 
-Seven more original COMPONENTS PNGs were extracted and visually reviewed.
-There are currently 13 packaged unique images supporting 15 component identities.
-Within the row-by-row catalog, available image plans cover rows 2, 4–9, 16–17,
-34, 38, 40 and 45–46 (14 rows). ECT reuses existing inspection-point references
-152/254/330; those rows have not been newly reviewed in the row-by-row catalog.
+Seven original COMPONENTS PNGs were extracted and visually reviewed. Together
+with the first batch, there are currently 13 packaged unique images supporting
+15 component identities. Within the row-by-row catalog, packaged image plans
+cover rows 2, 4–9, 16–17, 34, 38, 40 and 45–46 (14 rows). ECT reuses existing
+inspection-point references 152/254/330; those rows have not been newly reviewed
+in the row-by-row catalog.
 
 | Component | Source image | Source section |
 | --- | --- | --- |
@@ -84,8 +85,8 @@ recorded in `src/is220d-repair-manual-visuals.js`.
 | 45, 46 | `c124896e02.png` | `rm000000uw1005x.html` / COMPONENTS | Kuva erottaa satulan, levyn ja levyn sisällä olevat seisontajarrukengät. |
 
 The existing component cards, component inspection points and both DPNR test
-panels reuse one visual renderer. Pictures use local asset URLs and no network
-access is required.
+panels reuse one visual renderer. Packaged pictures use local asset URLs and no
+network access is required.
 
 ## Source-only boundary
 
