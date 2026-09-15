@@ -68,6 +68,7 @@ function fakeNavigationDom() {
     querySelectorAll(selector) {
       if (selector === ".page") return [connectionPage, bomPage];
       if (selector === ".nav-item") return [connectionNav, dpnrNav, bomNav];
+      if (selector === "[data-vehicle-only]") return [dpnrNav, bomNav, bomPage];
       return [];
     }
   };
@@ -135,6 +136,26 @@ test("actual late-bound BOM click opens the page exactly once", () => {
   assert.equal(connectionNav.classList.contains("active"), false);
   assert.equal(bomNav.classList.contains("active"), true);
   assert.equal(scrollCount, 1);
+});
+
+test("BOM nav and page can be hidden for another vehicle and reopened after returning to IS220d", () => {
+  const { documentObject, bomPage, bomNav, dpnrNav } = fakeNavigationDom();
+  const windowObject = { scrollTo() {} };
+  assert.equal(syncComponentDiagnosticsNavigationVisibility(documentObject), true);
+  bindComponentDiagnosticsNavigation(bomNav, documentObject, windowObject);
+  bomNav.click();
+  assert.equal(bomPage.classList.contains("active"), true);
+
+  for (const element of documentObject.querySelectorAll("[data-vehicle-only]")) element.classList.toggle("hidden", true);
+  assert.equal(bomNav.classList.contains("hidden"), true);
+  assert.equal(activateComponentDiagnosticsPage(documentObject, windowObject), false);
+
+  dpnrNav.classList.remove("hidden");
+  bomPage.classList.remove("hidden");
+  assert.equal(syncComponentDiagnosticsNavigationVisibility(documentObject), true);
+  bomNav.click();
+  assert.equal(bomPage.classList.contains("active"), true);
+  assert.equal(bomPage.classList.contains("hidden"), false);
 });
 
 test("hidden vehicle-specific BOM navigation cannot force the IS220d page open", () => {
