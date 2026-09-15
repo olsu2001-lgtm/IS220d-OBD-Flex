@@ -50,9 +50,9 @@ test("DPF/DPNR sensor test number parsing and sample summary are deterministic",
   assert.equal(summary.raw217eLast, "C");
 });
 
-test("fresh 217E gate rejects stale UI values and request echoes", () => {
+test("fresh 217E gate rejects stale UI values and allows full Toyota live discovery time", () => {
   assert.equal(parseDpnrMetricAgeMs("148 ms vanha\n61 7E 00 01"), 148);
-  assert.ok(DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS >= 10000);
+  assert.ok(DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS >= 30000);
   assert.ok(DPNR_PRESSURE_SENSOR_FRESH_MAX_AGE_MS <= 3000);
   assert.equal(isFreshDpnrPressureSample({
     pressureKpa: 1.25,
@@ -111,10 +111,11 @@ test("sensor test starts existing DPNR live UI when needed but implements no tra
   assert.match(sensorSource, /#dpnrRaw217e/);
   assert.match(sensorSource, /#dpnrToggleLiveButton/);
   assert.match(sensorSource, /liveButton\.click\?\.\(\)/);
-  assert.match(sensorSource, /Tuoretta 617E-vastetta ei saatu 12 sekunnissa/);
+  assert.match(sensorSource, /DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS/);
+  assert.match(sensorSource, /Quicklynks-binäärikanava ei käytä tätä 217E-lukupolkua/);
 });
 
-test("APK build transform imports sensor test and auto-starts read-only live on DPNR page", () => {
+test("APK build transform imports sensor test and auto-starts read-only live only with engine ECU connected", () => {
   const transformed = patchMainForDpnrPressureSensorTest(
     patchMainForVLinkerRecovery(
       patchMainForResponsiveness(
@@ -127,6 +128,7 @@ test("APK build transform imports sensor test and auto-starts read-only live on 
   assert.equal((transformed.match(/dpnr-pressure-sensor-test\.js/g) || []).length, 1);
   assert.match(transformed, /state\.vehicleKey === VEHICLE_KEYS\.IS220D/);
   assert.match(transformed, /state\.connected/);
+  assert.match(transformed, /state\.ecuConnected/);
   assert.match(transformed, /!state\.liveActive/);
   assert.match(transformed, /!state\.quicklynks/);
   assert.match(transformed, /void startLive\(\)/);
