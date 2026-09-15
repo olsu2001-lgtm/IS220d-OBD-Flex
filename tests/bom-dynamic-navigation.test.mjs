@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   activateComponentDiagnosticsPage,
+  bindComponentDiagnosticsNavigation,
   syncComponentDiagnosticsNavigationVisibility
 } from "../src/component-diagnostics-publisher.js";
 
@@ -30,7 +31,47 @@ class FakeClassList {
 }
 
 function fakeElement(id, classes = []) {
-  return { id, classList: new FakeClassList(...classes) };
+  const listeners = new Map();
+  return {
+    id,
+    dataset: {},
+    classList: new FakeClassList(...classes),
+    addEventListener(type, listener) {
+      const list = listeners.get(type) || [];
+      list.push(listener);
+      listeners.set(type, list);
+    },
+    click() {
+      for (const listener of listeners.get("click") || []) listener({ type: "click", currentTarget: this });
+    },
+    listenerCount(type) {
+      return (listeners.get(type) || []).length;
+    }
+  };
+}
+
+function fakeNavigationDom() {
+  const connectionPage = fakeElement("page-connection", ["page", "active"]);
+  const bomPage = fakeElement("page-component-diagnostics", ["page", "hidden"]);
+  const connectionNav = fakeElement("nav-connection", ["nav-item", "active"]);
+  const dpnrNav = fakeElement("nav-dpnr", ["nav-item"]);
+  const bomNav = fakeElement("nav-component-diagnostics", ["nav-item", "hidden"]);
+  const selectorMap = new Map([
+    ["#nav-component-diagnostics", bomNav],
+    ["#page-component-diagnostics", bomPage],
+    ["#nav-dpnr", dpnrNav]
+  ]);
+  const documentObject = {
+    querySelector(selector) {
+      return selectorMap.get(selector) || null;
+    },
+    querySelectorAll(selector) {
+      if (selector === ".page") return [connectionPage, bomPage];
+      if (selector === ".nav-item") return [connectionNav, dpnrNav, bomNav];
+      return [];
+    }
+  };
+  return { documentObject, connectionPage, bomPage, connectionNav, dpnrNav, bomNav };
 }
 
 test("BOM navigation is created dynamically after main navigation binding", () => {
@@ -44,20 +85,12 @@ test("dynamically injected BOM navigation gets its own post-install click bindin
   assert.match(publisherSource, /#nav-component-diagnostics/);
   assert.match(publisherSource, /dynamicNavigationBound/);
   assert.match(publisherSource, /button\.addEventListener\(["']click["']/);
-  assert.match(publisherSource, /activateComponentDiagnosticsPage\(\)/);
+  assert.match(publisherSource, /bindComponentDiagnosticsNavigation\(button\)/);
   assert.match(publisherSource, /installComponentDiagnosticsNavigation\(\);/);
 });
 
 test("late-injected BOM navigation inherits the already-active IS220d visibility state", () => {
-  const bomNav = fakeElement("nav-component-diagnostics", ["nav-item", "hidden"]);
-  const dpnrNav = fakeElement("nav-dpnr", ["nav-item"]);
-  const documentObject = {
-    querySelector(selector) {
-      if (selector === "#nav-component-diagnostics") return bomNav;
-      if (selector === "#nav-dpnr") return dpnrNav;
-      return null;
-    }
-  };
+  const { documentObject, bomNav, dpnrNav } = fakeNavigationDom();
 
   assert.equal(syncComponentDiagnosticsNavigationVisibility(documentObject), true);
   assert.equal(bomNav.classList.contains("hidden"), false);
@@ -68,24 +101,8 @@ test("late-injected BOM navigation inherits the already-active IS220d visibility
 });
 
 test("BOM activation opens the dynamically injected page and deactivates the previous page", () => {
-  const connectionPage = fakeElement("page-connection", ["page", "active"]);
-  const bomPage = fakeElement("page-component-diagnostics", ["page", "hidden"]);
-  const connectionNav = fakeElement("nav-connection", ["nav-item", "active"]);
-  const bomNav = fakeElement("nav-component-diagnostics", ["nav-item"]);
-  const selectorMap = new Map([
-    ["#nav-component-diagnostics", bomNav],
-    ["#page-component-diagnostics", bomPage]
-  ]);
-  const documentObject = {
-    querySelector(selector) {
-      return selectorMap.get(selector) || null;
-    },
-    querySelectorAll(selector) {
-      if (selector === ".page") return [connectionPage, bomPage];
-      if (selector === ".nav-item") return [connectionNav, bomNav];
-      return [];
-    }
-  };
+  const { documentObject, connectionPage, bomPage, connectionNav, bomNav } = fakeNavigationDom();
+  bomNav.classList.remove("hidden");
   let scrollRequest = null;
   const opened = activateComponentDiagnosticsPage(documentObject, {
     scrollTo(value) { scrollRequest = value; }
@@ -100,18 +117,30 @@ test("BOM activation opens the dynamically injected page and deactivates the pre
   assert.deepEqual(scrollRequest, { top: 0, behavior: "instant" });
 });
 
+test("actual late-bound BOM click opens the page exactly once", () => {
+  const { documentObject, connectionPage, bomPage, connectionNav, bomNav } = fakeNavigationDom();
+  assert.equal(syncComponentDiagnosticsNavigationVisibility(documentObject), true);
+  let scrollCount = 0;
+  const windowObject = { scrollTo() { scrollCount += 1; } };
+
+  assert.equal(bindComponentDiagnosticsNavigation(bomNav, documentObject, windowObject), true);
+  assert.equal(bindComponentDiagnosticsNavigation(bomNav, documentObject, windowObject), true);
+  assert.equal(bomNav.listenerCount("click"), 1, "duplicate install must not add a second handler");
+
+  bomNav.click();
+
+  assert.equal(connectionPage.classList.contains("active"), false);
+  assert.equal(bomPage.classList.contains("active"), true);
+  assert.equal(bomPage.classList.contains("hidden"), false);
+  assert.equal(connectionNav.classList.contains("active"), false);
+  assert.equal(bomNav.classList.contains("active"), true);
+  assert.equal(scrollCount, 1);
+});
+
 test("hidden vehicle-specific BOM navigation cannot force the IS220d page open", () => {
-  const bomPage = fakeElement("page-component-diagnostics", ["page", "hidden"]);
-  const bomNav = fakeElement("nav-component-diagnostics", ["nav-item", "hidden"]);
-  const documentObject = {
-    querySelector(selector) {
-      if (selector === "#nav-component-diagnostics") return bomNav;
-      if (selector === "#page-component-diagnostics") return bomPage;
-      return null;
-    },
-    querySelectorAll() { return [bomPage, bomNav]; }
-  };
+  const { documentObject, bomPage, bomNav } = fakeNavigationDom();
   assert.equal(activateComponentDiagnosticsPage(documentObject, { scrollTo() {} }), false);
   assert.equal(bomPage.classList.contains("hidden"), true);
   assert.equal(bomPage.classList.contains("active"), false);
+  assert.equal(bomNav.classList.contains("hidden"), true);
 });
