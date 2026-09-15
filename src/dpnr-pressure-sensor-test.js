@@ -1,5 +1,7 @@
 import { buildIs220dRepairManualVisualsHtml } from "./is220d-repair-manual-visuals.js";
 export const DPNR_PRESSURE_SENSOR_TEST_STORAGE_KEY = "lexusIs220dDpnrPressureSensorTestV1";
+export const DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS = 12000;
+export const DPNR_PRESSURE_SENSOR_FRESH_MAX_AGE_MS = 2500;
 
 export const DPNR_PRESSURE_SENSOR_PHASES = Object.freeze({
   koeo: Object.freeze({
@@ -177,24 +179,80 @@ function pressureElement() {
   return cards.find(card => /paine|pressure/i.test(query(card, "span")?.textContent || "")) || cards[0] || null;
 }
 
+function normalizeRawHex(value) {
+  return String(value || "").replace(/[^0-9a-f]/gi, "").toUpperCase();
+}
+
+export function parseDpnrMetricAgeMs(value) {
+  const match = String(value || "").match(/(\d+)\s*ms\s*vanha/i);
+  return match ? Number.parseInt(match[1], 10) : NaN;
+}
+
+export function isFreshDpnrPressureSample(sample, maxAgeMs = DPNR_PRESSURE_SENSOR_FRESH_MAX_AGE_MS) {
+  const pressure = Number(sample?.pressureKpa);
+  const ageMs = Number(sample?.ageMs);
+  const raw = normalizeRawHex(sample?.raw217e);
+  return Number.isFinite(pressure) &&
+    Number.isFinite(ageMs) &&
+    ageMs >= 0 &&
+    ageMs <= maxAgeMs &&
+    raw.includes("617E");
+}
+
 function readLiveSample() {
   const documentObject = globalThis.document;
   if (!documentObject) return null;
+  const pressureCard = pressureElement();
   return {
     timestamp: Date.now(),
-    pressureKpa: parseDpnrTestNumber(query(pressureElement(), "strong")?.textContent),
+    pressureKpa: parseDpnrTestNumber(query(pressureCard, "strong")?.textContent),
     rpm: parseDpnrTestNumber(query(documentObject, "#dpnrRpm")?.textContent),
     coolantC: parseDpnrTestNumber(query(documentObject, "#dpnrCoolant")?.textContent),
-    raw217e: String(query(documentObject, "#dpnrRaw217e")?.textContent || "").trim()
+    raw217e: String(query(documentObject, "#dpnrRaw217e")?.textContent || "").trim(),
+    ageMs: parseDpnrMetricAgeMs(query(pressureCard, "em")?.textContent)
   };
 }
 
 function phaseAcceptsSample(phase, sample) {
-  if (!Number.isFinite(sample?.pressureKpa)) return false;
+  if (!isFreshDpnrPressureSample(sample)) return false;
   if (!Number.isFinite(sample?.rpm)) return phase.id === "koeo";
   if (phase.rpmMin != null && sample.rpm < phase.rpmMin) return false;
   if (phase.rpmMax != null && sample.rpm > phase.rpmMax) return false;
   return true;
+}
+
+async function ensureFreshDpnrLiveSample(status) {
+  let sample = readLiveSample();
+  if (isFreshDpnrPressureSample(sample)) return sample;
+
+  const documentObject = globalThis.document;
+  const liveButton = query(documentObject, "#dpnrToggleLiveButton");
+  if (!liveButton || liveButton.disabled) {
+    status.textContent = "DPNR-liveä ei voida käynnistää. Yhdistä IS220d:hen vLinker/ELM-yhteydellä ja yritä uudelleen.";
+    status.className = "inline-message warning";
+    return null;
+  }
+
+  const liveAlreadyRunning = /lopeta/i.test(String(liveButton.textContent || ""));
+  if (!liveAlreadyRunning) {
+    status.textContent = "Käynnistetään DPNR-live ja odotetaan tuoretta Toyota 217E -paine-erovastetta…";
+    status.className = "inline-message";
+    liveButton.click?.();
+  } else {
+    status.textContent = "DPNR-live on käynnissä. Odotetaan tuoretta Toyota 217E -paine-erovastetta…";
+    status.className = "inline-message";
+  }
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS) {
+    await new Promise(resolve => setTimeout(resolve, 150));
+    sample = readLiveSample();
+    if (isFreshDpnrPressureSample(sample)) return sample;
+  }
+
+  status.textContent = "Tuoretta 617E-vastetta ei saatu 12 sekunnissa. Tarkista, että yhteys on vLinker/ASCII-ELM327 eikä Quicklynks-binäärikanava, ja että Toyota 217E näkyy DPNR-raakavasteissa.";
+  status.className = "inline-message warning";
+  return null;
 }
 
 function readRecord() {
@@ -246,40 +304,41 @@ async function capturePhase(panel, phaseId) {
   const button = query(panel, `[data-dpnr-sensor-capture="${phaseId}"]`);
   if (!phase || !status || !button) return;
 
-  if (!Number.isFinite(readLiveSample()?.pressureKpa)) {
-    status.textContent = "DPNR 217E -paine-eroa ei vielä näy. Yhdistä autoon ja käynnistä DPNR-live tämän sivun Aloita-painikkeella.";
-    status.className = "inline-message warning";
-    return;
-  }
-
   button.disabled = true;
-  status.textContent = `${phase.label}: mittaus käynnissä…`;
-  status.className = "inline-message";
-  const samples = [];
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < phase.durationMs) {
-    const sample = readLiveSample();
-    if (phaseAcceptsSample(phase, sample)) samples.push(sample);
-    await new Promise(resolve => setTimeout(resolve, 250));
-  }
-  button.disabled = false;
+  try {
+    const firstFreshSample = await ensureFreshDpnrLiveSample(status);
+    if (!firstFreshSample) return;
 
-  const summary = summarizeDpnrPressureSensorSamples(samples, phaseId);
-  if (!summary.sampleCount) {
-    status.textContent = phaseId === "rpm3000"
-      ? "Kelvollista 217E-dataa ei saatu 2700–3300 rpm mittausikkunassa. Pidä kierrokset lähempänä 3000 rpm:ää ja yritä uudelleen."
-      : "Kelvollista 217E-dataa ei saatu tässä käyttötilassa. Tarkista live-yhteys ja moottorin tila.";
-    status.className = "inline-message warning";
-    return;
-  }
+    status.textContent = `${phase.label}: mittaus käynnissä…`;
+    status.className = "inline-message";
+    const samples = [];
+    if (phaseAcceptsSample(phase, firstFreshSample)) samples.push(firstFreshSample);
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < phase.durationMs) {
+      const sample = readLiveSample();
+      if (phaseAcceptsSample(phase, sample)) samples.push(sample);
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
 
-  const record = readRecord();
-  record.capturedAt = Date.now();
-  record.phases = { ...(record.phases || {}), [phaseId]: summary };
-  writeRecord(record);
-  render(panel, record);
-  status.textContent = `${phase.label} tallennettu: ${formatNumber(summary.pressureMedianKpa)} kPa.`;
-  status.className = "inline-message";
+    const summary = summarizeDpnrPressureSensorSamples(samples, phaseId);
+    if (!summary.sampleCount) {
+      status.textContent = phaseId === "rpm3000"
+        ? "Tuore 217E-data löytyi, mutta kelvollista dataa ei saatu 2700–3300 rpm mittausikkunassa. Pidä kierrokset lähempänä 3000 rpm:ää ja yritä uudelleen."
+        : "Tuore 217E-data löytyi, mutta mittaus ei vastannut tämän käyttötilan RPM-ehtoja. Tarkista moottorin tila ja yritä uudelleen.";
+      status.className = "inline-message warning";
+      return;
+    }
+
+    const record = readRecord();
+    record.capturedAt = Date.now();
+    record.phases = { ...(record.phases || {}), [phaseId]: summary };
+    writeRecord(record);
+    render(panel, record);
+    status.textContent = `${phase.label} tallennettu: ${formatNumber(summary.pressureMedianKpa)} kPa · tuore 617E-vastaus varmennettu.`;
+    status.className = "inline-message";
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function copyReport(panel) {
@@ -308,7 +367,7 @@ function ensurePanel() {
   const panel = documentObject.createElement("div");
   panel.id = "dpnrPressureSensorTest";
   panel.className = "card dpnr-pressure-sensor-test";
-  panel.innerHTML = `<div class="section-title compact-title"><div><div class="eyebrow">217E · GSIC P1426 · VAIN LUKU</div><h3>DPF/DPNR paine-eroanturin testi</h3></div></div><p class="hint">Kolmen käyttötilan toimintatarkistus jo varmennetulla Toyota 217E -paine-erolla. Testi etsii erityisesti epäloogisen negatiivisen paine-eron noin 3000 rpm:ssa ja näyttää KOEO-nollatason sekä signaalin muutoksen. Se ei keksi omaa kPa-hyväksymisrajaa eikä päättele anturia ehjäksi pelkästä yhdestä arvosta.</p><div class="sensor-phase-grid">${Object.values(DPNR_PRESSURE_SENSOR_PHASES).map(phase => `<div class="sensor-phase"><strong>${phase.label}</strong><small>${phase.instruction}</small><button class="secondary full compact" type="button" data-dpnr-sensor-capture="${phase.id}">Mittaa ${Math.round(phase.durationMs / 1000)} s</button><div class="sensor-result" data-dpnr-sensor-result="${phase.id}">Ei tallennettu</div></div>`).join("")}</div><div id="dpnrPressureSensorStatus" class="inline-message hidden" aria-live="polite"></div><div id="dpnrPressureSensorSummary" class="inline-message sensor-summary"></div><div id="dpnrPressureSensorDelta" class="hint"></div><div class="sensor-actions"><button id="dpnrPressureSensorCopy" class="secondary" type="button">Kopioi raportti</button><button id="dpnrPressureSensorReset" class="secondary" type="button">Nollaa testi</button></div>`;
+  panel.innerHTML = `<div class="section-title compact-title"><div><div class="eyebrow">217E · GSIC P1426 · VAIN LUKU</div><h3>DPF/DPNR paine-eroanturin testi</h3></div></div><p class="hint">Kolmen käyttötilan toimintatarkistus jo varmennetulla Toyota 217E -paine-erolla. Flex käynnistää DPNR-liven automaattisesti tarvittaessa ja hyväksyy mittaukseen vain tuoreen 617E-vastauksen. Testi etsii erityisesti epäloogisen negatiivisen paine-eron noin 3000 rpm:ssa ja näyttää KOEO-nollatason sekä signaalin muutoksen. Se ei keksi omaa kPa-hyväksymisrajaa eikä päättele anturia ehjäksi pelkästä yhdestä arvosta.</p><div class="sensor-phase-grid">${Object.values(DPNR_PRESSURE_SENSOR_PHASES).map(phase => `<div class="sensor-phase"><strong>${phase.label}</strong><small>${phase.instruction}</small><button class="secondary full compact" type="button" data-dpnr-sensor-capture="${phase.id}">Mittaa ${Math.round(phase.durationMs / 1000)} s</button><div class="sensor-result" data-dpnr-sensor-result="${phase.id}">Ei tallennettu</div></div>`).join("")}</div><div id="dpnrPressureSensorStatus" class="inline-message hidden" aria-live="polite"></div><div id="dpnrPressureSensorSummary" class="inline-message sensor-summary"></div><div id="dpnrPressureSensorDelta" class="hint"></div><div class="sensor-actions"><button id="dpnrPressureSensorCopy" class="secondary" type="button">Kopioi raportti</button><button id="dpnrPressureSensorReset" class="secondary" type="button">Nollaa testi</button></div>`;
 
   panel.innerHTML += buildIs220dRepairManualVisualsHtml("engine.dpnr_differential_pressure_sensor");
 
