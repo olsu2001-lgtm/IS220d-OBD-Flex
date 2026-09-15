@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { activateComponentDiagnosticsPage } from "../src/component-diagnostics-publisher.js";
+import {
+  activateComponentDiagnosticsPage,
+  syncComponentDiagnosticsNavigationVisibility
+} from "../src/component-diagnostics-publisher.js";
 
 const componentPageSource = await readFile(new URL("../src/component-diagnostics-page.js", import.meta.url), "utf8");
 const publisherSource = await readFile(new URL("../src/component-diagnostics-publisher.js", import.meta.url), "utf8");
@@ -43,6 +46,25 @@ test("dynamically injected BOM navigation gets its own post-install click bindin
   assert.match(publisherSource, /button\.addEventListener\(["']click["']/);
   assert.match(publisherSource, /activateComponentDiagnosticsPage\(\)/);
   assert.match(publisherSource, /installComponentDiagnosticsNavigation\(\);/);
+});
+
+test("late-injected BOM navigation inherits the already-active IS220d visibility state", () => {
+  const bomNav = fakeElement("nav-component-diagnostics", ["nav-item", "hidden"]);
+  const dpnrNav = fakeElement("nav-dpnr", ["nav-item"]);
+  const documentObject = {
+    querySelector(selector) {
+      if (selector === "#nav-component-diagnostics") return bomNav;
+      if (selector === "#nav-dpnr") return dpnrNav;
+      return null;
+    }
+  };
+
+  assert.equal(syncComponentDiagnosticsNavigationVisibility(documentObject), true);
+  assert.equal(bomNav.classList.contains("hidden"), false);
+
+  dpnrNav.classList.toggle("hidden", true);
+  assert.equal(syncComponentDiagnosticsNavigationVisibility(documentObject), false);
+  assert.equal(bomNav.classList.contains("hidden"), true);
 });
 
 test("BOM activation opens the dynamically injected page and deactivates the previous page", () => {
