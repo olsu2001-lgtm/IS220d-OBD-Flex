@@ -189,7 +189,7 @@ diagrams. All new `manualReference` and `assetPath` values remain null.
 Local catalog tests cover identity, deduplication/reuse, source provenance, missing
 evidence, physical-only boundaries and forbidden commands/thresholds. Full
 regression and safety tests run in the existing PR CI without workflow changes.
-Source work never runs the APK build. Next unreviewed Drive row: **39**.
+Source work never runs the APK build. Batch 3 ends at row 38; later batches follow below.
 
 
 ### Validation record
@@ -201,3 +201,43 @@ Source work never runs the APK build. Next unreviewed Drive row: **39**.
   PR CI runs on the exact pushed source head.
 - Only the catalog, its test file and this roadmap are changed. Package/lockfile,
   release registry, protocol, decoders, production polling and CI workflow are unchanged.
+
+## Batch 4: live Drive rows 39–53 (2026-09-15)
+
+All fifteen rows are physical-only: master cylinder, booster and vacuum plumbing,
+front/rear pads/discs/calipers/slides, lower ball joints, upper/lower arms, front
+shocks, upper supports and stabilizer links/bushes. Fifteen small physical recipe
+drafts are added without electronic coverage or fake ABS measurements. These
+components have no matching existing component-specific inspection points.
+
+Read live PR #29 head `1c9758f10baf2139694be7db5c9733ff929b5a50`, AGENTS,
+versioning/safety/protocol, source and tests, and the shared registry. The delivered
+baseline remains unchanged. Supporting Drive reads: Diag_ryhmät 6–10,
+Moottorisähkö_audit 1–40, BOM 2583–2584, 2846–2853 and 2854–2863.
+
+The source wording is preserved separately in `sourcePhysicalText`.
+The manual resolves the rear-caliper/parking-brake ambiguity: separate shoes sit
+inside the rear disc, rather than an integrated caliper parking-brake mechanism.
+Rows 45–46 use that distinction in their reviewed instructions. It does not
+change the Drive source or claim a new part compatibility result.
+
+Inspected attached ISO sections:
+- `rm0150/repair2/html/contents/rm000000v5v006x.html`: PARKING BRAKE ASSEMBLY /
+  DISASSEMBLY, separates caliper, disc and parking-brake shoes.
+- `rm0150/repair2/html/contents/rm000000uw1005x.html`: COMPONENTS;
+  visually inspected `rm0150/repair2/img/c124896e02.png` (rows 45–46).
+- `rm0150/repair2/html/contents/rm000002811000x.html`: BRAKE BOOSTER /
+  ON-VEHICLE INSPECTION; visually inspected
+  `rm0150/repair2/img/c109132.png` (row 40).
+
+Those three visual plans are source-identified, not packaged assets: assetPath
+remains null. Other figures remain pending. Exact caliper-specific repair visuals
+still need selection; the parking-brake figure only establishes the distinction.
+No numeric service limits or torques from the drawings are adopted.
+
+Row 50 retains the original OE shorthand and adds live BOM side/date variants:
+RH 48620-53020 / 48620-30290; LH 48640-53020 / 48640-30290, separated at 08/2008.
+This is traceable source evidence, not approval to order a part.
+
+Local full regression/safety suite: **485/485 passed**, including 19 catalog tests.
+Next unreviewed row after this batch: **54**.

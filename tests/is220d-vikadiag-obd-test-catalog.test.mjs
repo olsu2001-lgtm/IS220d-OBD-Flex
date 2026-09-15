@@ -112,8 +112,8 @@ test("catalog summary distinguishes implemented, ready, indirect and pending row
 
 
 
-test("continuation covers each Drive row through 38 without restarting the first batch", () => {
-  assert.deepEqual(IS220D_VIKADIAG_OBD_TEST_CATALOG.map(x => x.sourceRow), Array.from({ length: 37 }, (_, i) => i + 2));
+test("continuation covers each Drive row through 53 without restarting the first batch", () => {
+  assert.deepEqual(IS220D_VIKADIAG_OBD_TEST_CATALOG.map(x => x.sourceRow), Array.from({ length: 52 }, (_, i) => i + 2));
 });
 
 test("physical rows cannot acquire OBD evidence, pending cam row cannot prove synchronization", () => {
@@ -135,8 +135,15 @@ test("continuation has traceable evidence, source rows and unclaimed manual visu
     assert.equal(validateVikadiagObdTestCandidate(item), item);
     assert.equal(item.source.spreadsheetId, "1cbzE3tsPLfsKKbEI7XUASR1eGzu9JplqbcyXNCv_EH8");
     assert.equal(item.source.sheet, "Vikadiag_kohteet");
-    assert.equal(item.manualVisual.status, "pending-extract");
-    assert.equal(item.manualVisual.manualReference, null);
+    if ([40, 45, 46].includes(item.sourceRow)) {
+      assert.equal(item.manualVisual.status, "source-identified");
+      assert.equal(item.manualVisual.figureReviewed, true);
+      assert.match(item.manualVisual.manualReference, /rm0150\/repair2\/html\/contents\/rm/);
+      assert.match(item.manualVisual.imageSourcePath, /\.png$/);
+    } else {
+      assert.equal(item.manualVisual.status, "pending-extract");
+      assert.equal(item.manualVisual.manualReference, null);
+    }
     assert.ok(item.manualVisual.targetViews.includes("inspection diagram"));
     assert.deepEqual(item.signalEvidence.map(x => x.key), item.signalKeys);
     for (const evidence of item.signalEvidence) {
@@ -208,4 +215,40 @@ test("reviewed identity stays tied to the source PNC and OE, not a similar compo
     const item = getVikadiagObdTestCandidateByRow(row);
     assert.equal(item.pnc,pnc); assert.equal(item.oe,oe);
   }
+});
+
+test("brake and suspension rows 39-53 remain physical-only without fake ABS coverage", () => {
+  for (let row = 39; row <= 53; row++) {
+    const item = getVikadiagObdTestCandidateByRow(row);
+    assert.equal(item.obdRole, "physical-only");
+    assert.equal(item.readiness, VIKADIAG_TEST_READINESS.PHYSICAL_ONLY);
+    assert.deepEqual(item.signalKeys, []);
+    assert.deepEqual(item.signalEvidence, []);
+    assert.equal(item.source.reviewedAt, "2026-09-15");
+    assert.equal(item.source.range, `A${row}:O${row}`);
+    assert.equal(item.recipes.length, 1);
+    assert.equal(item.recipes[0].kind, "physical");
+    assert.deepEqual(item.recipes[0].signalKeys, []);
+    assert.ok(item.sourcePhysicalText);
+  }
+});
+
+test("manual-grounded parking brake distinction does not silently rewrite Drive evidence", () => {
+  const rear = getVikadiagObdTestCandidateByRow(46);
+  assert.match(rear.sourcePhysicalText, /käsijarrumekanismin/);
+  assert.match(rear.testMethod, /seisontajarrukengät erillisenä/);
+  assert.match(rear.sourceClarification.manualSection, /rm000000v5v006x/);
+  assert.equal(rear.manualVisual.imageSourcePath, "rm0150/repair2/img/c124896e02.png");
+  assert.equal(getVikadiagObdTestCandidateByRow(40).manualVisual.imageSourcePath, "rm0150/repair2/img/c109132.png");
+  assert.equal(rear.manualVisual.assetPath, null);
+});
+
+test("lower-arm OE shorthand retains independently read side and date evidence", () => {
+  const arms = getVikadiagObdTestCandidateByRow(50);
+  assert.equal(arms.oe, "48620-53020/30290; 48640-53020/30290");
+  assert.deepEqual(arms.partEvidence.variants.map(v => [v.sourceRow, v.side, v.oe]), [
+    [2846, "RH", "48620-53020"], [2847, "RH", "48620-30290"],
+    [2860, "LH", "48640-53020"], [2861, "LH", "48640-30290"]
+  ]);
+  assert.equal(arms.partEvidence.status, "bom-identified-not-order-approved");
 });
