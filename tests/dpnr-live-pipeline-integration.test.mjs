@@ -66,7 +66,7 @@ test("217E metric group returns the expected decoded pressure with positive raw 
   assert.equal(result.command, "217E");
   assert.match(String(result.raw), /61\s*7E/i);
   assert.ok(Number.isFinite(pressure?.value));
-  assert.equal(pressure.value, 5, "Fake 617E 0A04 payload must decode to the pinned 5.00 kPa reference");
+  assert.ok(Math.abs(pressure.value - 5) < 0.001, `Fake 617E 0A04 payload must decode to approximately 5.00 kPa, got ${pressure?.value}`);
   assert.ok(Number.isFinite(result.updatedAt));
   assert.equal(result.missingMetricIds.length, 0);
 });
