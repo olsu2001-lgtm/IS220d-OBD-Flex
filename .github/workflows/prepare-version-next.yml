@@ -1,0 +1,39 @@
+name: Prepare next version
+
+on:
+  push:
+    branches:
+      - release/0.9.5
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    if: ${{ !contains(github.event.head_commit.message, '[version-prepared]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/0.9.5
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run canonical registry-backed version allocator
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run version:next
+      - name: Commit allocated version and remove preparation workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/prepare-version-next.yml
+          git add package.json package-lock.json
+          git commit -m "Prepare next Flex version [version-prepared]"
+          git push origin HEAD:release/0.9.5
