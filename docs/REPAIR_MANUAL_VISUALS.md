@@ -1,128 +1,61 @@
 # Repair-manual visuals: source preparation
 
-All figures in this track come from the user-supplied Lexus IS250/220D RM0150
-repair manual. AI-generated component illustrations are not used.
+All figures in this track come from the user-supplied Lexus IS250/220D RM0150 repair manual. AI-generated component illustrations are not used.
 
-## Third image batch + continuation: reviewed 2AD-FHV sources (2026-09-15)
+## Current source-identified set (2026-09-15)
 
-The source review now covers **14 diagnostic components using 10 unique RM0150
-figures**. Every candidate records the exact image path, source HTML, component
-identity, source row, 2AD-FHV applicability and SHA-256 hashes in
-`src/is220d-repair-manual-visual-candidates.js`.
+The staging registry now contains **22 diagnostic components** backed by exact **2AD-FHV** RM0150 source figures. Every candidate records the source image, source HTML page, image and HTML SHA-256, diagnostic component identity, Drive row and intended local asset path in `src/is220d-repair-manual-visual-candidates.js`.
 
-This batch remains deliberately **source-identified**, not `available`: the
-matching PNG bytes have not yet been committed under `assets/repair-manual/`, so
-the normal Flex renderer must not pretend these pictures are already packaged.
+These records remain deliberately **source-identified**, not `available`: their PNG bytes have not yet been committed to the recorded `assets/repair-manual/` paths and verified there. The normal Flex renderer therefore continues to expose only already packaged manual images.
 
-| Drive row | Diagnostic component | RM0150 image | 2AD-FHV manual section |
+| Drive row | Diagnostic component | RM0150 image | 2AD-FHV source section |
 | ---: | --- | --- | --- |
 | 11 | Laturi / generator | `a132252e01.png` | `rm000001arc007x.html` / GENERATOR / COMPONENTS |
 | 12 | Starttimoottori | `a132250e01.png` | `rm00000167v005x.html` / STARTER / COMPONENTS |
 | 18 | Ilmansuodatinkotelo | `a133283e01.png` | `rm0000019s7004x.html` / TURBOCHARGER / COMPONENTS |
 | 20 | Ilmanpuhdistimen letku turbon imupuolella | `a133283e01.png` | `rm0000019s7004x.html` / TURBOCHARGER / COMPONENTS |
 | 21 | Välijäähdytin | `a132945e01.png` | `rm0000019sa007x.html` / INTERCOOLER / COMPONENTS |
-| 24 | Pakosarja / pakosarjan tiiviste | `a122201e01.png` | `rm0000019s7004x.html` / TURBOCHARGER / COMPONENTS |
+| 24 | Pakosarja / pakopuolen liitännät | `a122201e01.png` | `rm0000019s7004x.html` / TURBOCHARGER / COMPONENTS |
 | 25 | Turboahdin ja liitännät | `a122209e03.png` | `rm0000019s7004x.html` / TURBOCHARGER / COMPONENTS |
 | 26 | Turbon öljyputket | `a122209e03.png` | `rm0000019s7004x.html` / TURBOCHARGER / COMPONENTS |
+| 28 | Alipaineletkut VRV:n ympärillä | `a122208e01.png` | `rm000001hnk003x.html` / VACUUM REGULATING VALVE / COMPONENTS |
 | 29 | Alipaineen säätöventtiili | `a122208e01.png` | `rm000001hnk003x.html` / VACUUM REGULATING VALVE / COMPONENTS |
+| 30 | No. 1 alipaineen vaihtoventtiili / VSV | `a122203e01.png` | `rm000001dnb003x.html` / EMISSION CONTROL / COMPONENTS |
+| 32 | Polttoainesuodatin | `a135220e01.png` | `rm0000024nc000x.html` / FUEL FILTER / COMPONENTS |
+| 33 | Polttoaineen sedimenter / vedenerotin | `a133199e01.png` | `rm0000024nc000x.html` / FUEL FILTER / COMPONENTS |
+| 35 | Common rail -ruiskutusputket | `a130379e01.png` | `rm0000023c8000x.html` / COMMON RAIL / COMPONENTS |
+| 37 | Polttoaineen takaiskuventtiili | `a133848e02.png` | `rm000001asw004x.html` / FUEL INJECTOR / COMPONENTS |
 | 61 | Vesipumppu | `a132388e01.png` | `rm000000v1h00ix.html` / WATER PUMP / COMPONENTS |
+| 63 | No. 1 idler pulley | `a131681.png` | `rm0000019y9009x.html` / ENGINE ASSEMBLY / REMOVAL |
+| 64 | Moniurahihnan kiristin | `a111243.png` | `rm0000019y9009x.html` / ENGINE ASSEMBLY / REMOVAL |
 | 65 | Moniurahihna | `a132960e01.png` | `rm000000rps009x.html` / DRIVE BELT / COMPONENTS |
 | 66 | Jäähdytin | `a134875e01.png` | `rm000000v1x00jx.html` / RADIATOR / COMPONENTS |
 | 67 | Jäähdytyspuhaltimet | `a134875e01.png` | `rm000000v1x00jx.html` / RADIATOR / COMPONENTS |
 | 68 | Paisuntasäiliö ja korkki | `a134875e01.png` | `rm000000v1x00jx.html` / RADIATOR / COMPONENTS |
 
-### Engine-family verification correction
+The eight most recent additions are rows **28, 30, 32, 33, 35, 37, 63 and 64**. Row 28 deliberately describes the VRV-area hoses as a local example rather than claiming that one drawing is the complete vacuum-routing diagram. Row 64 now has a dedicated 2AD-FHV removal figure that explicitly identifies the `V-RIBBED BELT TENSIONER ASSEMBLY`; the earlier belt-only drawing is no longer used as tensioner evidence.
 
-The image review now checks the RM0150 table-of-contents engine family, not just
-the component-page title or a visually plausible drawing. This caught two
-important false positives from the first pass of the third batch:
+### Engine-family verification
 
-- `rm000001bjy006x.html` / `a125620e02.png` is **4GR-FSE WATER PUMP**, so it is
-  rejected for IS220d. The reviewed IS220d source is the **2AD-FHV COOLING** page
-  `rm000000v1h00ix.html` with `a132388e01.png`.
-- `rm000001bjv006x.html` / `a121167e01.png` is **4GR-FSE RADIATOR**, so it is
-  rejected for IS220d. The reviewed IS220d source is the **2AD-FHV COOLING** page
-  `rm000000v1x00jx.html` with `a134875e01.png`.
+The image review checks the RM0150 table-of-contents engine family, not only the page title or a visually plausible drawing. This rejected two earlier false positives:
 
-The candidate tests explicitly reject those two 4GR-FSE page IDs to prevent the
-same cross-engine mapping from returning later.
+- `rm000001bjy006x.html` / `a125620e02.png` is **4GR-FSE WATER PUMP** and is not mapped to IS220d. The IS220d candidate is `rm000000v1h00ix.html` / `a132388e01.png`.
+- `rm000001bjv006x.html` / `a121167e01.png` is **4GR-FSE RADIATOR** and is not mapped to IS220d. The IS220d candidate is `rm000000v1x00jx.html` / `a134875e01.png`.
 
-The 2AD-FHV radiator figure is especially useful because one original drawing
-labels the radiator, intercooler, fan assembly, radiator reserve tank/cap and
-coolant hoses. It is therefore reused only for the catalog components that are
-explicitly visible in that drawing. Likewise, the turbo components page is
-reused for the air-cleaner hose/cap, exhaust-side connection and turbo oil-pipe
-rows only where those parts are explicitly labelled.
+Candidate tests explicitly reject those 4GR-FSE source pages. Shared drawings are reused only where the labelled content supports the mapped component identity. A picture does not change diagnostic readiness, authorize a signal, create a threshold or prove a component faulty.
 
-The DRIVE BELT component figure shows the V-ribbed belt but does **not** label the
-belt tensioner. Row 65 is therefore mapped, while row 64 remains pending rather
-than inferring a tensioner from a nearby belt drawing.
+The next packaging step for this staged set is mechanical: copy each exact reviewed source PNG to its recorded `targetAssetPath`, verify the committed bytes against `sourceImageSha256`, and only then add that mapping to `src/is220d-repair-manual-visuals.js` as an available local asset.
 
-These source mappings do not change diagnostic readiness, signal authorization,
-thresholds, decoders or transport behavior. A repair-manual figure is an
-orientation aid and source reference, not proof that a component is faulty or
-that an OBD test is direct.
+## Already packaged manual images
 
-The next packaging step is mechanical: copy the reviewed exact source PNGs to
-their recorded `targetAssetPath`, verify the bytes against
-`sourceImageSha256`, then move only those verified mappings into
-`src/is220d-repair-manual-visuals.js`. Until that happens the existing renderer
-continues to expose only already packaged images.
+Earlier source-only image batches committed 13 unique RM0150 PNG assets supporting 15 component identities. Within the row-by-row catalog, packaged visual plans currently cover rows 2, 4–9, 16–17, 34, 38, 40 and 45–46; ECT also reuses existing inspection-point references.
 
-## Second image batch (2026-09-15)
+Examples include DPNR sensor/hoses, MAF, EGR, cam/crank sensors, EGT pair, exhaust fuel addition injector, main injectors, supply pump/drive coupling, brake-booster inspection and the rear-disc/parking-brake layout. The existing component, fuel, air/exhaust and starting/charging views reuse the same reviewed-image renderer.
 
-Seven original COMPONENTS PNGs were extracted and visually reviewed. Together
-with the first batch, there are currently 13 packaged unique images supporting
-15 component identities. Within the row-by-row catalog, packaged image plans
-cover rows 2, 4–9, 16–17, 34, 38, 40 and 45–46 (14 rows). ECT reuses existing
-inspection-point references 152/254/330; those rows have not been newly reviewed
-in the row-by-row catalog.
-
-| Component | Source image | Source section |
-| --- | --- | --- |
-| Kampiakselianturin sijainti | `a122191e01.png` | `rm000001blw006x.html` |
-| Nokka-akselianturin sijainti | `a122190e01.png` | `rm000001blr006x.html` |
-| Pakolämpöanturien sijainnit | `a122207e01.png` | `rm000001aw8003x.html` |
-| Lisäpolttoainesuuttimen sijainti | `a122199e01.png` | `rm000001aw7003x.html` |
-| Syöttöpumppu ja käyttökytkin | `a130378e01.png` | `rm000001at0004x.html` |
-| Pääsuuttimet ja paluuputkisto | `a133848e02.png` | `rm000001asw004x.html` |
-| Jäähdytysnesteanturin sijainti | `a119089e01.png` | `rm000001bm3006x.html` |
-
-The existing fuel, air/exhaust and starting/charging inspection renderers call
-the same reviewed-image renderer as the general component views. Main injectors
-and the exhaust fuel addition injector have separate images. The supply-pump
-image is not mapped to SCV because it does not identify that valve explicitly.
-The EGT picture retains UPPER/LOWER labels and does not invent an ECU
-byte-to-location mapping.
-
-## First image batch (historical)
-
-Six original PNGs were extracted byte-for-byte from `IS250,220D.iso` / RM0150
-and visually reviewed on 2026-09-15. No AI illustration, redrawing or image
-modification is used. Source image and HTML paths and their SHA-256 checksums are
-recorded in `src/is220d-repair-manual-visuals.js`.
-
-| Drive row | Image | Source section | Intended use |
-| --- | --- | --- | --- |
-| 5 | `a122206e01.png` | `rm000001fzq003x.html` / COMPONENTS | Anturi sekä No. 1- ja No. 2 -paineletkut moottoritilassa. |
-| 5 | `a132929e01.png` | `rm000001fzp003x.html` / INSTALLATION | Punainen ja vihreä merkki auttavat säilyttämään letkujen oikean kytkennän. |
-| 4 | `a122189e01.png` | `rm000001blm006x.html` / COMPONENTS | MAF-anturi, liitin ja O-rengas alkuperäisessä ilmanotossa. |
-| 2 | `a122197e01.png` | `rm000001aw5003x.html` / COMPONENTS | EGR-venttiili, No. 2 EGR -putki ja tiivisteet. |
-| 40 | `c109132.png` | `rm000002811000x.html` / ON-VEHICLE INSPECTION | Polkimen liikkeen havainnointi moottoria käynnistettäessä. |
-| 45, 46 | `c124896e02.png` | `rm000000uw1005x.html` / COMPONENTS | Kuva erottaa satulan, levyn ja levyn sisällä olevat seisontajarrukengät. |
-
-The existing component cards, component inspection points and both DPNR test
-panels reuse one visual renderer. Packaged pictures use local asset URLs and no
-network access is required.
+The supply-pump image is not mapped to SCV because that figure does not explicitly identify the SCV. Likewise no nearby component is inferred merely because it appears in the same service area.
 
 ## Source-only boundary
 
-This work remains on `work/vikadiag-obd-test-catalog` / PR #29. It does not
-allocate a new Flex version, change package/lockfile versions, create a release
-branch, build/publish an APK, modify the release registry, register artifact
-hashes or upload a Flex release to Drive. It also adds no PID, Toyota identifier,
-ECU write, Active Test or forced regeneration.
+This work remains on `work/vikadiag-obd-test-catalog` / PR #29. It does not allocate a new Flex version, modify package/lockfile versions, create a release branch, build or publish an APK, modify the release registry, register APK hashes or upload a Flex release to Drive. It adds no PID, Toyota identifier, decoder, ECU write, Active Test or forced regeneration.
 
-The next row-by-row Vikadiag catalog review still starts at Drive row 69. Image
-source review does not by itself mark further diagnostic rows as reviewed. PR #29
-must not be merged without separate user approval.
+The row-by-row Vikadiag review itself is still complete only through Drive row 68; the next unreviewed diagnostic row is 69. Image-source review does not by itself mark later diagnostic rows reviewed. PR #29 remains open and must not be merged without separate user approval.
