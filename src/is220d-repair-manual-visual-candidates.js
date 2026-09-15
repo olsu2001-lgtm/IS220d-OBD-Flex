@@ -62,6 +62,26 @@ const candidates = [
     targetAssetPath: "assets/repair-manual/a132945e01.png"
   }),
   candidate({
+    id: "intake-manifold-removal", componentId: "engine.intake_manifold", sourceRow: 22,
+    sourceImagePath: "rm0150/repair2/img/a131695.png",
+    sourceImageSha256: "4cfb85ef3d25c37b0f031c36387f136ea3af4eafc73a0232204eb5e460982207",
+    manualReference: "rm0150/repair2/html/contents/rm0000019y9009x.html",
+    sourceHtmlSha256: "0e4e8fdef985c30e80a539ae12d71291f3f436221d70a5b048fd21c3f3ab4cbd",
+    section: "REMOVAL", title: "Imusarjan kiinnitys ja irrotus",
+    caption: "2AD-FHV ENGINE ASSEMBLY -ohjeen REMOVE INTAKE MANIFOLD -kuva osoittaa imusarjan seitsemän pultin ja kahden mutterin kiinnityskohdat ennen karsta- ja vuototarkastusta.",
+    targetAssetPath: "assets/repair-manual/a131695.png"
+  }),
+  candidate({
+    id: "intake-manifold-gasket-removal", componentId: "engine.intake_manifold_gasket", sourceRow: 23,
+    sourceImagePath: "rm0150/repair2/img/a131695.png",
+    sourceImageSha256: "4cfb85ef3d25c37b0f031c36387f136ea3af4eafc73a0232204eb5e460982207",
+    manualReference: "rm0150/repair2/html/contents/rm0000019y9009x.html",
+    sourceHtmlSha256: "0e4e8fdef985c30e80a539ae12d71291f3f436221d70a5b048fd21c3f3ab4cbd",
+    section: "REMOVAL", title: "Imusarjan ja tiivisteen irrotuskohta",
+    caption: "Sama 2AD-FHV REMOVE INTAKE MANIFOLD -vaihe määrää irrottamaan imusarjan ja gasketin yhdessä; kuva toimii tiivistepinnan sijaintiohjeena, ei vuototodisteena.",
+    targetAssetPath: "assets/repair-manual/a131695.png"
+  }),
+  candidate({
     id: "exhaust-manifold-turbo-layout", componentId: "engine.exhaust_manifold_gasket", sourceRow: 24,
     sourceImagePath: "rm0150/repair2/img/a122201e01.png",
     sourceImageSha256: "c9c17f20dcb2e3bb1e91e491fb1276cb23053e3f00a9d0c0a942c905b5167c64",
@@ -90,6 +110,16 @@ const candidates = [
     section: "COMPONENTS", title: "Turbon öljyputket ja liitännät",
     caption: "Sama 2AD-FHV turboahdinkuva näyttää NO. 2 TURBO OIL PIPE-, TURBO OIL OUTLET PIPE- ja TURBO OIL OUTLET HOSE -alueet.",
     targetAssetPath: "assets/repair-manual/a122209e03.png"
+  }),
+  candidate({
+    id: "turbo-exhaust-gaskets-layout", componentId: "engine.turbo_exhaust_gaskets", sourceRow: 27,
+    sourceImagePath: "rm0150/repair2/img/a122201e01.png",
+    sourceImageSha256: "c9c17f20dcb2e3bb1e91e491fb1276cb23053e3f00a9d0c0a942c905b5167c64",
+    manualReference: "rm0150/repair2/html/contents/rm0000019s7004x.html",
+    sourceHtmlSha256: "8c18ca3fbf71e5dceda0ac929637899c14b1cb3e9860664ac3f58a90ac3d6f17",
+    section: "COMPONENTS", title: "Turbon ja pakopuolen tiivistekohdat",
+    caption: "2AD-FHV TURBOCHARGER -komponenttikuva näyttää turbo-/pakosarjakokonaisuuden laipat, tiivisteet ja etupakoputken liitoksen, joista noki- ja vuotojälkiä etsitään.",
+    targetAssetPath: "assets/repair-manual/a122201e01.png"
   }),
   candidate({
     id: "vacuum-hoses-vrv-local", componentId: "engine.vacuum_hoses", sourceRow: 28,
@@ -150,6 +180,16 @@ const candidates = [
     section: "COMPONENTS", title: "Common rail ja ruiskutusputket",
     caption: "2AD-FHV COMMON RAIL -komponenttikuva näyttää COMMON RAIL ASSEMBLYn sekä NO. 1 INJECTION PIPE SUB-ASSEMBLY / FUEL INLET PIPE -putkiston moottoritilassa.",
     targetAssetPath: "assets/repair-manual/a130379e01.png"
+  }),
+  candidate({
+    id: "low-pressure-fuel-hoses-filter-area", componentId: "engine.low_pressure_fuel_hoses", sourceRow: 36,
+    sourceImagePath: "rm0150/repair2/img/a134252.png",
+    sourceImageSha256: "2f4c8d3604bb0c8114fa9309f8a5b9b26841b1d2c2fc7f9da3f3350539105d9e",
+    manualReference: "rm0150/repair2/html/contents/rm0000024nj000x.html",
+    sourceHtmlSha256: "6406374ce719ec3765f8e8b0aa7f6db554a1e812f0c8b5c26e9ca0ed6fc49223",
+    section: "REPLACEMENT", title: "Matalapainepuolen polttoaineletkut suodatinyksikön ympärillä",
+    caption: "2AD-FHV FUEL FILTER -replacement-ohjeen kuva näyttää kolme fuel hose -letkua NO. 2 FUEL TUBE CLAMPin yhteydessä; kuva auttaa reitityksen ja liitosalueiden tarkastuksessa.",
+    targetAssetPath: "assets/repair-manual/a134252.png"
   }),
   candidate({
     id: "fuel-check-valve-layout", componentId: "engine.fuel_check_valve", sourceRow: 37,
