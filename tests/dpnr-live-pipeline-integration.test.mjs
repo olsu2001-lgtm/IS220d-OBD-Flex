@@ -48,7 +48,7 @@ test("connected IS220d vLinker discovers the approved 217E DPNR live metric", as
   assert.equal(supported.has("dpnrRegenerationActive"), true);
 });
 
-test("217E metric group returns decoded pressure with positive raw evidence", async () => {
+test("217E metric group returns the expected decoded pressure with positive raw evidence", async () => {
   const { client } = await createConnectedIs220dVlinkerClient();
   await client.readSupportedPids();
 
@@ -66,6 +66,7 @@ test("217E metric group returns decoded pressure with positive raw evidence", as
   assert.equal(result.command, "217E");
   assert.match(String(result.raw), /61\s*7E/i);
   assert.ok(Number.isFinite(pressure?.value));
+  assert.equal(pressure.value, 5, "Fake 617E 0A04 payload must decode to the pinned 5.00 kPa reference");
   assert.ok(Number.isFinite(result.updatedAt));
   assert.equal(result.missingMetricIds.length, 0);
 });
