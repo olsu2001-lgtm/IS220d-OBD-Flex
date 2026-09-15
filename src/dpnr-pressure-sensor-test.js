@@ -1,6 +1,6 @@
 import { buildIs220dRepairManualVisualsHtml } from "./is220d-repair-manual-visuals.js";
 export const DPNR_PRESSURE_SENSOR_TEST_STORAGE_KEY = "lexusIs220dDpnrPressureSensorTestV1";
-export const DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS = 12000;
+export const DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS = 30000;
 export const DPNR_PRESSURE_SENSOR_FRESH_MAX_AGE_MS = 2500;
 
 export const DPNR_PRESSURE_SENSOR_PHASES = Object.freeze({
@@ -228,7 +228,7 @@ async function ensureFreshDpnrLiveSample(status) {
   const documentObject = globalThis.document;
   const liveButton = query(documentObject, "#dpnrToggleLiveButton");
   if (!liveButton || liveButton.disabled) {
-    status.textContent = "DPNR-liveä ei voida käynnistää. Yhdistä IS220d:hen vLinker/ELM-yhteydellä ja yritä uudelleen.";
+    status.textContent = "DPNR-liveä ei voida käynnistää. Yhdistä IS220d:hen vLinker MC/MC+ -yhteydellä ja yritä uudelleen.";
     status.className = "inline-message warning";
     return null;
   }
@@ -250,7 +250,8 @@ async function ensureFreshDpnrLiveSample(status) {
     if (isFreshDpnrPressureSample(sample)) return sample;
   }
 
-  status.textContent = "Tuoretta 617E-vastetta ei saatu 12 sekunnissa. Tarkista, että yhteys on vLinker/ASCII-ELM327 eikä Quicklynks-binäärikanava, ja että Toyota 217E näkyy DPNR-raakavasteissa.";
+  const timeoutSeconds = Math.round(DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS / 1000);
+  status.textContent = `Tuoretta 617E-vastetta ei saatu ${timeoutSeconds} sekunnissa. Tarkista vLinker MC/MC+ -yhteys, ECU-yhteys ja että Toyota 217E näkyy DPNR-raakavasteissa. Quicklynks-binäärikanava ei käytä tätä 217E-lukupolkua.`;
   status.className = "inline-message warning";
   return null;
 }
