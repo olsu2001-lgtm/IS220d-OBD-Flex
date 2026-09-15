@@ -1,3 +1,4 @@
+import { buildIs220dRepairManualVisualsHtml } from "./is220d-repair-manual-visuals.js";
 import {
   IS220D_DIAGNOSTIC_GROUPS,
   getIs220dDiagnosticGroupForComponent
@@ -140,6 +141,7 @@ export function buildComponentDiagnosticCardHtml(component) {
     <div class="bom-part-numbers"><span>PNC ${escapeHtml(component?.pnc || "–")}</span><span>OE ${escapeHtml(component?.oe || "–")}</span></div>
     <p class="bom-symptom">${escapeHtml(component?.symptom || "")}</p>
     ${assessmentHtml}
+    ${buildIs220dRepairManualVisualsHtml(component?.id)}
     <details class="bom-component-details">
       <summary>Diagnoosievidenssi</summary>
       <div class="bom-signal-line">${escapeHtml(signalText)}</div>

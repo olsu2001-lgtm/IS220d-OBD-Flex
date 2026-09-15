@@ -1,3 +1,4 @@
+import { buildIs220dRepairManualVisualsHtml } from "./is220d-repair-manual-visuals.js";
 export const DPNR_PRESSURE_SENSOR_TEST_STORAGE_KEY = "lexusIs220dDpnrPressureSensorTestV1";
 
 export const DPNR_PRESSURE_SENSOR_PHASES = Object.freeze({
@@ -308,6 +309,8 @@ function ensurePanel() {
   panel.id = "dpnrPressureSensorTest";
   panel.className = "card dpnr-pressure-sensor-test";
   panel.innerHTML = `<div class="section-title compact-title"><div><div class="eyebrow">217E · GSIC P1426 · VAIN LUKU</div><h3>DPF/DPNR paine-eroanturin testi</h3></div></div><p class="hint">Kolmen käyttötilan toimintatarkistus jo varmennetulla Toyota 217E -paine-erolla. Testi etsii erityisesti epäloogisen negatiivisen paine-eron noin 3000 rpm:ssa ja näyttää KOEO-nollatason sekä signaalin muutoksen. Se ei keksi omaa kPa-hyväksymisrajaa eikä päättele anturia ehjäksi pelkästä yhdestä arvosta.</p><div class="sensor-phase-grid">${Object.values(DPNR_PRESSURE_SENSOR_PHASES).map(phase => `<div class="sensor-phase"><strong>${phase.label}</strong><small>${phase.instruction}</small><button class="secondary full compact" type="button" data-dpnr-sensor-capture="${phase.id}">Mittaa ${Math.round(phase.durationMs / 1000)} s</button><div class="sensor-result" data-dpnr-sensor-result="${phase.id}">Ei tallennettu</div></div>`).join("")}</div><div id="dpnrPressureSensorStatus" class="inline-message hidden" aria-live="polite"></div><div id="dpnrPressureSensorSummary" class="inline-message sensor-summary"></div><div id="dpnrPressureSensorDelta" class="hint"></div><div class="sensor-actions"><button id="dpnrPressureSensorCopy" class="secondary" type="button">Kopioi raportti</button><button id="dpnrPressureSensorReset" class="secondary" type="button">Nollaa testi</button></div>`;
+
+  panel.innerHTML += buildIs220dRepairManualVisualsHtml("engine.dpnr_differential_pressure_sensor");
 
   const rawCard = query(page, ".raw-card");
   if (typeof page.insertBefore === "function") page.insertBefore(panel, rawCard || null);

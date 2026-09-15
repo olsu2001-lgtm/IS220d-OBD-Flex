@@ -1,3 +1,4 @@
+import { buildIs220dRepairManualVisualsHtml } from "./is220d-repair-manual-visuals.js";
 import { IS220D_COMPONENT_DIAGNOSTICS } from "./is220d-component-diagnostics.js";
 import {
   IS220D_DIAGNOSTIC_GROUPS,
@@ -348,6 +349,7 @@ export function buildIs220dInspectionPointScopeHtml(scope) {
       <div class="bom-point-head"><div><span>${escapeHtml(kindLabel(point.kind))} · ${escapeHtml(point.groupLabel)}</span><strong>${escapeHtml(point.label)}</strong></div><small>${escapeHtml(stateText)}</small></div>
       <div class="bom-point-component">${escapeHtml(point.componentLabel)} · PNC ${escapeHtml(point.pnc)}</div>
       <p>${escapeHtml(point.instruction)}</p>
+      ${buildIs220dRepairManualVisualsHtml(point.componentId)}
       <div class="bom-point-pattern"><strong>Odotettu kuvio</strong><span>${escapeHtml(point.expectedPattern)}</span></div>
       <details><summary>Jatkotoimi ja lähde</summary><div class="bom-point-followup">${escapeHtml(point.physicalFollowUp)}</div><div class="bom-point-evidence">Evidenssi: ${escapeHtml(evidenceText)}</div><div class="bom-point-source">${escapeHtml(point.sourceSheet)} · rivit ${escapeHtml(sourceRows)}</div></details>
     </article>`;
