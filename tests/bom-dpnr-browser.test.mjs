@@ -91,6 +91,7 @@ test("both real DPNR capture buttons read fresh 217E directly and save all phase
     state.client = {
       runReadOnlyEcuTransaction: async options => {
         direct217eReads += 1;
+        assert.equal(state.liveActive, false, "guided DPNR capture must not depend on generic live discovery");
         assert.equal(options.requestHeader, "7E0");
         assert.equal(options.requests.length, 1);
         assert.equal(options.requests[0].command, "217E");
