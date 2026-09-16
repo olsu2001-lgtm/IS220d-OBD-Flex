@@ -34,19 +34,19 @@ test("dedicated capture path does not require generic live polling and KOEO tole
   let captures = 0;
   const r = rig({
     running: () => false,
-    start: () => { throw new Error("generic live must not be started"); },
-    capture: async () => {
-      captures += 1;
-      return {
-        pressureKpa: 0.12,
-        rpm: NaN,
-        rpmUpdatedAt: NaN,
-        coolantC: NaN,
-        timestamp: 10000 + captures * 600,
-        raw217e: "7E8 06 61 7E 05 20 00 00"
-      };
-    }
+    start: () => { throw new Error("generic live must not be started"); }
   });
+  r.options.adapter.capture = async () => {
+    captures += 1;
+    return {
+      pressureKpa: 0.12,
+      rpm: NaN,
+      rpmUpdatedAt: NaN,
+      coolantC: NaN,
+      timestamp: r.time(),
+      raw217e: "7E8 06 61 7E 05 20 00 00"
+    };
+  };
   const samples = await collectDpnrTestPhase(koeo, {}, r.options);
   assert.equal(r.starts(), 0);
   assert.ok(captures >= 2);
