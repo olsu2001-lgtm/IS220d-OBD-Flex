@@ -67,46 +67,62 @@ test("production-transformed app installs BOM after startup and opens it by real
   } finally { dom.window.close(); }
 });
 
-test("both real DPNR capture buttons use decoded state and save phases without existing live DOM values", async () => {
+test("both real DPNR capture buttons read fresh 217E directly and save all phases without generic live discovery", async () => {
   const dom = await browser();
   try {
     const w = dom.window, d = w.document, { state } = w.testApp;
     w.testApp.goToPage("dpnr");
-    let time = 10000, rpm = 0;
+    let time = 10000, rpm = 0, direct217eReads = 0, rpmReads = 0;
     w.Date.now = () => time;
-    w.setTimeout = (callback, ms) => { queueMicrotask(() => { time += ms; update(); callback(); }); return 1; };
-    const update = () => {
-      state.values.dpnrDifferentialPressure = 0.0023;
-      state.values.rpm = rpm;
-      state.updatedAt.dpnrDifferentialPressure = Math.floor(time / 600) * 600;
-      state.updatedAt.rpm = time;
-      state.rawValues.dpnrDifferentialPressure = "61 7E 05 02 00 00";
+    w.setTimeout = (callback, ms) => { queueMicrotask(() => { time += ms; callback(); }); return 1; };
+    const rpmRaw = () => {
+      const word = Math.max(0, Math.round(rpm * 4));
+      return `41 0C ${((word >> 8) & 0xff).toString(16).padStart(2, "0")} ${(word & 0xff).toString(16).padStart(2, "0")}`;
     };
     state.connected = state.ecuConnected = true;
-    let liveStarts = 0;
-    state.client = { readSupportedPids: () => { liveStarts++; return new Promise(() => {}); } };
-    update();
+    state.liveActive = false;
+    state.client = {
+      runReadOnlyEcuTransaction: async options => {
+        direct217eReads += 1;
+        assert.equal(options.requestHeader, "7E0");
+        assert.equal(options.requests.length, 1);
+        assert.equal(options.requests[0].command, "217E");
+        return {
+          transactionId: `TEST-${direct217eReads}`,
+          responses: [{ command: "217E", raw: "61 7E 0A 04 02 00", error: "" }]
+        };
+      },
+      command: async command => {
+        if (command === "010C") {
+          rpmReads += 1;
+          return rpmRaw();
+        }
+        return "OK";
+      }
+    };
+
     for (const phaseId of ["koeo", "idle", "rpm3000"]) {
-    rpm = { koeo: 0, idle: 900, rpm3000: 3000 }[phaseId];
-    update();
-    for (const mode of ["before", "after", "sensor"]) {
-      d.querySelector("#dpnrCleaningMode").value = mode === "sensor" ? "before" : mode;
-      const selector = mode === "sensor" ? `[data-dpnr-sensor-capture="${phaseId}"]` : `[data-dpnr-capture="${phaseId}"]`;
-      const key = mode === "sensor" ? "lexusIs220dDpnrPressureSensorTestV1" : "lexusIs220dDpnrCleaningTestV1";
-      const phasePath = r => mode === "sensor" ? r.phases[phaseId] : r[mode].phases[phaseId];
-      const button = d.querySelector(selector);
-      assert.ok(button);
-      state.liveActive = false;
-      button.click();
-      await flush();
-      const record = JSON.parse(w.localStorage.getItem(key));
-      assert.ok(record, d.querySelector("#dpnrCleaningStatus").textContent + d.querySelector("#dpnrPressureSensorStatus").textContent);
-      const phase = phasePath(record);
-      assert.equal(phase.pressureMedianKpa, 0.0023);
-      assert.ok(phase.sampleCount > 2 && phase.sampleCount < 15);
-      assert.equal(button.disabled, false);
+      rpm = { koeo: 0, idle: 900, rpm3000: 3000 }[phaseId];
+      for (const mode of ["before", "after", "sensor"]) {
+        d.querySelector("#dpnrCleaningMode").value = mode === "sensor" ? "before" : mode;
+        const selector = mode === "sensor" ? `[data-dpnr-sensor-capture="${phaseId}"]` : `[data-dpnr-capture="${phaseId}"]`;
+        const key = mode === "sensor" ? "lexusIs220dDpnrPressureSensorTestV1" : "lexusIs220dDpnrCleaningTestV1";
+        const phasePath = r => mode === "sensor" ? r.phases[phaseId] : r[mode].phases[phaseId];
+        const button = d.querySelector(selector);
+        assert.ok(button);
+        state.liveActive = false;
+        button.click();
+        await flush();
+        const record = JSON.parse(w.localStorage.getItem(key));
+        assert.ok(record, d.querySelector("#dpnrCleaningStatus").textContent + d.querySelector("#dpnrPressureSensorStatus").textContent);
+        const phase = phasePath(record);
+        assert.ok(Math.abs(phase.pressureMedianKpa - 5) < 0.001, `217E 0A04 must decode to ~5.00 kPa, got ${phase.pressureMedianKpa}`);
+        assert.ok(phase.sampleCount >= 2);
+        assert.match(phase.raw217eLast, /61\s*7E/i);
+        assert.equal(button.disabled, false);
+      }
     }
-    }
-    assert.equal(liveStarts, 9, "each test starts the existing live reader when stopped");
+    assert.ok(direct217eReads >= 18, "each guided measurement must obtain multiple fresh direct 217E responses");
+    assert.ok(rpmReads >= 18, "running-state evidence is read directly alongside each pressure sample");
   } finally { dom.window.close(); }
 });
