@@ -79,14 +79,14 @@ test("report preserves raw 217E evidence, deltas and read-only interpretation bo
   assert.match(report, /ECU-kirjoituksia/i);
 });
 
-test("sensor test starts existing DPNR live UI when needed but implements no transport commands", () => {
+test("sensor test UI contains no transport commands of its own", () => {
   for (const forbidden of [".send(", "sendCommand(", "ATSH", "ATSP", "02217E", "Mode 04", "clearDtc", "regenerate("]) {
     assert.equal(sensorSource.includes(forbidden), false, `sensor UI must not contain transport token ${forbidden}`);
   }
   assert.match(sensorSource, /collectDpnrTestPhase\(phase, status\)/);
 });
 
-test("APK build transform imports sensor test and auto-starts read-only live only with engine ECU connected", () => {
+test("APK build transform injects dedicated fresh 217E capture with formatted and raw fallback", () => {
   const transformed = patchMainForDpnrPressureSensorTest(
     patchMainForVLinkerRecovery(
       patchMainForResponsiveness(
@@ -97,12 +97,20 @@ test("APK build transform imports sensor test and auto-starts read-only live onl
   assert.match(transformed, /import "\.\/dpnr-pressure-sensor-test\.js";/);
   assert.match(transformed, new RegExp(DPNR_PRESSURE_SENSOR_BUILD_MARKER));
   assert.equal((transformed.match(/dpnr-pressure-sensor-test\.js/g) || []).length, 1);
-  assert.match(transformed, /state\.vehicleKey === VEHICLE_KEYS\.IS220D/);
-  assert.match(transformed, /state\.connected/);
+  assert.match(transformed, /captureFreshDpnrPressureTestSample/);
+  assert.match(transformed, /capture: captureFreshDpnrPressureTestSample/);
+  assert.match(transformed, /prepare: async \(\) => \{ if \(state\.liveActive\) await stopLive\(\); \}/);
+  assert.match(transformed, /candidate\.command === "217E"/);
+  assert.match(transformed, /probe\.rawCommand/);
+  assert.match(transformed, /ATCAF0/);
+  assert.match(transformed, /ATCFC0/);
+  assert.match(transformed, /ATCAF1/);
+  assert.match(transformed, /ATCFC1/);
+  assert.match(transformed, /decodeToyotaReadDataResponse/);
+  assert.match(transformed, /state\.client\.command\("010C"/);
+  assert.match(transformed, /state\.vehicleKey !== VEHICLE_KEYS\.IS220D/);
   assert.match(transformed, /state\.ecuConnected/);
-  assert.match(transformed, /!state\.liveActive/);
-  assert.match(transformed, /!state\.quicklynks/);
-  assert.match(transformed, /void startLive\(\)/);
+  assert.match(transformed, /state\.quicklynks/);
   assert.equal(patchMainForDpnrPressureSensorTest(transformed), transformed);
 });
 
@@ -114,5 +122,9 @@ test("DPNR pressure sensor build transform fails closed if required main anchors
   assert.throws(
     () => patchMainForDpnrPressureSensorTest(mainSource.replace('  if (name === "dpnr") requestAnimationFrame(renderDpnrMonitor);', "")),
     /DPNR page navigation anchor missing|ambiguous/i
+  );
+  assert.throws(
+    () => patchMainForDpnrPressureSensorTest(mainSource.replace('    start: () => { if (!state.liveActive) void startLive(); },', "")),
+    /test-live adapter anchor missing|ambiguous/i
   );
 });
