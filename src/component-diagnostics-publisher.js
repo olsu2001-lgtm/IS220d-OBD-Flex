@@ -23,11 +23,68 @@ let inspectionExecutionStateModulePromise = null;
 let captureHistoryModulePromise = null;
 let techstreamDataListGapModulePromise = null;
 let nextInspectionModulePromise = null;
+let componentDiagnosticsNavigationPromise = null;
 
 function loadPageModule() {
   if (!hasFullBrowserDom()) return null;
   if (!pageModulePromise) pageModulePromise = import("./component-diagnostics-page.js");
   return pageModulePromise;
+}
+
+export function syncComponentDiagnosticsNavigationVisibility(documentObject = globalThis.document) {
+  if (!documentObject || typeof documentObject.querySelector !== "function") return false;
+  const button = documentObject.querySelector("#nav-component-diagnostics");
+  const is220dReferenceNav = documentObject.querySelector("#nav-dpnr");
+  if (!button || !is220dReferenceNav) return false;
+  const shouldBeVisible = !is220dReferenceNav.classList?.contains?.("hidden");
+  button.classList?.toggle?.("hidden", !shouldBeVisible);
+  return shouldBeVisible;
+}
+
+export function activateComponentDiagnosticsPage(documentObject = globalThis.document, windowObject = globalThis.window) {
+  if (!documentObject || typeof documentObject.querySelector !== "function") return false;
+  const button = documentObject.querySelector("#nav-component-diagnostics");
+  const page = documentObject.querySelector("#page-component-diagnostics");
+  if (!button || !page) return false;
+  if (button.classList?.contains?.("hidden")) return false;
+
+  documentObject.querySelectorAll?.(".page")?.forEach?.(candidate => {
+    candidate.classList?.toggle?.("active", candidate.id === "page-component-diagnostics");
+  });
+  page.classList?.remove?.("hidden");
+  documentObject.querySelectorAll?.(".nav-item")?.forEach?.(candidate => {
+    candidate.classList?.toggle?.("active", candidate === button);
+  });
+  windowObject?.scrollTo?.({ top: 0, behavior: "instant" });
+  return true;
+}
+
+export function bindComponentDiagnosticsNavigation(
+  button,
+  documentObject = globalThis.document,
+  windowObject = globalThis.window
+) {
+  if (!button || typeof button.addEventListener !== "function") return false;
+  button.dataset ||= {};
+  if (button.dataset.dynamicNavigationBound === "1") return true;
+  button.dataset.dynamicNavigationBound = "1";
+  button.addEventListener("click", () => activateComponentDiagnosticsPage(documentObject, windowObject));
+  return true;
+}
+
+function installComponentDiagnosticsNavigation() {
+  const pagePromise = loadPageModule();
+  if (!pagePromise) return null;
+  if (!componentDiagnosticsNavigationPromise) {
+    componentDiagnosticsNavigationPromise = pagePromise.then(() => {
+      const button = document.querySelector("#nav-component-diagnostics");
+      const page = document.querySelector("#page-component-diagnostics");
+      if (!button || !page) return false;
+      syncComponentDiagnosticsNavigationVisibility();
+      return bindComponentDiagnosticsNavigation(button);
+    }).catch(() => false);
+  }
+  return componentDiagnosticsNavigationPromise;
 }
 
 function loadGroupOverviewModule() {
@@ -141,6 +198,7 @@ function loadNextInspectionModule() {
 export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}) {
   const pagePromise = loadPageModule();
   if (!pagePromise) return;
+  installComponentDiagnosticsNavigation();
   const overviewPromise = loadGroupOverviewModule();
   const vikadiagObdDiagnosticPagePromise = loadVikadiagObdDiagnosticPageModule();
   const guidedSessionPromise = loadGuidedSessionModule();
@@ -196,6 +254,7 @@ export function publishIs220dComponentDiagnosticCoverageToUi(coverage, meta = {}
 }
 
 loadPageModule();
+installComponentDiagnosticsNavigation();
 loadGroupOverviewModule();
 loadVikadiagObdDiagnosticPageModule();
 loadGuidedSessionModule();

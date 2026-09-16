@@ -1,3 +1,4 @@
+import { collectDpnrTestPhase } from "./dpnr-test-live.js";
 import { buildIs220dRepairManualVisualsHtml } from "./is220d-repair-manual-visuals.js";
 export const DPNR_CLEANING_TEST_STORAGE_KEY = "lexusIs220dDpnrCleaningTestV1";
 
@@ -49,7 +50,7 @@ export function summarizeDpnrCleaningSamples(samples = [], phaseId = "") {
 }
 
 export function assessDpnrCleaningPhase(phaseId, summary) {
-  const pressure = Number(summary?.pressureMedianKpa);
+  const pressure = summary?.pressureMedianKpa;
   if (!Number.isFinite(pressure)) return freeze({ status: "no-data", label: "EI DATAA", message: "217E-paine-eroa ei saatu mittausjaksolta." });
   if (phaseId === "rpm3000" && pressure < 0) {
     return freeze({ status: "strong-deviation", label: "NEGATIIVINEN 3000 RPM", message: "GSIC P1426 -diagnostiikan mukaan negatiivinen DPNR-paine-ero noin 3000 rpm:ssa ilman kuormaa on epälooginen. Tarkista paineletkujen järjestys, tukos ja pressure transmitting pipe -linjat." });
@@ -64,10 +65,10 @@ export function assessDpnrCleaningPhase(phaseId, summary) {
 }
 
 export function compareDpnrCleaningRuns(before = null, after = null) {
-  const b3 = Number(before?.phases?.rpm3000?.pressureMedianKpa);
-  const a3 = Number(after?.phases?.rpm3000?.pressureMedianKpa);
-  const bk = Number(before?.phases?.koeo?.pressureMedianKpa);
-  const ak = Number(after?.phases?.koeo?.pressureMedianKpa);
+  const b3 = before?.phases?.rpm3000?.pressureMedianKpa;
+  const a3 = after?.phases?.rpm3000?.pressureMedianKpa;
+  const bk = before?.phases?.koeo?.pressureMedianKpa;
+  const ak = after?.phases?.koeo?.pressureMedianKpa;
   const has3000 = Number.isFinite(b3) && Number.isFinite(a3);
   const hasKoeo = Number.isFinite(bk) && Number.isFinite(ak);
   let outcome = "incomplete";
@@ -156,31 +157,7 @@ function queryAll(root, selector) {
   return typeof root?.querySelectorAll === "function" ? [...root.querySelectorAll(selector)] : [];
 }
 
-function pressureElement() {
-  const cards = queryAll(globalThis.document, "#dpnrMetricGrid .dpnr-metric");
-  return cards.find(card => /paine|pressure/i.test(query(card, "span")?.textContent || "")) || cards[0] || null;
-}
 
-function readLiveSample() {
-  const documentObject = globalThis.document;
-  if (!documentObject) return null;
-  const pressure = parseFlexNumber(query(pressureElement(), "strong")?.textContent);
-  return {
-    timestamp: Date.now(),
-    pressureKpa: pressure,
-    rpm: parseFlexNumber(query(documentObject, "#dpnrRpm")?.textContent),
-    coolantC: parseFlexNumber(query(documentObject, "#dpnrCoolant")?.textContent),
-    raw217e: String(query(documentObject, "#dpnrRaw217e")?.textContent || "").trim()
-  };
-}
-
-function phaseAcceptsSample(phase, sample) {
-  if (!Number.isFinite(sample?.pressureKpa)) return false;
-  if (!Number.isFinite(sample?.rpm)) return phase.id === "koeo";
-  if (phase.rpmMin != null && sample.rpm < phase.rpmMin) return false;
-  if (phase.rpmMax != null && sample.rpm > phase.rpmMax) return false;
-  return true;
-}
 
 function stylePanel() {
   const documentObject = globalThis.document;
@@ -218,38 +195,32 @@ async function capturePhase(panel, phaseId) {
   const status = query(panel, "#dpnrCleaningStatus");
   const button = query(panel, `[data-dpnr-capture="${phaseId}"]`);
   if (!phase || !button || !status) return;
-  if (!Number.isFinite(readLiveSample()?.pressureKpa)) {
-    status.textContent = "DPNR 217E -dataa ei vielä näy. Yhdistä autoon ja käynnistä tämän sivun DPNR-live ensin.";
+  const controls = queryAll(panel, "button, select").map(control => [control, control.disabled]);
+  for (const [control] of controls) control.disabled = true;
+  try {
+    const samples = await collectDpnrTestPhase(phase, status);
+    const summary = summarizeDpnrCleaningSamples(samples, phaseId);
+    if (!summary.sampleCount) {
+      status.textContent = phaseId === "rpm3000" ? "Mittaus ei saanut kelvollista 217E-dataa 2700–3300 rpm mittausikkunassa. Pidä kierrokset lähempänä 3000 rpm:ää ja yritä uudelleen." : "Mittaus ei saanut kelvollista 217E-dataa valitussa käyttötilassa. Tarkista live-yhteys ja moottorin tila.";
+      status.className = "inline-message warning";
+      return;
+    }
+    const record = safeReadRecord();
+    const run = record[mode] || { capturedAt: Date.now(), phases: {} };
+    run.capturedAt = Date.now();
+    run.phases = { ...(run.phases || {}), [phaseId]: summary };
+    record[mode] = run;
+    safeWriteRecord(record);
+    const assessment = assessDpnrCleaningPhase(phaseId, summary);
+    status.textContent = `${modeLabel(mode)} · ${assessment.message}`;
+    status.className = `inline-message ${assessment.status === "strong-deviation" || assessment.status === "deviation" ? "warning" : ""}`.trim();
+    renderSavedResults(panel, record);
+  } catch (error) {
+    status.textContent = error.message;
     status.className = "inline-message warning";
-    return;
+  } finally {
+    for (const [control, disabled] of controls) control.disabled = disabled;
   }
-  button.disabled = true;
-  status.textContent = `${modeLabel(mode)} · ${phase.label}: mittaus käynnissä…`;
-  status.className = "inline-message";
-  const samples = [];
-  const start = Date.now();
-  while (Date.now() - start < phase.durationMs) {
-    const sample = readLiveSample();
-    if (phaseAcceptsSample(phase, sample)) samples.push(sample);
-    await new Promise(resolve => setTimeout(resolve, 250));
-  }
-  button.disabled = false;
-  const summary = summarizeDpnrCleaningSamples(samples, phaseId);
-  if (!summary.sampleCount) {
-    status.textContent = phaseId === "rpm3000" ? "Mittaus ei saanut kelvollista 217E-dataa 2700–3300 rpm mittausikkunassa. Pidä kierrokset lähempänä 3000 rpm:ää ja yritä uudelleen." : "Mittaus ei saanut kelvollista 217E-dataa valitussa käyttötilassa. Tarkista live-yhteys ja moottorin tila.";
-    status.className = "inline-message warning";
-    return;
-  }
-  const record = safeReadRecord();
-  const run = record[mode] || { capturedAt: Date.now(), phases: {} };
-  run.capturedAt = Date.now();
-  run.phases = { ...(run.phases || {}), [phaseId]: summary };
-  record[mode] = run;
-  safeWriteRecord(record);
-  const assessment = assessDpnrCleaningPhase(phaseId, summary);
-  status.textContent = `${modeLabel(mode)} · ${assessment.message}`;
-  status.className = `inline-message ${assessment.status === "strong-deviation" || assessment.status === "deviation" ? "warning" : ""}`.trim();
-  renderSavedResults(panel, record);
 }
 
 async function copyReport(panel) {
