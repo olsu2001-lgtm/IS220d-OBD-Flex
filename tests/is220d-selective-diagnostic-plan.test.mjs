@@ -17,7 +17,7 @@ test("every production-authorized diagnostic signal resolves to an existing Flex
   for (const signal of IS220D_DIAGNOSTIC_SIGNALS.filter(item => item.productionAuthorized)) {
     assert.ok(signal.metricIds?.length, `${signal.key} needs metricIds`);
     for (const metricId of signal.metricIds) {
-      const metric = PID_BY_ID.get(metricId);
+      const metric = PID_BY_ID[metricId];
       assert.ok(metric, `${signal.key} references missing metric ${metricId}`);
       const command = metric.toyotaCommand || standardCommandForMetric(metric);
       assert.ok(command, `${metricId} has no production read identity`);
