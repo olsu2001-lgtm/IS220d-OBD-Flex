@@ -27,6 +27,18 @@ function runtimeError(code, message, details = {}) {
   return error;
 }
 
+function copyMetricDefinition(definition) {
+  return { ...definition };
+}
+
+function copyProbe(probe) {
+  if (!probe) return null;
+  return {
+    ...probe,
+    fields: Array.isArray(probe.fields) ? probe.fields.map(field => ({ ...field })) : []
+  };
+}
+
 /**
  * Resolve executable read sources from metric IDs only.
  *
@@ -43,26 +55,28 @@ export function resolveIs220dSelectiveMetricReadGroups(metricIds) {
 
   const groups = new Map();
   for (const metricId of ids) {
-    const definition = PID_BY_ID[metricId];
-    if (!definition) {
+    const registryDefinition = PID_BY_ID[metricId];
+    if (!registryDefinition) {
       throw runtimeError("UNKNOWN_METRIC", `Selective-diagnostiikka viittasi tuntemattomaan Flex-mittariin ${metricId}.`, { metricId });
     }
-    if (!metricSupportsVehicle(definition, VEHICLE_KEYS.IS220D)) {
+    if (!metricSupportsVehicle(registryDefinition, VEHICLE_KEYS.IS220D)) {
       throw runtimeError("WRONG_VEHICLE_METRIC", `Flex-mittari ${metricId} ei kuulu IS220d-profiiliin.`, { metricId });
     }
+    const definition = copyMetricDefinition(registryDefinition);
 
     let sourceType;
     let sourceKey;
     let probe = null;
     if (definition.toyotaCommand) {
       const command = normalizeToyotaCommand(definition.toyotaCommand);
-      probe = getProfileReadDataProbe(command, VEHICLE_KEYS.IS220D);
-      if (!probe || !isProfileReadOnlyCommand(command, VEHICLE_KEYS.IS220D)) {
+      const registryProbe = getProfileReadDataProbe(command, VEHICLE_KEYS.IS220D);
+      if (!registryProbe || !isProfileReadOnlyCommand(command, VEHICLE_KEYS.IS220D)) {
         throw runtimeError("TOYOTA_READ_NOT_ALLOWED", `IS220d-profiilin sallintalista esti mittarin ${metricId}.`, { metricId });
       }
       if (!definition.toyotaValueKey) {
         throw runtimeError("MISSING_TOYOTA_VALUE", `Toyota-mittarilta ${metricId} puuttuu varmennettu arvokenttä.`, { metricId });
       }
+      probe = copyProbe(registryProbe);
       sourceType = "toyota-read-data";
       sourceKey = `toyota:${command}`;
     } else if (Number.isInteger(definition.pid) && typeof definition.decode === "function") {
