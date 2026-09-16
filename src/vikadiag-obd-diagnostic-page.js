@@ -4,6 +4,7 @@ import {
 } from "./is220d-vikadiag-obd-test-catalog.js";
 import { getIs220dDiagnosticSignal } from "./is220d-diagnostic-signals.js";
 import { buildIs220dObdDiagnosticVisualHtml } from "./is220d-obd-diagnostic-visuals.js";
+import { publishIs220dDiagnosticTestLab } from "./diagnostic-test-lab-ui.js";
 
 const CURRENT_OBD_READINESS = new Set([
   VIKADIAG_TEST_READINESS.IMPLEMENTED_DEDICATED,
@@ -91,5 +92,6 @@ export function publishVikadiagObdDiagnosticCatalog() {
   const overview = page.querySelector("#bomGroupOverview");
   if (overview?.parentNode) overview.parentNode.insertBefore(section, overview.nextSibling);
   else page.appendChild(section);
+  publishIs220dDiagnosticTestLab();
   return true;
 }
