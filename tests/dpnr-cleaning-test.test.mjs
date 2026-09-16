@@ -53,6 +53,7 @@ test("before negative and after non-negative 3000 rpm is reported as improvement
 });
 
 test("report preserves read-only scope and both measurement rounds", () => {
+  assert.equal(assessDpnrCleaningPhase("koeo", { pressureMedianKpa: null }).status, "no-data");
   const record = {
     before: { phases: { koeo: { pressureMedianKpa: -0.4, sampleCount: 4 }, rpm3000: { pressureMedianKpa: -1.0, sampleCount: 5 } } },
     after: { phases: { koeo: { pressureMedianKpa: 0.0, sampleCount: 4 }, rpm3000: { pressureMedianKpa: 1.2, sampleCount: 5 } } }

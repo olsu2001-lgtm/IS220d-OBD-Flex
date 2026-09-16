@@ -1,4 +1,5 @@
 import { APP_VERSION } from "./app-version.js";
+import { configureDpnrTestLive } from "./dpnr-test-live.js";
 import {
   NativeElmTransport,
   NativeBleElmTransport,
@@ -330,6 +331,7 @@ function applyVehicleProfileUi() {
   const isIs220d = state.vehicleKey === VEHICLE_KEYS.IS220D;
   if (!isIs220d && $("#page-injector-test")?.classList.contains("active")) goToPage("connection");
   if (!isIs220d && $("#page-dpnr")?.classList.contains("active")) goToPage("connection");
+  if (!isIs220d && $("#page-component-diagnostics")?.classList.contains("active")) goToPage("connection");
   if ($("#clearDtcButton")) {
     $("#clearDtcButton").textContent = isCt ? "CT-hybridikoodien poisto ei käytössä" : "Poista vikakoodit…";
     $("#clearDtcButton").disabled = isCt;
@@ -4157,6 +4159,23 @@ function attachEvents() {
 }
 
 async function init() {
+  configureDpnrTestLive({
+    available: () => state.vehicleKey === VEHICLE_KEYS.IS220D && state.connected &&
+      state.ecuConnected && !state.quicklynks && !state.diagnosticRunning &&
+      !state.injectorTestRunning && document.visibilityState !== "hidden" &&
+      $("#page-dpnr")?.classList.contains("active"),
+    running: () => state.liveActive,
+    session: () => state.liveRunId,
+    start: () => { if (!state.liveActive) void startLive(); },
+    read: () => ({
+      timestamp: state.updatedAt.dpnrDifferentialPressure,
+      pressureKpa: state.values.dpnrDifferentialPressure,
+      rpm: state.values.rpm,
+      rpmUpdatedAt: state.updatedAt.rpm,
+      coolantC: state.values.coolant,
+      raw217e: state.rawValues.dpnrDifferentialPressure
+    })
+  });
   themeController = createThemeController({ onChange: handleThemeChange });
   renderThemeSelection(themeController.getSnapshot());
   attachEvents();

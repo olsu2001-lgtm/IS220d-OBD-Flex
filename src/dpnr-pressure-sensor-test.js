@@ -1,7 +1,6 @@
+import { collectDpnrTestPhase } from "./dpnr-test-live.js";
 import { buildIs220dRepairManualVisualsHtml } from "./is220d-repair-manual-visuals.js";
 export const DPNR_PRESSURE_SENSOR_TEST_STORAGE_KEY = "lexusIs220dDpnrPressureSensorTestV1";
-export const DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS = 30000;
-export const DPNR_PRESSURE_SENSOR_FRESH_MAX_AGE_MS = 2500;
 
 export const DPNR_PRESSURE_SENSOR_PHASES = Object.freeze({
   koeo: Object.freeze({
@@ -76,9 +75,9 @@ export function summarizeDpnrPressureSensorSamples(samples = [], phaseId = "") {
 
 export function assessDpnrPressureSensorTest(run = null) {
   const phases = run?.phases || {};
-  const koeo = Number(phases.koeo?.pressureMedianKpa);
-  const idle = Number(phases.idle?.pressureMedianKpa);
-  const rpm3000 = Number(phases.rpm3000?.pressureMedianKpa);
+  const koeo = phases.koeo?.pressureMedianKpa;
+  const idle = phases.idle?.pressureMedianKpa;
+  const rpm3000 = phases.rpm3000?.pressureMedianKpa;
   const complete = Number.isFinite(koeo) && Number.isFinite(idle) && Number.isFinite(rpm3000);
 
   if (!complete) {
@@ -174,87 +173,7 @@ function queryAll(root, selector) {
   return typeof root?.querySelectorAll === "function" ? [...root.querySelectorAll(selector)] : [];
 }
 
-function pressureElement() {
-  const cards = queryAll(globalThis.document, "#dpnrMetricGrid .dpnr-metric");
-  return cards.find(card => /paine|pressure/i.test(query(card, "span")?.textContent || "")) || cards[0] || null;
-}
 
-function normalizeRawHex(value) {
-  return String(value || "").replace(/[^0-9a-f]/gi, "").toUpperCase();
-}
-
-export function parseDpnrMetricAgeMs(value) {
-  const match = String(value || "").match(/(\d+)\s*ms\s*vanha/i);
-  return match ? Number.parseInt(match[1], 10) : NaN;
-}
-
-export function isFreshDpnrPressureSample(sample, maxAgeMs = DPNR_PRESSURE_SENSOR_FRESH_MAX_AGE_MS) {
-  const pressure = Number(sample?.pressureKpa);
-  const ageMs = Number(sample?.ageMs);
-  const raw = normalizeRawHex(sample?.raw217e);
-  return Number.isFinite(pressure) &&
-    Number.isFinite(ageMs) &&
-    ageMs >= 0 &&
-    ageMs <= maxAgeMs &&
-    raw.includes("617E");
-}
-
-function readLiveSample() {
-  const documentObject = globalThis.document;
-  if (!documentObject) return null;
-  const pressureCard = pressureElement();
-  return {
-    timestamp: Date.now(),
-    pressureKpa: parseDpnrTestNumber(query(pressureCard, "strong")?.textContent),
-    rpm: parseDpnrTestNumber(query(documentObject, "#dpnrRpm")?.textContent),
-    coolantC: parseDpnrTestNumber(query(documentObject, "#dpnrCoolant")?.textContent),
-    raw217e: String(query(documentObject, "#dpnrRaw217e")?.textContent || "").trim(),
-    ageMs: parseDpnrMetricAgeMs(query(pressureCard, "em")?.textContent)
-  };
-}
-
-function phaseAcceptsSample(phase, sample) {
-  if (!isFreshDpnrPressureSample(sample)) return false;
-  if (!Number.isFinite(sample?.rpm)) return phase.id === "koeo";
-  if (phase.rpmMin != null && sample.rpm < phase.rpmMin) return false;
-  if (phase.rpmMax != null && sample.rpm > phase.rpmMax) return false;
-  return true;
-}
-
-async function ensureFreshDpnrLiveSample(status) {
-  let sample = readLiveSample();
-  if (isFreshDpnrPressureSample(sample)) return sample;
-
-  const documentObject = globalThis.document;
-  const liveButton = query(documentObject, "#dpnrToggleLiveButton");
-  if (!liveButton || liveButton.disabled) {
-    status.textContent = "DPNR-liveä ei voida käynnistää. Yhdistä IS220d:hen vLinker MC/MC+ -yhteydellä ja yritä uudelleen.";
-    status.className = "inline-message warning";
-    return null;
-  }
-
-  const liveAlreadyRunning = /lopeta/i.test(String(liveButton.textContent || ""));
-  if (!liveAlreadyRunning) {
-    status.textContent = "Käynnistetään DPNR-live ja odotetaan tuoretta Toyota 217E -paine-erovastetta…";
-    status.className = "inline-message";
-    liveButton.click?.();
-  } else {
-    status.textContent = "DPNR-live on käynnissä. Odotetaan tuoretta Toyota 217E -paine-erovastetta…";
-    status.className = "inline-message";
-  }
-
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS) {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    sample = readLiveSample();
-    if (isFreshDpnrPressureSample(sample)) return sample;
-  }
-
-  const timeoutSeconds = Math.round(DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS / 1000);
-  status.textContent = `Tuoretta 617E-vastetta ei saatu ${timeoutSeconds} sekunnissa. Tarkista vLinker MC/MC+ -yhteys, ECU-yhteys ja että Toyota 217E näkyy DPNR-raakavasteissa. Quicklynks-binäärikanava ei käytä tätä 217E-lukupolkua.`;
-  status.className = "inline-message warning";
-  return null;
-}
 
 function readRecord() {
   try {
@@ -305,21 +224,10 @@ async function capturePhase(panel, phaseId) {
   const button = query(panel, `[data-dpnr-sensor-capture="${phaseId}"]`);
   if (!phase || !status || !button) return;
 
-  button.disabled = true;
+  const controls = queryAll(panel, "button, select").map(control => [control, control.disabled]);
+  for (const [control] of controls) control.disabled = true;
   try {
-    const firstFreshSample = await ensureFreshDpnrLiveSample(status);
-    if (!firstFreshSample) return;
-
-    status.textContent = `${phase.label}: mittaus käynnissä…`;
-    status.className = "inline-message";
-    const samples = [];
-    if (phaseAcceptsSample(phase, firstFreshSample)) samples.push(firstFreshSample);
-    const startedAt = Date.now();
-    while (Date.now() - startedAt < phase.durationMs) {
-      const sample = readLiveSample();
-      if (phaseAcceptsSample(phase, sample)) samples.push(sample);
-      await new Promise(resolve => setTimeout(resolve, 250));
-    }
+    const samples = await collectDpnrTestPhase(phase, status);
 
     const summary = summarizeDpnrPressureSensorSamples(samples, phaseId);
     if (!summary.sampleCount) {
@@ -337,8 +245,11 @@ async function capturePhase(panel, phaseId) {
     render(panel, record);
     status.textContent = `${phase.label} tallennettu: ${formatNumber(summary.pressureMedianKpa)} kPa · tuore 617E-vastaus varmennettu.`;
     status.className = "inline-message";
+  } catch (error) {
+    status.textContent = error.message;
+    status.className = "inline-message warning";
   } finally {
-    button.disabled = false;
+    for (const [control, disabled] of controls) control.disabled = disabled;
   }
 }
 

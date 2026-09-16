@@ -5,13 +5,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  DPNR_PRESSURE_SENSOR_FRESH_MAX_AGE_MS,
-  DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS,
   assessDpnrPressureSensorTest,
   buildDpnrPressureSensorTestReport,
-  isFreshDpnrPressureSample,
   medianDpnrTestValue,
-  parseDpnrMetricAgeMs,
   parseDpnrTestNumber,
   summarizeDpnrPressureSensorSamples
 } from "../src/dpnr-pressure-sensor-test.js";
@@ -50,31 +46,11 @@ test("DPF/DPNR sensor test number parsing and sample summary are deterministic",
   assert.equal(summary.raw217eLast, "C");
 });
 
-test("fresh 217E gate rejects stale UI values and allows full Toyota live discovery time", () => {
-  assert.equal(parseDpnrMetricAgeMs("148 ms vanha\n61 7E 00 01"), 148);
-  assert.ok(DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS >= 30000);
-  assert.ok(DPNR_PRESSURE_SENSOR_FRESH_MAX_AGE_MS <= 3000);
-  assert.equal(isFreshDpnrPressureSample({
-    pressureKpa: 1.25,
-    ageMs: 148,
-    raw217e: "61 7E 0A 04 02 00"
-  }), true);
-  assert.equal(isFreshDpnrPressureSample({
-    pressureKpa: 1.25,
-    ageMs: DPNR_PRESSURE_SENSOR_FRESH_MAX_AGE_MS + 1,
-    raw217e: "61 7E 0A 04 02 00"
-  }), false);
-  assert.equal(isFreshDpnrPressureSample({
-    pressureKpa: 1.25,
-    ageMs: 100,
-    raw217e: "217E"
-  }), false, "an echoed request is not positive 617E evidence");
-});
-
 test("test remains incomplete until KOEO, idle and 3000 rpm are all measured", () => {
   const assessment = assessDpnrPressureSensorTest({ phases: { koeo: { pressureMedianKpa: 0.2 } } });
   assert.equal(assessment.status, "incomplete");
   assert.match(assessment.message, /kaikki kolme/i);
+  assert.equal(assessDpnrPressureSensorTest(completeRun({ koeo: null, idle: null, rpm3000: null })).status, "incomplete");
 });
 
 test("negative 3000 rpm differential pressure is a GSIC P1426 strong deviation", () => {
@@ -107,12 +83,7 @@ test("sensor test starts existing DPNR live UI when needed but implements no tra
   for (const forbidden of [".send(", "sendCommand(", "ATSH", "ATSP", "02217E", "Mode 04", "clearDtc", "regenerate("]) {
     assert.equal(sensorSource.includes(forbidden), false, `sensor UI must not contain transport token ${forbidden}`);
   }
-  assert.match(sensorSource, /#dpnrMetricGrid/);
-  assert.match(sensorSource, /#dpnrRaw217e/);
-  assert.match(sensorSource, /#dpnrToggleLiveButton/);
-  assert.match(sensorSource, /liveButton\.click\?\.\(\)/);
-  assert.match(sensorSource, /DPNR_PRESSURE_SENSOR_LIVE_TIMEOUT_MS/);
-  assert.match(sensorSource, /Quicklynks-binäärikanava ei käytä tätä 217E-lukupolkua/);
+  assert.match(sensorSource, /collectDpnrTestPhase\(phase, status\)/);
 });
 
 test("APK build transform imports sensor test and auto-starts read-only live only with engine ECU connected", () => {
