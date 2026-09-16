@@ -12,6 +12,13 @@ import { patchCoreForAsyncNativeBridge } from "../scripts/async-native-core-tran
 const root = new URL("../", import.meta.url).pathname;
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const flush = async () => { for (let i = 0; i < 80; i++) await Promise.resolve(); };
+const settle = async (predicate, description, maxTurns = 4000) => {
+  for (let i = 0; i < maxTurns; i++) {
+    await Promise.resolve();
+    if (predicate()) return;
+  }
+  throw new Error(`Timed out waiting for ${description}`);
+};
 
 async function browser() {
   const result = await build({
@@ -112,14 +119,16 @@ test("both real DPNR capture buttons read fresh 217E directly and save all phase
         assert.ok(button);
         state.liveActive = false;
         button.click();
-        await flush();
-        const record = JSON.parse(w.localStorage.getItem(key));
+        assert.equal(button.disabled, true, "guided capture disables its button while direct ECU reads are running");
+        await settle(() => button.disabled === false, `${mode}/${phaseId} guided DPNR capture completion`);
+        const rawRecord = w.localStorage.getItem(key);
+        const record = rawRecord ? JSON.parse(rawRecord) : null;
         assert.ok(record, d.querySelector("#dpnrCleaningStatus").textContent + d.querySelector("#dpnrPressureSensorStatus").textContent);
         const phase = phasePath(record);
+        assert.ok(phase, `saved record must contain ${mode}/${phaseId}`);
         assert.ok(Math.abs(phase.pressureMedianKpa - 5) < 0.001, `217E 0A04 must decode to ~5.00 kPa, got ${phase.pressureMedianKpa}`);
         assert.ok(phase.sampleCount >= 2);
         assert.match(phase.raw217eLast, /61\s*7E/i);
-        assert.equal(button.disabled, false);
       }
     }
     assert.ok(direct217eReads >= 18, "each guided measurement must obtain multiple fresh direct 217E responses");
