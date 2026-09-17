@@ -7,6 +7,12 @@ function freeze(value) {
   return value;
 }
 
+function finiteOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
 export const IS220D_LIVE_REFERENCES = freeze({
   rpm: {
     kind: "range",
@@ -82,12 +88,12 @@ export const IS220D_LIVE_REFERENCES = freeze({
 });
 
 export function inferIs220dLiveContext(values = {}) {
-  const rpm = Number.isFinite(Number(values.rpm)) ? Number(values.rpm) : null;
-  const coolant = Number.isFinite(Number(values.coolant)) ? Number(values.coolant) : null;
-  const speed = Number.isFinite(Number(values.speed)) ? Number(values.speed) : null;
+  const rpm = finiteOrNull(values.rpm);
+  const coolant = finiteOrNull(values.coolant);
+  const speed = finiteOrNull(values.speed);
   const running = rpm !== null && rpm >= 400;
   const keyOn = rpm !== null && rpm < 80;
-  const stationary = speed !== null ? speed <= 3 : false;
+  const stationary = speed !== null && speed <= 3;
   const warm = coolant !== null && coolant >= INJECTOR_TEST_LIMITS.minimumCoolantC;
   const idleCandidate = running && stationary && warm && rpm >= 500 && rpm <= 1600;
   return freeze({ rpm, coolant, speed, running, keyOn, stationary, warm, idleCandidate });
@@ -109,8 +115,8 @@ function contextApplies(reference, context) {
 
 export function evaluateIs220dLiveReference(metricId, value, contextValues = {}) {
   const reference = resolveReference(metricId);
-  const numeric = Number(value);
-  if (!reference || !Number.isFinite(numeric)) return null;
+  const numeric = finiteOrNull(value);
+  if (!reference || numeric === null) return null;
   const context = inferIs220dLiveContext(contextValues);
   const applicable = contextApplies(reference, context);
   const base = { metricId, reference, applicable, context };
