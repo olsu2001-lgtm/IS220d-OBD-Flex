@@ -386,7 +386,7 @@ function syncLiveStatus(){
 
 function applyLiveMetricFilter(){
   const grid=document.querySelector("#metricGrid");
-  if(!grid)return;
+  if(!grid||typeof grid.querySelectorAll!=="function")return;
   const panel=document.querySelector("#iosLiveExplorer");
   const expanded=panel?.dataset.expanded==="true";
   const showUnsupported=panel?.dataset.showUnsupported==="true";
