@@ -21,6 +21,26 @@ const NO_FIXED_REFERENCE = Object.freeze({
   boostPressure: "Ei kiinteää yksittäisarvoa · arvioi ahtopaine kuormituksen, MAFin, BAROn ja RPM:n kanssa."
 });
 
+function ensureReferenceStyles() {
+  if(document.querySelector("#ios-live-reference-styles"))return;
+  const style=document.createElement("style");
+  style.id="ios-live-reference-styles";
+  style.textContent=`
+    .ios-live-reference,.ios-metric-reference{margin-top:5px;padding-top:6px;border-top:1px solid var(--ios-separator);color:var(--ios-secondary);font-size:10px;line-height:1.35}
+    .ios-live-reference[data-reference-state="within"],.ios-metric-reference[data-reference-state="within"]{color:var(--ios-green)}
+    .ios-live-reference[data-reference-state="outside"],.ios-live-reference[data-reference-state="attention"],.ios-metric-reference[data-reference-state="outside"],.ios-metric-reference[data-reference-state="attention"]{color:var(--ios-yellow)}
+    .ios-live-reference[data-reference-state="reference-only"],.ios-metric-reference[data-reference-state="reference-only"]{color:var(--ios-blue)}
+    .ios-live-reference[data-reference-state="condition-not-met"],.ios-live-reference[data-reference-state="not-applicable"],.ios-metric-reference[data-reference-state="condition-not-met"],.ios-metric-reference[data-reference-state="not-applicable"]{color:var(--ios-secondary)}
+    .ios-live-core-card[data-reference-state="outside"],.ios-live-core-card[data-reference-state="attention"]{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ios-yellow) 58%,transparent)}
+    .ios-live-core-card[data-reference-state="within"]{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ios-green) 45%,transparent)}
+    .ios-reference-summary{display:grid;gap:5px;margin:-2px 0 14px;padding:13px 14px;border:1px solid var(--ios-separator);border-radius:17px;background:var(--ios-group)}
+    .ios-reference-summary>div{display:flex;justify-content:space-between;gap:12px;align-items:center}.ios-reference-summary span{color:var(--ios-secondary);font-size:10px;font-weight:700;letter-spacing:.07em}.ios-reference-summary strong{font-size:13px;text-align:right}.ios-reference-summary small{color:var(--ios-secondary);font-size:11px;line-height:1.35}
+    .ios-reference-summary[data-state="within"] strong{color:var(--ios-green)}.ios-reference-summary[data-state="attention"] strong{color:var(--ios-yellow)}
+    @media(max-width:420px){.ios-reference-summary>div{align-items:flex-start;flex-direction:column;gap:3px}.ios-reference-summary strong{text-align:left}}
+  `;
+  document.head.append(style);
+}
+
 function detectedVehicleKey() {
   const text=(document.querySelector("#vehicleIdentity")?.textContent||"").toLowerCase();
   if(text.includes("is220d")||text.includes("2ad-fhv")) return "is220d";
@@ -69,9 +89,11 @@ function ensureNode(parent, className) {
   return node;
 }
 
+function setText(node,text){if(node&&node.textContent!==text)node.textContent=text;}
+
 function setNode(node, text, state="idle", title="") {
   if(!node)return;
-  if(node.textContent!==text)node.textContent=text;
+  setText(node,text);
   if(node.dataset.referenceState!==state)node.dataset.referenceState=state;
   if(title&&node.title!==title)node.title=title;
 }
@@ -115,6 +137,7 @@ function annotateCoreCards() {
     const node=ensureNode(card,"ios-live-reference");
     if(!is220d){
       setNode(node,"Ajoneuvokohtaista viitettä ei valittu","idle");
+      delete card.dataset.referenceState;
       return;
     }
     const comparison=renderReference(metricId,metricValue(metricId),context);
@@ -177,8 +200,8 @@ function updateReferenceSummary() {
   const title=box.querySelector("#iosReferenceSummaryTitle");
   const detail=box.querySelector("#iosReferenceSummaryDetail");
   if(detectedVehicleKey()!=="is220d"){
-    setNode(title,"IS220d-viitteet eivät ole käytössä","idle");
-    if(detail)detail.textContent="Viitteet aktivoituvat, kun IS220d / 2AD-FHV on tunnistettu.";
+    setText(title,"IS220d-viitteet eivät ole käytössä");
+    setText(detail,"Viitteet aktivoituvat, kun IS220d / 2AD-FHV on tunnistettu.");
     box.dataset.state="idle";
     return;
   }
@@ -188,18 +211,16 @@ function updateReferenceSummary() {
   const within=applicable.filter(item=>item.status==="within");
   const waiting=comparisons.filter(item=>item.status==="not-applicable");
   if(!applicable.length){
-    if(title)title.textContent="Ei vielä vertailukelpoista käyttötilaa";
-    if(detail)detail.textContent=waiting.length?"Arvoja on saatu, mutta niiden viite koskee eri käyttötilaa.":"Käynnistä Live-data viitevertailua varten.";
+    setText(title,"Ei vielä vertailukelpoista käyttötilaa");
+    setText(detail,waiting.length?"Arvoja on saatu, mutta niiden viite koskee eri käyttötilaa.":"Käynnistä Live-data viitevertailua varten.");
     box.dataset.state="idle";
     return;
   }
-  if(title)title.textContent=deviations.length?`${deviations.length} viitepoikkeamaa`:`${within.length}/${applicable.length} numeerista vertailua alueella`;
-  if(detail){
-    const labels=deviations.map(item=>referenceForIs220dMetric(item.metricId)?.label).filter(Boolean);
-    detail.textContent=deviations.length
-      ? `Tarkista: ${labels.join(" · ")}. Käyttötila huomioitu.`
-      : "Saatavilla olevat soveltuvat numeeriset vertailut ovat viitealueella. Viite ei yksin muodosta komponenttituomiota.";
-  }
+  setText(title,deviations.length?`${deviations.length} viitepoikkeamaa`:`${within.length}/${applicable.length} numeerista vertailua alueella`);
+  const labels=deviations.map(item=>referenceForIs220dMetric(item.metricId)?.label).filter(Boolean);
+  setText(detail,deviations.length
+    ? `Tarkista: ${labels.join(" · ")}. Käyttötila huomioitu.`
+    : "Saatavilla olevat soveltuvat numeeriset vertailut ovat viitealueella. Viite ei yksin muodosta komponenttituomiota.");
   box.dataset.state=deviations.length?"attention":"within";
 }
 
@@ -218,8 +239,8 @@ function updateHealthRowsFromReferences() {
     fuelRow.dataset.state=state;
     const status=fuelRow.querySelector(".health-state");
     const subtitle=fuelRow.querySelector("small");
-    if(status)status.textContent=railEvaluation.status==="within"?"Rail viitealueella":"Rail poikkeaa viitteestä";
-    if(subtitle)subtitle.textContent=`${(rail/1000).toFixed(1).replace(".",",")} MPa · viite ${referenceForIs220dMetric("railPressure").label}`;
+    setText(status,railEvaluation.status==="within"?"Rail viitealueella":"Rail poikkeaa viitteestä");
+    setText(subtitle,`${(rail/1000).toFixed(1).replace(".",",")} MPa · viite ${referenceForIs220dMetric("railPressure").label}`);
   }
 
   if(electricalRow&&voltageEvaluation?.applicable){
@@ -227,8 +248,8 @@ function updateHealthRowsFromReferences() {
     electricalRow.dataset.state=state;
     const status=electricalRow.querySelector(".health-state");
     const subtitle=electricalRow.querySelector("small");
-    if(status)status.textContent=voltageEvaluation.status==="outside"?"Poikkeaa latausohjeesta":"Latausohjeen alueella";
-    if(subtitle)subtitle.textContent=`${volts.toFixed(2).replace(".",",")} V · vertailu noin 13–15 V`;
+    setText(status,voltageEvaluation.status==="outside"?"Poikkeaa latausohjeesta":"Latausohjeen alueella");
+    setText(subtitle,`${volts.toFixed(2).replace(".",",")} V · vertailu noin 13–15 V`);
   }
 }
 
@@ -247,6 +268,7 @@ function schedule(){
   if(typeof requestAnimationFrame==="function")requestAnimationFrame(run);else setTimeout(run,0);
 }
 
+ensureReferenceStyles();
 new MutationObserver(schedule).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["class"]});
 setInterval(schedule,1700);
 queueMicrotask(schedule);
