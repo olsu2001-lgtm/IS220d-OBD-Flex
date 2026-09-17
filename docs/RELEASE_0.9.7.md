@@ -35,3 +35,4 @@ MAF- ja ahtopainearvoille ei anneta keinotekoista yhtä normaaliarvoa, vaan niit
 - Release-haaran Health Check -UI-shellin syntaksi tarkistettu ennen julkaisu-CI:n ajoa.
 - UI-moduulien selainelinkaari erotettu puhtaasta versionumeromoduulista, jotta Node-regressiotestit ja jsdom-testien purku eivät jätä taustalla ajavia päivityssilmukoita.
 - UI-shellissä on yhteensopivuuspolku myös buildin kevennetylle WebView/DOM-savutestille.
+- Live-mittarilistan suodatus ohittaa turvallisesti ympäristöt, joissa elementtikohtainen `querySelectorAll` ei ole käytettävissä.
