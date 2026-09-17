@@ -1,4 +1,5 @@
 import "./ui-shell.js";
+import "./ui-reference-layer.js";
 import packageMeta from "../package.json" with { type: "json" };
 
 // The only editable application version is package.json:version.
