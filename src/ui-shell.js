@@ -23,14 +23,16 @@ const TEST_LINKS = [
 
 const MORE_LINKS = [
   ["connection", "Yhteys ja ajoneuvo", "Adapteri, protokolla ja ECU"],
+  ["appearance", "Ulkoasu", "Teema ja näyttö"],
   ["sessions", "Tallennetut ajot", "Raportit ja aiemmat mittaukset"],
   ["component-diagnostics", "Komponenttidiagnostiikka", "BOM ja tarkastuskohteet", "is220d"],
+  ["trace-tools", "BLE-jälkianalyysi", "Quicklynks / OBD Plus -asiantuntijatyökalu"],
   ["terminal", "Raakaterminaali", "Asiantuntijatyökalut"]
 ];
 
 const HUB_ICONS = {
-  connection: "⌁", live: "⌁", dtc: "!", "injector-test": "INJ", dpnr: "DPF",
-  drive: "●", power: "↗", "ct-test": "HV", sessions: "▤",
+  connection: "⌁", appearance: "Aa", live: "⌁", dtc: "!", "injector-test": "INJ", dpnr: "DPF",
+  drive: "●", power: "↗", "ct-test": "HV", sessions: "▤", "trace-tools":"BLE",
   "component-diagnostics": "◫", terminal: ">_"
 };
 
@@ -128,13 +130,26 @@ function buildHub(id, eyebrow, title, links) {
   return section;
 }
 
+function buildMovedPage(id, eyebrow, title, source) {
+  const section=el("section",{id:`page-${id}`,class:"page ios-root-page"});
+  section.append(el("div",{class:"ios-large-title"},[el("div",{class:"eyebrow",text:eyebrow}),el("h2",{text:title})]));
+  if(source){source.classList.add("ios-relocated-card");section.append(source);}
+  else section.append(el("div",{class:"inline-message",text:"Työkalua ei löytynyt tästä lähteestä."}));
+  return section;
+}
+
 function installPages() {
   const main=document.querySelector("main");
   if(!main||document.querySelector("#page-status")) return;
+  const themeCard=document.querySelector("#page-connection .theme-card");
+  const traceCard=document.querySelector("#obdPlusTraceCard");
   document.querySelectorAll("main > .page").forEach(p=>p.classList.remove("active"));
   main.prepend(buildStatusPage());
   main.append(buildHub("tests","OHJATUT DIAGNOSTIIKAT","Testit",TEST_LINKS));
   main.append(buildHub("more","ASETUKSET JA TYÖKALUT","Lisää",MORE_LINKS));
+  main.append(buildMovedPage("appearance","ULKOASU","Ulkoasu",themeCard));
+  main.append(buildMovedPage("trace-tools","ASIANTUNTIJATYÖKALU","BLE-jälkianalyysi",traceCard));
+  document.querySelector("#page-connection")?.classList.add("ios-connection-page");
 }
 
 function installNavigation() {
@@ -358,7 +373,10 @@ function syncLiveStatus(){
   if(!stateNode||!detailNode)return;
   const connected=document.querySelector("#connectionBadge")?.classList.contains("online");
   const running=/lopeta/i.test(document.querySelector("#toggleLiveButton")?.textContent||"");
-  const available=LIVE_CORE.filter(([id])=>metricParts(id)?.value!=="–"&&!metricParts(id)?.unsupported).length;
+  const available=LIVE_CORE.reduce((count,[id])=>{
+    const parts=metricParts(id);
+    return count+(parts&&!parts.unsupported&&parts.value!=="–"?1:0);
+  },0);
   stateNode.textContent=!connected?"Ei yhteyttä":running?"Live käynnissä":"Live pysäytetty";
   stateNode.dataset.state=!connected?"offline":running?"running":"idle";
   detailNode.textContent=connected?`${available}/${LIVE_CORE.length} ydinarvoa saatavilla`:"Yhdistä autoon nähdäksesi mittausarvot";
