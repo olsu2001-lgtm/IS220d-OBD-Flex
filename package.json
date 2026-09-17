@@ -1,6 +1,6 @@
 {
   "name": "lexus-obd-flex",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "private": true,
   "type": "module",
   "description": "Paikallinen Lexus IS220d- ja CT 200h OBD Flex -diagnostiikka, automaattinen VIN- ja ajoneuvotunnistus, vaihdettavat teemat, CT 200h -ostotarkastus sekä GPS/OBD-tehotesti vLinker MC+ Classic/BLE-, Quicklynks FFF6- ja yleisille ELM327-adaptereille",
