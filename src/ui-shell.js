@@ -52,6 +52,7 @@ function linkRow(page, title, subtitle, vehicleOnly="") {
   const button = el("button", { class:"ios-list-row", type:"button" });
   button.dataset.go = page;
   if (vehicleOnly) button.dataset.vehicleOnly = vehicleOnly;
+  button.setAttribute("aria-label", `${title}. ${subtitle}`);
   button.append(
     iconFor(page),
     el("span", { class:"ios-list-copy" }, [el("strong", { text:title }), el("small", { text:subtitle })]),
@@ -64,6 +65,7 @@ function healthRow(id, title, subtitle) {
   const row = el("button", { class:"health-row", type:"button" });
   row.dataset.healthId = id;
   row.dataset.go = HEALTH_TARGETS[id];
+  row.dataset.title = title;
   row.append(
     el("span", { class:"health-symbol", text:"•" }),
     el("span", { class:"ios-list-copy" }, [el("strong", { text:title }), el("small", { text:subtitle })]),
@@ -75,14 +77,21 @@ function healthRow(id, title, subtitle) {
 
 function buildStatusPage() {
   const section = el("section", { id:"page-status", class:"page ios-root-page active" });
+  const orb = el("div", { class:"health-hero-orb" }, [
+    el("strong", { id:"healthOrbValue", text:"–" }),
+    el("small", { text:"data" })
+  ]);
   const hero = el("div", { class:"health-hero health-idle" }, [
-    el("div", { class:"health-hero-orb", text:"L" }),
+    orb,
     el("div", { class:"health-hero-copy" }, [
       el("span", { text:"AJONEUVON TILA" }),
       el("strong", { id:"healthHeadline", text:"Yhdistä autoon" }),
-      el("small", { id:"healthSubline", text:"Tulos muodostuu vain ECU:lta saadusta tiedosta." })
+      el("small", { id:"healthSubline", text:"Tulos muodostuu vain ECU:lta saadusta tiedosta." }),
+      el("small", { id:"healthUpdated", class:"health-updated", text:"Ei mittaustietoa" })
     ])
   ]);
+  hero.setAttribute("role", "status");
+  hero.setAttribute("aria-live", "polite");
   const summary = el("div", { class:"health-summary-strip" }, [
     el("div", {}, [el("span", { text:"YHTEYS" }), el("strong", { id:"healthConnectionSummary", text:"Ei yhteyttä" })]),
     el("div", {}, [el("span", { text:"LÖYDÖKSET" }), el("strong", { id:"healthFindingSummary", text:"–" })]),
@@ -137,6 +146,8 @@ function installNavigation() {
   [["status","Tila","●"],["live","Live","⌁"],["tests","Testit","✓"],["more","Lisää","•••"]].forEach(([page,label,icon])=>{
     const b=el("button", { class:`ios-tab ${page==="status"?"active":""}`, type:"button" });
     b.dataset.iosPage=page;
+    b.setAttribute("aria-label", label);
+    if(page==="status") b.setAttribute("aria-current", "page");
     b.append(el("span", { class:"ios-tab-icon", text:icon }),el("span", { text:label }));
     nav.append(b);
   });
@@ -157,7 +168,9 @@ function showPage(page) {
     const direct=tab.dataset.iosPage===page;
     const tests=tab.dataset.iosPage==="tests"&&TEST_LINKS.some(([p])=>p===page);
     const more=tab.dataset.iosPage==="more"&&MORE_LINKS.some(([p])=>p===page);
-    tab.classList.toggle("active",direct||tests||more);
+    const active=direct||tests||more;
+    tab.classList.toggle("active",active);
+    if(active) tab.setAttribute("aria-current","page"); else tab.removeAttribute("aria-current");
   });
   window.scrollTo({top:0,behavior:"instant"});
   return true;
@@ -168,8 +181,10 @@ function installSubpageBackButtons() {
     const section=document.querySelector(`#page-${page}`);
     if(!section||section.querySelector(":scope > .ios-back")) return;
     const hub=parentHub(page);
-    const button=el("button", { class:"ios-back", type:"button", text:`‹ ${hub==="tests"?"Testit":"Lisää"}` });
+    const label=hub==="tests"?"Testit":"Lisää";
+    const button=el("button", { class:"ios-back", type:"button", text:`‹ ${label}` });
     button.dataset.go=hub;
+    button.setAttribute("aria-label", `Takaisin: ${label}`);
     section.prepend(button);
   });
 }
@@ -188,6 +203,7 @@ function status(row,kind,label,subtitle){
   row.dataset.state=kind;
   row.querySelector(".health-state").textContent=label;
   if(subtitle)row.querySelector("small").textContent=subtitle;
+  row.setAttribute("aria-label", `${row.dataset.title || "Järjestelmä"}: ${label}. ${subtitle || ""}`.trim());
 }
 
 function finiteText(selector){
@@ -197,10 +213,36 @@ function finiteText(selector){
   return Number.isFinite(value)?value:null;
 }
 
-function syncVehicleVisibility(){
+function detectedVehicleKey(){
   const identity=(document.querySelector("#vehicleIdentity")?.textContent||"").toLowerCase();
-  const key=identity.includes("ct 200h")||identity.includes("zwa10")?"ct200h":identity.includes("is220d")||identity.includes("2ad-fhv")?"is220d":"";
-  document.querySelectorAll("#page-tests [data-vehicle-only],#page-more [data-vehicle-only]").forEach(n=>n.classList.toggle("hidden",Boolean(key)&&n.dataset.vehicleOnly!==key));
+  if(identity.includes("ct 200h")||identity.includes("zwa10")) return "ct200h";
+  if(identity.includes("is220d")||identity.includes("2ad-fhv")) return "is220d";
+  return "";
+}
+
+function syncVehicleVisibility(){
+  const key=detectedVehicleKey();
+  document.querySelectorAll("#page-tests [data-vehicle-only],#page-more [data-vehicle-only]").forEach(n=>{
+    n.classList.toggle("hidden", !key || n.dataset.vehicleOnly!==key);
+  });
+}
+
+function dtcEvidence(){
+  const ids=["storedDtc","pendingDtc","permanentDtc"];
+  const texts=ids.map(id=>(document.querySelector(`#${id}`)?.textContent||"").trim());
+  const read=texts.every(text=>text&&!/ei luettu/i.test(text));
+  const matches=texts.join(" ").match(/\b[PCUB][0-9A-F]{4}\b/gi)||[];
+  return { read, codes:[...new Set(matches.map(code=>code.toUpperCase()))] };
+}
+
+function latestMetricUpdate(){
+  const times=[...document.querySelectorAll("#metricGrid .metric-time")]
+    .map(node=>node.textContent?.trim()||"")
+    .map(text=>text.match(/Päivitetty\s+(\d{1,2}:\d{2}(?::\d{2})?)/i)?.[1])
+    .filter(Boolean);
+  if(!times.length)return "";
+  const score=time=>time.split(":").map(Number).reduce((sum,value,index)=>sum+value*[3600,60,1][index],0);
+  return times.sort((a,b)=>score(b)-score(a))[0];
 }
 
 function syncHealth(){
@@ -210,7 +252,9 @@ function syncHealth(){
   const vehicle=document.querySelector("#vehicleIdentity")?.textContent?.trim();
   const headline=document.querySelector("#healthHeadline");
   const subline=document.querySelector("#healthSubline");
+  const updated=document.querySelector("#healthUpdated");
   const hero=document.querySelector(".health-hero");
+  const orbValue=document.querySelector("#healthOrbValue");
   const vehicleLine=document.querySelector("#healthVehicleLine");
   const connectionSummary=document.querySelector("#healthConnectionSummary");
   const findingSummary=document.querySelector("#healthFindingSummary");
@@ -222,31 +266,50 @@ function syncHealth(){
     Object.values(rows).forEach(r=>status(r,"idle","Ei tarkistettu"));
     if(headline)headline.textContent="Yhdistä autoon";
     if(subline)subline.textContent="Tulos muodostuu vain ECU:lta saadusta tiedosta.";
-    if(hero)hero.className="health-hero health-idle";
+    if(updated)updated.textContent="Ei mittaustietoa";
+    if(hero){hero.className="health-hero health-idle";hero.style.setProperty("--coverage-angle","0deg");}
+    if(orbValue)orbValue.textContent="–";
     if(findingSummary)findingSummary.textContent="–";
     if(coverageSummary)coverageSummary.textContent="–";
     return;
   }
-  status(rows.engine,ecu?"ok":"attention",ecu?"ECU vastaa":"Tarkista yhteys");
+
   const maf=finiteText('#metric-maf .metric-value');
   const boost=finiteText('#metric-boostPressure .metric-value,#metric-map .metric-value');
-  status(rows.air,maf!==null||boost!==null?"ok":"unavailable",maf!==null||boost!==null?"Dataa saatavilla":"Ei mittausdataa");
   const rail=finiteText('#metric-railPressure .metric-value');
-  status(rows.fuel,rail!==null?"ok":"unavailable",rail!==null?"Rail-data saatavilla":"Ei mittausdataa");
   const dp=finiteText('#metric-dpnrDifferentialPressure .metric-value,#dpnrDifferentialPressure');
-  status(rows.dpnr,dp!==null?"ok":"unavailable",dp!==null?"DPNR-data saatavilla":"Ei DPNR-dataa");
   const volts=finiteText('#metric-voltage .metric-value,#dpnrVoltage');
-  status(rows.electrical,volts!==null?"ok":"unavailable",volts!==null?`${String(volts).replace(".",",")} V`:"Ei jännitedataa");
-  const available=[maf,boost,rail,dp,volts].filter(v=>v!==null).length;
-  status(rows.coverage,available>=3?"ok":"attention",available?`${available}/5 ydinarvoa näkyvissä`:"Aja Live tai testi");
-  const dtcText=(document.querySelector("#storedDtc")?.textContent||"")+" "+(document.querySelector("#pendingDtc")?.textContent||"")+" "+(document.querySelector("#permanentDtc")?.textContent||"");
-  const dtcMatches=dtcText.match(/\b[PCUB][0-9A-F]{4}\b/gi)||[];
-  const uniqueDtcs=[...new Set(dtcMatches.map(code=>code.toUpperCase()))];
-  if(uniqueDtcs.length)status(rows.engine,"fault","Vikakoodi havaittu","Avaa Vikakoodit nähdäksesi löydöksen");
-  if(headline)headline.textContent=uniqueDtcs.length?"Tarkistettavaa löytyi":ecu?"Yhteys kunnossa":"OBD yhdistetty";
-  if(subline)subline.textContent=uniqueDtcs.length?`${uniqueDtcs.length} vahvistettua vikakooditunnistetta näkyvissä.`:"Aja Live ja ohjatut testit kattavuuden täydentämiseksi.";
-  if(hero)hero.className=`health-hero ${uniqueDtcs.length?"health-fault":"health-ok"}`;
-  if(findingSummary)findingSummary.textContent=uniqueDtcs.length?String(uniqueDtcs.length):"0";
+  const available=[maf,boost,rail,dp,volts].filter(value=>value!==null).length;
+  const dtc=dtcEvidence();
+
+  if(!ecu) status(rows.engine,"attention","Tarkista yhteys","Moottori-ECU ei ole vahvistunut");
+  else if(dtc.codes.length) status(rows.engine,"fault",`${dtc.codes.length} vikakoodia","Avaa Vikakoodit nähdäksesi löydökset");
+  else if(dtc.read) status(rows.engine,"ok","Ei vikakoodeja","ECU vastaa ja DTC-luku on tehty");
+  else status(rows.engine,"available","ECU vastaa","Vikakoodit ovat vielä lukematta");
+
+  status(rows.air,maf!==null||boost!==null?"available":"unavailable",maf!==null||boost!==null?"Dataa saatavilla":"Ei mittausdataa");
+  status(rows.fuel,rail!==null?"available":"unavailable",rail!==null?"Rail-data saatavilla":"Ei mittausdataa");
+  status(rows.dpnr,dp!==null?"available":"unavailable",dp!==null?"DPNR-data saatavilla":"Ei DPNR-dataa");
+  status(rows.electrical,volts!==null?"available":"unavailable",volts!==null?`${String(volts).replace(".",",")} V mitattu`:"Ei jännitedataa");
+  status(rows.coverage,available?"available":"attention",available?`${available}/5 ydinarvoa näkyvissä`:"Aja Live tai testi");
+
+  const complete=ecu&&dtc.read&&!dtc.codes.length&&available===5;
+  if(headline)headline.textContent=dtc.codes.length?"Tarkistettavaa löytyi":complete?"Health Check valmis":ecu?"Dataa kerätty":"OBD yhdistetty";
+  if(subline)subline.textContent=dtc.codes.length
+    ? `${dtc.codes.length} vahvistettua vikakooditunnistetta näkyvissä.`
+    : complete
+      ? "Vikakoodiluku ja kaikki ydinarvot ovat saatavilla."
+      : dtc.read
+        ? "Vikakoodiluku valmis. Jatka Live-datalla kattavuuden täydentämiseksi."
+        : "ECU-yhteys toimii. Lue vikakoodit ja käynnistä Live-data.";
+  const latest=latestMetricUpdate();
+  if(updated)updated.textContent=latest?`Viimeisin mittaus ${latest}`:"Live-dataa ei ole vielä mitattu";
+  if(hero){
+    hero.className=`health-hero ${dtc.codes.length?"health-fault":complete?"health-ok":"health-available"}`;
+    hero.style.setProperty("--coverage-angle",`${Math.round(available/5*360)}deg`);
+  }
+  if(orbValue)orbValue.textContent=`${available}/5`;
+  if(findingSummary)findingSummary.textContent=dtc.read?String(dtc.codes.length):"–";
   if(coverageSummary)coverageSummary.textContent=`${available}/5`;
 }
 
@@ -277,11 +340,28 @@ function syncLiveCore(){
   document.querySelectorAll("[data-core-metric]").forEach(node=>{
     const parts=metricParts(node.dataset.coreMetric);
     const strong=node.querySelector("strong"),small=node.querySelector("small");
-    if(!parts||parts.unsupported){strong.textContent="–";small.textContent=parts?.unsupported?"Ei tuettu":"Odottaa dataa";node.dataset.state="unavailable";return;}
+    if(!parts||parts.unsupported){
+      strong.textContent="–";
+      small.textContent=parts?.unsupported?"Ei tuettu":"Odottaa dataa";
+      node.dataset.state="unavailable";
+      return;
+    }
     strong.textContent=`${parts.value}${parts.unit?` ${parts.unit}`:""}`;
     small.textContent=parts.time||"Odottaa päivitystä";
     node.dataset.state=parts.value!=="–"?"live":"idle";
   });
+}
+
+function syncLiveStatus(){
+  const stateNode=document.querySelector("#iosLiveState");
+  const detailNode=document.querySelector("#iosLiveDetail");
+  if(!stateNode||!detailNode)return;
+  const connected=document.querySelector("#connectionBadge")?.classList.contains("online");
+  const running=/lopeta/i.test(document.querySelector("#toggleLiveButton")?.textContent||"");
+  const available=LIVE_CORE.filter(([id])=>metricParts(id)?.value!=="–"&&!metricParts(id)?.unsupported).length;
+  stateNode.textContent=!connected?"Ei yhteyttä":running?"Live käynnissä":"Live pysäytetty";
+  stateNode.dataset.state=!connected?"offline":running?"running":"idle";
+  detailNode.textContent=connected?`${available}/${LIVE_CORE.length} ydinarvoa saatavilla`:"Yhdistä autoon nähdäksesi mittausarvot";
 }
 
 function applyLiveMetricFilter(){
@@ -314,26 +394,38 @@ function enhanceLive(){
   const grid=page.querySelector("#metricGrid");
   if(!grid)return;
   const chart=page.querySelector(".chart-card");
+  const liveStatus=el("div",{class:"ios-live-status"},[
+    el("strong",{id:"iosLiveState",text:"Ei yhteyttä"}),
+    el("small",{id:"iosLiveDetail",text:"Yhdistä autoon nähdäksesi mittausarvot"})
+  ]);
   const coreHeading=el("div",{class:"ios-section-heading"},[el("strong",{text:"Ydinarvot"}),el("small",{text:"Yhdellä silmäyksellä"})]);
   const core=buildLiveCoreGrid();
-  grid.before(coreHeading,core);
+  grid.before(liveStatus,coreHeading,core);
   if(chart)grid.before(chart);
   const explorer=el("div",{id:"iosLiveExplorer",class:"ios-live-explorer"});
   explorer.dataset.expanded="false";
   explorer.dataset.showUnsupported="false";
   const header=el("div",{class:"ios-section-heading"},[el("strong",{text:"Kaikki mittarit"}),el("small",{text:"Raakadata ja lisäarvot"})]);
+  const search=el("input",{id:"iosMetricSearch",type:"search",placeholder:"Hae mittaria",disabled:true});
+  search.setAttribute("aria-label","Hae Live-mittaria");
   const controls=el("div",{class:"ios-live-controls"},[
-    el("input",{id:"iosMetricSearch",type:"search",placeholder:"Hae mittaria",disabled:true}),
+    search,
     el("button",{id:"iosUnsupportedToggle",class:"secondary compact",type:"button",text:"Näytä ei-tuetut",disabled:true}),
     el("button",{id:"iosMetricToggle",class:"secondary compact",type:"button",text:"Näytä kaikki mittarit"})
   ]);
   explorer.append(header,controls);
   grid.before(explorer);
   explorer.addEventListener("click",event=>{
-    if(event.target.id==="iosMetricToggle"){explorer.dataset.expanded=explorer.dataset.expanded==="true"?"false":"true";applyLiveMetricFilter();}
-    if(event.target.id==="iosUnsupportedToggle"){explorer.dataset.showUnsupported=explorer.dataset.showUnsupported==="true"?"false":"true";applyLiveMetricFilter();}
+    if(event.target.id==="iosMetricToggle"){
+      explorer.dataset.expanded=explorer.dataset.expanded==="true"?"false":"true";
+      applyLiveMetricFilter();
+    }
+    if(event.target.id==="iosUnsupportedToggle"){
+      explorer.dataset.showUnsupported=explorer.dataset.showUnsupported==="true"?"false":"true";
+      applyLiveMetricFilter();
+    }
   });
-  explorer.querySelector("#iosMetricSearch").addEventListener("input",applyLiveMetricFilter);
+  search.addEventListener("input",applyLiveMetricFilter);
   applyLiveMetricFilter();
 }
 
@@ -346,10 +438,18 @@ function installStyle(){
   document.head.append(link);
 }
 
+let syncScheduled=false;
 function syncAll(){
   syncHealth();
   syncLiveCore();
+  syncLiveStatus();
   applyLiveMetricFilter();
+}
+function scheduleSync(){
+  if(syncScheduled)return;
+  syncScheduled=true;
+  const run=()=>{syncScheduled=false;syncAll();};
+  if(typeof requestAnimationFrame==="function")requestAnimationFrame(run);else setTimeout(run,0);
 }
 
 installStyle();
@@ -358,6 +458,6 @@ installNavigation();
 installSubpageBackButtons();
 installRouting();
 enhanceLive();
-new MutationObserver(syncAll).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["class"]});
-setInterval(syncAll,1500);
-queueMicrotask(syncAll);
+new MutationObserver(scheduleSync).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["class"]});
+setInterval(scheduleSync,1500);
+queueMicrotask(scheduleSync);
