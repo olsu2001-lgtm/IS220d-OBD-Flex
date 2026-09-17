@@ -457,25 +457,39 @@ function installStyle(){
 }
 
 let syncScheduled=false;
+function hasDom(){
+  return typeof document!=="undefined"&&Boolean(document?.body);
+}
 function syncAll(){
+  if(!hasDom())return;
   syncHealth();
   syncLiveCore();
   syncLiveStatus();
   applyLiveMetricFilter();
 }
 function scheduleSync(){
-  if(syncScheduled)return;
+  if(!hasDom()||syncScheduled)return;
   syncScheduled=true;
-  const run=()=>{syncScheduled=false;syncAll();};
+  const run=()=>{
+    syncScheduled=false;
+    if(!hasDom())return;
+    syncAll();
+  };
   if(typeof requestAnimationFrame==="function")requestAnimationFrame(run);else setTimeout(run,0);
 }
 
-installStyle();
-installPages();
-installNavigation();
-installSubpageBackButtons();
-installRouting();
-enhanceLive();
-new MutationObserver(scheduleSync).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["class"]});
-setInterval(scheduleSync,1500);
-queueMicrotask(scheduleSync);
+function bootUiShell(){
+  if(!hasDom())return;
+  installStyle();
+  installPages();
+  installNavigation();
+  installSubpageBackButtons();
+  installRouting();
+  enhanceLive();
+  if(typeof MutationObserver==="function"){
+    new MutationObserver(scheduleSync).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["class"]});
+  }
+  queueMicrotask(scheduleSync);
+}
+
+bootUiShell();

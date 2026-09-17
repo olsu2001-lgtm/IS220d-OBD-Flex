@@ -254,21 +254,34 @@ function updateHealthRowsFromReferences() {
 }
 
 let scheduled=false;
+function hasDom(){
+  return typeof document!=="undefined"&&Boolean(document?.body);
+}
 function syncReferences(){
   scheduled=false;
+  if(!hasDom())return;
   annotateCoreCards();
   annotateRawMetricCards();
   updateReferenceSummary();
   updateHealthRowsFromReferences();
 }
 function schedule(){
-  if(scheduled)return;
+  if(!hasDom()||scheduled)return;
   scheduled=true;
-  const run=()=>syncReferences();
+  const run=()=>{
+    if(!hasDom()){scheduled=false;return;}
+    syncReferences();
+  };
   if(typeof requestAnimationFrame==="function")requestAnimationFrame(run);else setTimeout(run,0);
 }
 
-ensureReferenceStyles();
-new MutationObserver(schedule).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["class"]});
-setInterval(schedule,1700);
-queueMicrotask(schedule);
+function bootReferenceLayer(){
+  if(!hasDom())return;
+  ensureReferenceStyles();
+  if(typeof MutationObserver==="function"){
+    new MutationObserver(schedule).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["class"]});
+  }
+  queueMicrotask(schedule);
+}
+
+bootReferenceLayer();
