@@ -1,0 +1,53 @@
+name: Fix 0.9.7 UI smoke compatibility
+
+on:
+  push:
+    branches:
+      - release/0.9.7-ios-health-check
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Add compatibility guards for minimal WebView smoke DOM
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/ui-shell.js')
+          text = p.read_text()
+
+          old = '  old.after(nav);\n'
+          new = '''  if(typeof old.after==="function") old.after(nav);\n  else if(typeof document.body?.append==="function") document.body.append(nav);\n'''
+          if old not in text:
+              raise SystemExit('navigation after() anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    const section=document.querySelector(`#page-${page}`);\n    if(!section||section.querySelector(":scope > .ios-back")) return;\n'''
+          new = '''    const section=document.querySelector(`#page-${page}`);\n    if(!section||typeof section.querySelector!=="function"||typeof section.prepend!=="function") return;\n    if(section.querySelector(":scope > .ios-back")) return;\n'''
+          if old not in text:
+              raise SystemExit('subpage back anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''  const page=document.querySelector("#page-live");\n  if(!page||page.dataset.iosEnhanced)return;\n'''
+          new = '''  const page=document.querySelector("#page-live");\n  if(!page||page.dataset.iosEnhanced||typeof page.querySelector!=="function")return;\n'''
+          if old not in text:
+              raise SystemExit('enhanceLive page anchor not found')
+          text = text.replace(old, new, 1)
+
+          p.write_text(text)
+          Path('.github/workflows/fix-ui-smoke-compat.yml').unlink()
+          PY
+      - name: Commit compatibility fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/ui-shell.js .github/workflows/fix-ui-smoke-compat.yml
+          git commit -m "Make Health Check UI compatible with smoke DOM"
+          git push origin HEAD:${GITHUB_REF_NAME}
