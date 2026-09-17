@@ -298,7 +298,7 @@ function syncHealth(){
   const dtc=dtcEvidence();
 
   if(!ecu) status(rows.engine,"attention","Tarkista yhteys","Moottori-ECU ei ole vahvistunut");
-  else if(dtc.codes.length) status(rows.engine,"fault",`${dtc.codes.length} vikakoodia","Avaa Vikakoodit nähdäksesi löydökset");
+  else if(dtc.codes.length) status(rows.engine,"fault",`${dtc.codes.length} vikakoodia`,"Avaa Vikakoodit nähdäksesi löydökset");
   else if(dtc.read) status(rows.engine,"ok","Ei vikakoodeja","ECU vastaa ja DTC-luku on tehty");
   else status(rows.engine,"available","ECU vastaa","Vikakoodit ovat vielä lukematta");
 
