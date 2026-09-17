@@ -166,7 +166,8 @@ function installNavigation() {
     b.append(el("span", { class:"ios-tab-icon", text:icon }),el("span", { text:label }));
     nav.append(b);
   });
-  old.after(nav);
+  if(typeof old.after==="function") old.after(nav);
+  else if(typeof document.body?.append==="function") document.body.append(nav);
 }
 
 function parentHub(page) {
@@ -194,7 +195,8 @@ function showPage(page) {
 function installSubpageBackButtons() {
   [...TEST_LINKS, ...MORE_LINKS].forEach(([page])=>{
     const section=document.querySelector(`#page-${page}`);
-    if(!section||section.querySelector(":scope > .ios-back")) return;
+    if(!section||typeof section.querySelector!=="function"||typeof section.prepend!=="function") return;
+    if(section.querySelector(":scope > .ios-back")) return;
     const hub=parentHub(page);
     const label=hub==="tests"?"Testit":"Lisää";
     const button=el("button", { class:"ios-back", type:"button", text:`‹ ${label}` });
@@ -406,7 +408,7 @@ function applyLiveMetricFilter(){
 
 function enhanceLive(){
   const page=document.querySelector("#page-live");
-  if(!page||page.dataset.iosEnhanced)return;
+  if(!page||page.dataset.iosEnhanced||typeof page.querySelector!=="function")return;
   page.dataset.iosEnhanced="true";
   page.classList.add("ios-live-page");
   const grid=page.querySelector("#metricGrid");
