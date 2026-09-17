@@ -32,3 +32,4 @@ MAF- ja ahtopainearvoille ei anneta keinotekoista yhtä normaaliarvoa, vaan niit
 - Lisätty UI-lähdekooditarkistuksia.
 - Lisätty jsdom-pohjainen uuden navigaation ja Health Checkin DOM-smoke-testi.
 - Lisätty IS220d:n viitearvojen ja käyttötilatulkinnan yksikkötestit.
+- Release-haaran Health Check -UI-shellin syntaksi tarkistettu ennen julkaisu-CI:n ajoa.
