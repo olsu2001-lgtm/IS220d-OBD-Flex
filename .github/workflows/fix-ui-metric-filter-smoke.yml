@@ -1,0 +1,44 @@
+name: Fix 0.9.7 Live metric filter smoke compatibility
+
+on:
+  push:
+    branches:
+      - release/0.9.7-ios-health-check
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Guard metric filtering in minimal smoke DOM
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/ui-shell.js')
+          text = p.read_text()
+          old = '''function applyLiveMetricFilter(){
+            const grid=document.querySelector("#metricGrid");
+            if(!grid)return;
+          '''.replace('          ', '')
+          new = '''function applyLiveMetricFilter(){
+            const grid=document.querySelector("#metricGrid");
+            if(!grid||typeof grid.querySelectorAll!=="function")return;
+          '''.replace('          ', '')
+          if old not in text:
+              raise SystemExit('applyLiveMetricFilter anchor not found')
+          p.write_text(text.replace(old, new, 1))
+          Path('.github/workflows/fix-ui-metric-filter-smoke.yml').unlink()
+          PY
+      - name: Commit compatibility fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/ui-shell.js .github/workflows/fix-ui-metric-filter-smoke.yml
+          git commit -m "Guard Live metric filter in smoke DOM"
+          git push origin HEAD:${GITHUB_REF_NAME}
