@@ -13,6 +13,7 @@ test("warm idle context is inferred only when warm, running and stationary",()=>
   assert.equal(inferIs220dLiveContext(warmIdle).idleCandidate,true);
   assert.equal(inferIs220dLiveContext({rpm:800,coolant:60,speed:0}).idleCandidate,false);
   assert.equal(inferIs220dLiveContext({rpm:800,coolant:85,speed:40}).idleCandidate,false);
+  assert.equal(inferIs220dLiveContext({rpm:null,coolant:null,speed:null}).keyOn,false);
 });
 
 test("rail pressure uses the manual-derived 37-43 MPa warm idle reference",()=>{
