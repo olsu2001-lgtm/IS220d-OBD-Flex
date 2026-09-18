@@ -1,3 +1,5 @@
+import "./ui-shell.js";
+import "./ui-reference-layer.js";
 import { APP_VERSION } from "./app-version.js";
 import { configureDpnrTestLive } from "./dpnr-test-live.js";
 import {
