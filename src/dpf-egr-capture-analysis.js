@@ -220,13 +220,19 @@ export function correlateDpfEgrCaptureBundle(bundleInput, targetKey) {
     }));
   }
 
-  candidates.sort((a, b) =>
-    (b.strength === "strong-research-candidate") - (a.strength === "strong-research-candidate") ||
-    (b.strength === "research-candidate") - (a.strength === "research-candidate") ||
-    b.r2 - a.r2 ||
-    a.normalizedRmse - b.normalizedRmse ||
-    b.phaseCount - a.phaseCount
-  );
+  const strengthRank = value => value === "strong-research-candidate" ? 2 : value === "research-candidate" ? 1 : 0;
+  candidates.sort((a, b) => {
+    const rankDifference = strengthRank(b.strength) - strengthRank(a.strength);
+    if (rankDifference) return rankDifference;
+    const r2Difference = b.r2 - a.r2;
+    if (Math.abs(r2Difference) > 1e-9) return r2Difference;
+    const errorDifference = a.normalizedRmse - b.normalizedRmse;
+    if (Math.abs(errorDifference) > 1e-9) return errorDifference;
+    return a.widthBytes - b.widthBytes ||
+      b.phaseCount - a.phaseCount ||
+      a.byteOffset - b.byteOffset ||
+      a.command.localeCompare(b.command);
+  });
 
   const usablePhases = parsed.phases.filter(phase => Number.isFinite(phase.techstream[targetKey])).length;
   return Object.freeze({
