@@ -98,3 +98,21 @@ test("Health Check keeps data availability distinct from diagnostic assessment",
   assert.match(source, /HEALTH_ASSESSMENT_LABEL/);
   assert.match(source, /Ei käytetä evidenssinä/);
 });
+
+
+test("Health Check technical layers stay collapsed by default", async () => {
+  const [overview, catalog, lab] = await Promise.all([
+    read("src/component-diagnostic-group-overview.js"),
+    read("src/vikadiag-obd-diagnostic-page.js"),
+    read("src/diagnostic-test-lab-ui.js")
+  ]);
+
+  assert.match(overview, /createElement\("details"\)/);
+  assert.match(overview, /panel\.id = "bomGroupOverview"/);
+  assert.match(catalog, /<details id="vikadiagObdDiagnostics"/);
+  assert.match(catalog, /simple-advanced vikadiag-obd-catalog/);
+  assert.match(lab, /<details id="\$\{ROOT_ID\}"/);
+  assert.match(lab, /simple-advanced test-lab-root/);
+  assert.doesNotMatch(catalog, /<details id="vikadiagObdDiagnostics"[^>]*\sopen(?:\s|>)/);
+  assert.doesNotMatch(lab, /<details id="\$\{ROOT_ID\}"[^>]*\sopen(?:\s|>)/);
+});
