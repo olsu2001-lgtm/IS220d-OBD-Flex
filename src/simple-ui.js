@@ -148,7 +148,9 @@ function installSimpleUi() {
   simplifyNavigation();
 }
 
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", installSimpleUi, { once:true });
-else installSimpleUi();
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", installSimpleUi, { once:true });
+  else installSimpleUi();
+}
 
 export { installSimpleUi };
