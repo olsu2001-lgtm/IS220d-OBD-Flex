@@ -72,7 +72,7 @@ export function buildVikadiagObdDiagnosticCatalogHtml(catalog = IS220D_VIKADIAG_
         </article>`).join("")}
     </section>`).join("");
 
-  return `<details id="vikadiagObdDiagnostics" class="card vikadiag-obd-catalog" style="margin-top:16px">
+  return `<details id="vikadiagObdDiagnostics" class="card simple-advanced vikadiag-obd-catalog" style="margin-top:16px">
     <summary><span><strong>Tekninen OBD-katalogi</strong><small>${candidates.length} tuotantoon hyväksyttyä luku-/seulontakohdetta</small></span></summary>
     <div class="vikadiag-obd-catalog-body">
       <h2>OBD-diagnostiikkakohteet</h2>
