@@ -155,11 +155,15 @@ function ensureStyles() {
   const style = document.createElement("style");
   style.id = "bom-group-overview-styles";
   style.textContent = `
-    .bom-group-overview { margin-bottom:14px; }
-    .bom-group-overview-title { display:flex; align-items:end; justify-content:space-between; gap:10px; margin-bottom:8px; }
-    .bom-group-overview-title h3 { margin:0; font-size:14px; }
-    .bom-group-overview-title span { color:var(--muted); font-size:9px; text-align:right; }
-    .bom-group-overview-grid { display:grid; gap:8px; }
+    .bom-group-overview { margin-bottom:14px; overflow:hidden; }
+    .bom-group-overview > summary { display:flex; min-height:52px; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; cursor:pointer; list-style:none; }
+    .bom-group-overview > summary::-webkit-details-marker { display:none; }
+    .bom-group-overview > summary::after { content:"⌄"; margin-left:8px; color:var(--muted); font-size:18px; }
+    .bom-group-overview[open] > summary::after { transform:rotate(180deg); }
+    .bom-group-overview-title { min-width:0; display:grid; gap:2px; }
+    .bom-group-overview-title strong { font-size:14px; }
+    .bom-group-overview-title span { color:var(--muted); font-size:9px; }
+    .bom-group-overview-grid { display:grid; gap:8px; padding:0 12px 12px; }
     .bom-group-overview-card { width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--text); text-align:left; }
     .bom-group-overview-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
     .bom-group-overview-head strong { color:var(--text-strong); font-size:12px; }
@@ -211,10 +215,10 @@ function ensurePanel() {
   const page = document.querySelector("#page-component-diagnostics");
   if (!page) return null;
   ensureStyles();
-  panel = document.createElement("section");
+  panel = document.createElement("details");
   panel.id = "bomGroupOverview";
   panel.className = "bom-group-overview card";
-  panel.innerHTML = `<div class="bom-group-overview-title"><h3>Fyysinen tarkastusjärjestys</h3><span id="bomGroupOverviewMeta">5 aluetta · 23 komponenttia</span></div><div id="bomGroupOverviewGrid" class="bom-group-overview-grid"><div class="bom-group-overview-empty">Aja BOM-komponenttidiagnoosi nähdäksesi aluekohtaisen kattavuuden.</div></div>`;
+  panel.innerHTML = `<summary><span class="bom-group-overview-title"><strong>Fyysinen tarkastusjärjestys</strong><span id="bomGroupOverviewMeta">5 aluetta · 23 komponenttia</span></span></summary><div id="bomGroupOverviewGrid" class="bom-group-overview-grid"><div class="bom-group-overview-empty">Aja OBD Health Check nähdäksesi aluekohtaisen kattavuuden.</div></div>`;
   const summary = document.querySelector("#bomDiagnosticSummary");
   if (summary?.parentNode) summary.parentNode.insertBefore(panel, summary.nextSibling);
   else page.append(panel);
