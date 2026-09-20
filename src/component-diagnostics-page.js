@@ -12,11 +12,19 @@ export const COMPONENT_DIAGNOSTIC_STATUS = Object.freeze({
 });
 
 export const COMPONENT_ASSESSMENT_STATUS = Object.freeze({
-  "normal-pattern": Object.freeze({ label: "OK", css: "normal-pattern" }),
-  deviation: Object.freeze({ label: "HUOMIO", css: "deviation" }),
-  "strong-deviation": Object.freeze({ label: "TARKISTA", css: "strong-deviation" }),
-  inconclusive: Object.freeze({ label: "EI VARMAA TULOSTA", css: "inconclusive" }),
+  "normal-pattern": Object.freeze({ label: "ARVO USKOTTAVA", css: "normal-pattern" }),
+  deviation: Object.freeze({ label: "POIKKEAMA", css: "deviation" }),
+  "strong-deviation": Object.freeze({ label: "VAHVA POIKKEAMA", css: "strong-deviation" }),
+  inconclusive: Object.freeze({ label: "EI RATKAISUA", css: "inconclusive" }),
   "not-evaluated": Object.freeze({ label: "EI ARVIOITU", css: "not-evaluated" })
+});
+
+const HEALTH_ASSESSMENT_LABEL = Object.freeze({
+  "normal-pattern": "OK",
+  deviation: "HUOMIO",
+  "strong-deviation": "TARKISTA",
+  inconclusive: "EI VARMAA TULOSTA",
+  "not-evaluated": "EI ARVIOITU"
 });
 
 const CLASS_LABEL = Object.freeze({ direct: "DIRECT", indirect: "INDIRECT" });
@@ -68,10 +76,14 @@ export function buildComponentDiagnosticCardHtml(component) {
   const signalText = observed.length ? `Saatu: ${observed.join(", ")}` : attempted.length ? `Yritetty: ${attempted.join(", ")}` : "Tämän ajon signaaleja ei ole kysytty";
   const values = (component?.assessment?.values || []).map(formatAssessmentValue).filter(Boolean);
   const limitations = (component?.assessment?.limitations || []).filter(Boolean);
+  const healthAssessmentLabel = HEALTH_ASSESSMENT_LABEL[component?.assessment?.status] || assessmentMeta.label;
+  const excluded = Array.isArray(component?.excludedSignals) && component.excludedSignals.length
+    ? `<div class="bom-component-excluded">Ei käytetä evidenssinä: <code>${escapeHtml(component.excludedSignals.join(", "))}</code></div>`
+    : "";
   return `<details class="health-component ${escapeHtml(assessmentMeta.css)}">
     <summary>
       <span class="health-component-main"><strong>${escapeHtml(component?.label)}</strong><small>${escapeHtml(group?.shortLabel || "")} · PNC ${escapeHtml(component?.pnc || "–")}</small></span>
-      <span class="health-component-state ${escapeHtml(assessmentMeta.css)}">${escapeHtml(assessmentMeta.label)}</span>
+      <span class="health-component-state ${escapeHtml(assessmentMeta.css)}">${escapeHtml(healthAssessmentLabel)}</span>
     </summary>
     <div class="health-component-body">
       <div class="bom-component-badges"><span class="bom-class ${escapeHtml(component?.diagnosticClass)}">${escapeHtml(CLASS_LABEL[component?.diagnosticClass] || "")}</span><span class="bom-status ${escapeHtml(statusMeta.css)}">${escapeHtml(statusMeta.label)}</span><span class="bom-coverage">${observedGroups}/${required}</span></div>
@@ -79,7 +91,7 @@ export function buildComponentDiagnosticCardHtml(component) {
       ${component?.symptom ? `<p class="bom-symptom"><strong>Oire:</strong> ${escapeHtml(component.symptom)}</p>` : ""}
       <div class="bom-assessment ${escapeHtml(assessmentMeta.css)}"><strong>${escapeHtml(assessmentMeta.label)}</strong><p>${escapeHtml(component?.assessment?.reason || "Komponentille ei ole vielä erillistä arviointisääntöä.")}</p>${values.length ? `<div class="bom-assessment-values">${values.map(v => `<code>${escapeHtml(v)}</code>`).join("")}</div>` : ""}${limitations.length ? `<ul>${limitations.map(v => `<li>${escapeHtml(v)}</li>`).join("")}</ul>` : ""}</div>
       ${buildIs220dRepairManualVisualsHtml(component?.id)}
-      <details class="bom-component-details"><summary>Tekninen evidenssi</summary><div class="bom-signal-line">${escapeHtml(signalText)}</div><div class="bom-source">${escapeHtml(component?.bomSource || "")}</div>${component?.note ? `<p class="bom-component-note">${escapeHtml(component.note)}</p>` : ""}</details>
+      <details class="bom-component-details"><summary>Tekninen evidenssi</summary><div class="bom-signal-line">${escapeHtml(signalText)}</div><div class="bom-source">${escapeHtml(component?.bomSource || "")}</div>${excluded}${component?.note ? `<p class="bom-component-note">${escapeHtml(component.note)}</p>` : ""}</details>
     </div>
   </details>`;
 }
@@ -114,7 +126,16 @@ function pageMarkup(){ return `<section id="page-component-diagnostics" class="p
   <div id="bomComponentList" class="health-groups"><div class="bom-empty">Aja OBD Health Check nähdäksesi auton järjestelmät.</div></div>
 </section>`; }
 
-function installPage(){ if(typeof document==="undefined"||document.querySelector("#page-component-diagnostics"))return; ensureStyles(); const holder=document.createElement("div"); holder.innerHTML=pageMarkup().trim(); document.querySelector("#main")?.insertBefore(holder.firstElementChild,document.querySelector("#page-dtc")||null); const nav=document.querySelector(".bottom-nav"); if(nav&&!document.querySelector("#nav-component-diagnostics")){const b=document.createElement("button");b.id="nav-component-diagnostics";b.className="nav-item hidden";b.type="button";b.dataset.page="component-diagnostics";b.dataset.vehicleOnly="is220d";b.innerHTML="<span>✓</span>Health";nav.insertBefore(b,document.querySelector("#nav-dtc")||null);} document.querySelector("#bomDiagnosticRun")?.addEventListener("click",startComponentDiagnostic); document.querySelector("#bomDiagnosticCancel")?.addEventListener("click",()=>document.querySelector("#cancelGekoTest")?.click()); document.querySelector("#healthFilterToggle")?.addEventListener("click",()=>document.querySelector("#healthFilters")?.classList.toggle("hidden")); for(const s of ["#bomClassFilter","#bomGroupFilter","#bomStatusFilter","#bomAssessmentFilter","#bomSearch"])document.querySelector(s)?.addEventListener(s==="#bomSearch"?"input":"change",renderLatest); document.querySelectorAll("[data-health-assessment]").forEach(b=>b.addEventListener("click",()=>{const select=document.querySelector("#bomAssessmentFilter");if(select){select.value=select.value===b.dataset.healthAssessment?"all":b.dataset.healthAssessment;document.querySelector("#healthFilters")?.classList.remove("hidden");renderLatest();}})); observeFullDiagnosticUi();latestPayload=safeStorageGet();renderLatest();syncDiagnosticControls(); }
+function installPage(){ if(typeof document==="undefined"||document.querySelector("#page-component-diagnostics"))return; ensureStyles(); const holder=document.createElement("div"); holder.innerHTML=pageMarkup().trim(); document.querySelector("#main")?.insertBefore(holder.firstElementChild,document.querySelector("#page-dtc")||null); const nav=document.querySelector(".bottom-nav"); if(nav&&!document.querySelector("#nav-component-diagnostics")){
+  const button=document.createElement("button");
+  button.id = "nav-component-diagnostics";
+  button.className="nav-item hidden";
+  button.type="button";
+  button.dataset.page = "component-diagnostics";
+  button.dataset.vehicleOnly="is220d";
+  button.innerHTML="<span>✓</span>Health";
+  nav.insertBefore(button,document.querySelector("#nav-dtc")||null);
+} document.querySelector("#bomDiagnosticRun")?.addEventListener("click",startComponentDiagnostic); document.querySelector("#bomDiagnosticCancel")?.addEventListener("click",()=>document.querySelector("#cancelGekoTest")?.click()); document.querySelector("#healthFilterToggle")?.addEventListener("click",()=>document.querySelector("#healthFilters")?.classList.toggle("hidden")); for(const s of ["#bomClassFilter","#bomGroupFilter","#bomStatusFilter","#bomAssessmentFilter","#bomSearch"])document.querySelector(s)?.addEventListener(s==="#bomSearch"?"input":"change",renderLatest); document.querySelectorAll("[data-health-assessment]").forEach(b=>b.addEventListener("click",()=>{const select=document.querySelector("#bomAssessmentFilter");if(select){select.value=select.value===b.dataset.healthAssessment?"all":b.dataset.healthAssessment;document.querySelector("#healthFilters")?.classList.remove("hidden");renderLatest();}})); observeFullDiagnosticUi();latestPayload=safeStorageGet();renderLatest();syncDiagnosticControls(); }
 
 function startComponentDiagnostic(){const source=document.querySelector("#runGekoTest"),state=document.querySelector("#bomDiagnosticRunState");if(!source||source.disabled){document.querySelector("#nav-connection")?.click();if(state){state.textContent="Yhdistä ensin autoon. Health Check avautuu yhteyden jälkeen.";state.className="inline-message warning";}return;} const a=document.querySelector("#diagnosticEngineState"),b=document.querySelector("#bomDiagnosticEngineState"),c=document.querySelector("#diagnosticNote"),d=document.querySelector("#bomDiagnosticNote");if(a&&b)a.value=b.value;if(c&&d)c.value=d.value;if(state){state.textContent="OBD Health Check käynnissä…";state.className="inline-message";}source.click();syncDiagnosticControls();}
 function observeFullDiagnosticUi(){if(typeof MutationObserver==="undefined")return;const targets=["#runGekoTest","#cancelGekoTest","#diagnosticProgressText","#diagnosticProgressBar","#diagnosticResultCounts"].map(s=>document.querySelector(s)).filter(Boolean);const o=new MutationObserver(syncDiagnosticControls);targets.forEach(t=>o.observe(t,{attributes:true,childList:true,subtree:true,characterData:true}));}
