@@ -70,19 +70,25 @@ function simplifyNavigation() {
   const nav = document.querySelector(".bottom-nav");
   if (!nav || nav.dataset.simpleUi === "1") return;
   nav.dataset.simpleUi = "1";
-  const secondaryIds = ["nav-injector-test", "nav-dpnr", "nav-power", "nav-sessions", "nav-terminal"];
+  const secondaryIds = ["nav-injector-test", "nav-dpnr", "nav-drive", "nav-power", "nav-sessions", "nav-terminal"];
   for (const id of secondaryIds) $("#" + id)?.classList.add("simple-secondary-nav");
 
   const more = document.createElement("button");
   more.id = "nav-more";
   more.className = "nav-item";
   more.type = "button";
+  more.setAttribute("aria-haspopup", "dialog");
+  more.setAttribute("aria-controls", "simpleMoreSheet");
+  more.setAttribute("aria-expanded", "false");
   more.innerHTML = "<span>•••</span>Lisää";
   nav.append(more);
 
   const sheet = document.createElement("div");
   sheet.id = "simpleMoreSheet";
   sheet.className = "simple-more-sheet hidden";
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-modal", "true");
+  sheet.setAttribute("aria-label", "Lisää toimintoja");
   sheet.innerHTML = `<button class="simple-sheet-backdrop" type="button" aria-label="Sulje"></button><div class="simple-sheet-panel"><div class="simple-sheet-head"><strong>Lisää toimintoja</strong><button id="simpleMoreClose" class="secondary compact" type="button">Sulje</button></div><div id="simpleMoreActions" class="simple-more-actions"></div></div>`;
   document.body.append(sheet);
   const actions = $("#simpleMoreActions");
@@ -96,16 +102,54 @@ function simplifyNavigation() {
     clone.textContent = original.textContent.trim();
     actions.append(clone);
   }
-  const toggle = show => sheet.classList.toggle("hidden", !show);
+
+  const syncMoreActions = () => {
+    let visibleCount = 0;
+    for (const button of actions.querySelectorAll("[data-target-nav]")) {
+      const original = $("#" + button.dataset.targetNav);
+      const unavailable = !original || original.classList.contains("hidden");
+      button.classList.toggle("hidden", unavailable);
+      button.disabled = unavailable;
+      button.setAttribute("aria-hidden", unavailable ? "true" : "false");
+      if (!unavailable) visibleCount += 1;
+    }
+    more.classList.toggle("hidden", visibleCount === 0);
+    if (visibleCount === 0) sheet.classList.add("hidden");
+    return visibleCount;
+  };
+
+  const toggle = show => {
+    const canOpen = syncMoreActions() > 0;
+    const open = Boolean(show && canOpen);
+    sheet.classList.toggle("hidden", !open);
+    more.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) $("#simpleMoreClose")?.focus?.();
+    else if (show === false) more.focus?.();
+  };
+
   more.addEventListener("click", () => toggle(true));
   $("#simpleMoreClose")?.addEventListener("click", () => toggle(false));
   sheet.querySelector(".simple-sheet-backdrop")?.addEventListener("click", () => toggle(false));
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !sheet.classList.contains("hidden")) toggle(false);
+  });
   actions.addEventListener("click", event => {
     const button = event.target.closest("[data-target-nav]");
-    if (!button) return;
+    if (!button || button.disabled) return;
+    const original = $("#" + button.dataset.targetNav);
+    if (!original || original.classList.contains("hidden")) {
+      syncMoreActions();
+      return;
+    }
     toggle(false);
-    $("#" + button.dataset.targetNav)?.click();
+    original.click();
   });
+
+  syncMoreActions();
+  if (typeof MutationObserver !== "undefined") {
+    const observer = new MutationObserver(syncMoreActions);
+    observer.observe(nav, { subtree:true, attributes:true, attributeFilter:["class"] });
+  }
 }
 
 function addStyles() {
