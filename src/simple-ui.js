@@ -70,6 +70,8 @@ function simplifyNavigation() {
   const nav = document.querySelector(".bottom-nav");
   if (!nav || nav.dataset.simpleUi === "1") return;
   nav.dataset.simpleUi = "1";
+  const documentObject = nav.ownerDocument || document;
+  const navQuery = selector => documentObject.querySelector(selector);
   const secondaryIds = ["nav-injector-test", "nav-dpnr", "nav-drive", "nav-power", "nav-sessions", "nav-terminal"];
   for (const id of secondaryIds) $("#" + id)?.classList.add("simple-secondary-nav");
 
@@ -93,7 +95,7 @@ function simplifyNavigation() {
   document.body.append(sheet);
   const actions = $("#simpleMoreActions");
   for (const id of secondaryIds) {
-    const original = $("#" + id);
+    const original = navQuery("#" + id);
     if (!original) continue;
     const clone = document.createElement("button");
     clone.type = "button";
@@ -106,7 +108,7 @@ function simplifyNavigation() {
   const syncMoreActions = () => {
     let visibleCount = 0;
     for (const button of actions.querySelectorAll("[data-target-nav]")) {
-      const original = $("#" + button.dataset.targetNav);
+      const original = navQuery("#" + button.dataset.targetNav);
       const unavailable = !original || original.classList.contains("hidden");
       button.classList.toggle("hidden", unavailable);
       button.disabled = unavailable;
@@ -123,20 +125,20 @@ function simplifyNavigation() {
     const open = Boolean(show && canOpen);
     sheet.classList.toggle("hidden", !open);
     more.setAttribute("aria-expanded", open ? "true" : "false");
-    if (open) $("#simpleMoreClose")?.focus?.();
+    if (open) navQuery("#simpleMoreClose")?.focus?.();
     else if (show === false) more.focus?.();
   };
 
   more.addEventListener("click", () => toggle(true));
-  $("#simpleMoreClose")?.addEventListener("click", () => toggle(false));
+  navQuery("#simpleMoreClose")?.addEventListener("click", () => toggle(false));
   sheet.querySelector(".simple-sheet-backdrop")?.addEventListener("click", () => toggle(false));
-  document.addEventListener("keydown", event => {
+  documentObject.addEventListener("keydown", event => {
     if (event.key === "Escape" && !sheet.classList.contains("hidden")) toggle(false);
   });
   actions.addEventListener("click", event => {
     const button = event.target.closest("[data-target-nav]");
     if (!button || button.disabled) return;
-    const original = $("#" + button.dataset.targetNav);
+    const original = navQuery("#" + button.dataset.targetNav);
     if (!original || original.classList.contains("hidden")) {
       syncMoreActions();
       return;
