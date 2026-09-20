@@ -116,7 +116,7 @@ function addStyles() {
     .simple-connect-card > label[for="deviceSelect"] { font-size:12px; color:var(--text-strong); }
     .simple-connect-card #deviceHelp { margin-bottom:10px; }
     .simple-inline-advanced { margin:8px 0 14px; border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft); }
-    .simple-inline-advanced > summary { padding:12px 2px; cursor:pointer; color:var(--muted); font-size:12px; font-weight:800; list-style:none; }
+    .simple-inline-advanced > summary { min-height:44px; padding:12px 2px; cursor:pointer; color:var(--muted); font-size:12px; font-weight:800; list-style:none; }
     .simple-inline-advanced > summary::-webkit-details-marker { display:none; }
     .simple-inline-advanced > summary::after { content:"⌄"; float:right; }
     .simple-inline-advanced[open] > summary::after { transform:rotate(180deg); }
