@@ -20,6 +20,7 @@ test("browser bundle contains the real simplified shell and Health Check UI", as
     format: "iife",
     platform: "browser",
     target: ["chrome90"],
+    charset: "utf8",
     minify: false,
     logLevel: "silent"
   });
