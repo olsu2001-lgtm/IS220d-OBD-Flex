@@ -103,6 +103,11 @@ import { classifyConnectedVehicle, parseObdVin } from "./vehicle-detection.js";
 import { ecuSurveySnapshotFromDiagnosticRun } from "./ecu-survey-diagnostic.js";
 import { buildEcuSurveyTextReport } from "./ecu-survey-report.js";
 import { recordEcuSurveySnapshot } from "./ecu-survey-history.js";
+import {
+  buildIs220dComponentDiagnosticCoverage,
+  buildIs220dComponentDiagnosticTextReport
+} from "./is220d-component-diagnostics.js";
+import { publishIs220dComponentDiagnosticCoverageToUi } from "./component-diagnostics-publisher.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -2821,7 +2826,19 @@ function finishFullDiagnosticUi(run) {
   };
   state.adapterCapabilities = run.summary.adapterCapabilities;
   const baseReport = buildFullDiagnosticReport(run);
-  state.fullDiagnosticReport = `${baseReport}\n\n${buildEcuSurveyTextReport(run.ecuSurvey, surveyHistory)}`;
+  const ecuSurveyReport = buildEcuSurveyTextReport(run.ecuSurvey, surveyHistory);
+  let componentReport = "";
+  if (run?.meta?.vehicleKey === VEHICLE_KEYS.IS220D) {
+    const componentCoverage = buildIs220dComponentDiagnosticCoverage(run);
+    run.componentDiagnostics = componentCoverage;
+    componentReport = buildIs220dComponentDiagnosticTextReport(componentCoverage).trim();
+    publishIs220dComponentDiagnosticCoverageToUi(componentCoverage, {
+      runId: run.meta?.reportId || "",
+      startedAt: run.startedAt,
+      endedAt: run.endedAt
+    });
+  }
+  state.fullDiagnosticReport = [baseReport, ecuSurveyReport, componentReport].filter(Boolean).join("\n\n");
   const summary = run.summary;
   const status = $("#diagnosticSummary");
   const diagnosticProbeCount = summary.toyotaProbeSummaries.length;
