@@ -83,8 +83,9 @@ test("iOS Health Check shell mounts, relocates secondary tools and summarizes ev
     assert.ok(dom.window.document.querySelector("#metricGrid.ios-metrics-collapsed"));
     assert.equal(dom.window.document.querySelector("#page-connection .hero-card h2").textContent, "Yhdistä autoon");
     assert.equal(dom.window.document.querySelector("#connectButton").textContent, "Yhdistä autoon");
-    assert.ok(dom.window.document.querySelector("#page-connection .ios-connect-advanced #vehicleSelect"));
-    assert.ok(dom.window.document.querySelector("#page-connection .ios-connection-diagnostics #elmDiagnosticCard"));
+    assert.ok(dom.window.document.querySelector("#page-connection #vehicleSelect.ios-connection-advanced-field"));
+    assert.ok(dom.window.document.querySelector("#page-connection #elmDiagnosticCard.ios-connection-secondary"));
+    assert.equal(dom.window.document.querySelector("#iosConnectionAdvancedToggle").getAttribute("aria-expanded"), "false");
     assert.equal(dom.window.document.querySelector("#healthFindingSummary").textContent, "0");
     assert.equal(dom.window.document.querySelector("#healthCoverageSummary").textContent, "4/5");
     assert.equal(dom.window.document.querySelector("#healthHeadline").textContent, "Perustarkistus valmis");
