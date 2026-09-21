@@ -16,12 +16,10 @@ test("passive Techstream DPF/EGR panel mounts outside hidden ELM diagnostics and
 
   const previous = {
     window: globalThis.window,
-    document: globalThis.document,
-    navigator: globalThis.navigator
+    document: globalThis.document
   };
   globalThis.window = dom.window;
   globalThis.document = dom.window.document;
-  globalThis.navigator = dom.window.navigator;
 
   try {
     await import(`../src/techstream-data-list-gap-ui.js?offline-dom=${Date.now()}`);
@@ -45,7 +43,6 @@ test("passive Techstream DPF/EGR panel mounts outside hidden ELM diagnostics and
   } finally {
     globalThis.window = previous.window;
     globalThis.document = previous.document;
-    globalThis.navigator = previous.navigator;
     dom.window.close();
   }
 });
