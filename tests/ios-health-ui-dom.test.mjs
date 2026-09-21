@@ -11,7 +11,17 @@ test("iOS Health Check shell mounts, relocates secondary tools and summarizes ev
     <header class="topbar"><div></div><button id="connectionBadge" class="status-badge online"></button></header>
     <main>
       <section id="page-connection" class="page active">
+        <div class="hero-card"><div><h2>Yhdistä adapteriin</h2><p>Vanha kuvaus</p></div></div>
         <details class="card theme-card"><summary>Teema</summary></details>
+        <div class="card">
+          <label for="deviceSelect">OBD-lukija</label><select id="deviceSelect"></select>
+          <label for="vehicleSelect">Ajoneuvo</label><select id="vehicleSelect"></select><p class="hint">Ajoneuvoapu</p>
+          <div id="vehicleDetection"></div><button id="detectVehicleButton"></button>
+          <label for="protocolSelect">Protokolla</label><select id="protocolSelect"></select>
+          <div class="button-row"><button id="connectButton">Yhdistä</button></div>
+        </div>
+        <div id="elmDiagnosticCard" class="card hidden"></div>
+        <div id="quicklynksDiagnosticCard" class="card hidden"></div>
         <div id="obdPlusTraceCard" class="card">Trace</div>
         <div id="stageEcu" class="connection-stage connected"></div>
         <strong id="vehicleIdentity">Lexus IS220d · XE20 · 2AD-FHV</strong>
@@ -66,11 +76,18 @@ test("iOS Health Check shell mounts, relocates secondary tools and summarizes ev
     assert.ok(dom.window.document.querySelector("#page-status.active"));
     assert.ok(dom.window.document.querySelector("#page-appearance .theme-card"));
     assert.ok(dom.window.document.querySelector("#page-trace-tools #obdPlusTraceCard"));
+    assert.ok(dom.window.document.querySelector("#page-dpf-egr-research #dpfEgrResearchMount"));
+    assert.ok(dom.window.document.querySelector('#page-more [data-go="advanced"]'));
+    assert.ok(dom.window.document.querySelector('#page-advanced [data-go="trace-tools"]'));
     assert.ok(dom.window.document.querySelector("#page-live #iosLiveCore"));
     assert.ok(dom.window.document.querySelector("#metricGrid.ios-metrics-collapsed"));
+    assert.equal(dom.window.document.querySelector("#page-connection .hero-card h2").textContent, "Yhdistä autoon");
+    assert.equal(dom.window.document.querySelector("#connectButton").textContent, "Yhdistä autoon");
+    assert.ok(dom.window.document.querySelector("#page-connection .ios-connect-advanced #vehicleSelect"));
+    assert.ok(dom.window.document.querySelector("#page-connection .ios-connection-diagnostics #elmDiagnosticCard"));
     assert.equal(dom.window.document.querySelector("#healthFindingSummary").textContent, "0");
-    assert.equal(dom.window.document.querySelector("#healthCoverageSummary").textContent, "5/5");
-    assert.equal(dom.window.document.querySelector("#healthHeadline").textContent, "Health Check valmis");
+    assert.equal(dom.window.document.querySelector("#healthCoverageSummary").textContent, "4/5");
+    assert.equal(dom.window.document.querySelector("#healthHeadline").textContent, "Perustarkistus valmis");
     assert.match(dom.window.document.querySelector("#iosLiveDetail").textContent, /^6\/6/);
     assert.equal(dom.window.document.querySelector('[data-health-id="engine"]').dataset.state, "ok");
     assert.equal(dom.window.document.querySelector('[data-health-id="air"]').dataset.state, "available");

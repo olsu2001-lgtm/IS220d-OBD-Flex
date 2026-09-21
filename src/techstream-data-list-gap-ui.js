@@ -109,7 +109,7 @@ function renderDataListExport(root, result) {
 
 function buildCaptureTool(root) {
   const details = create("details");
-  details.append(create("summary", "", "Techstream/J2534-jäljen passiivinen analyysi"));
+  details.append(create("summary", "", "2 · Tarkista J2534-jälki"));
   details.append(create("p", "techstream-gap-note", "Liitä samalta hetkeltä kerätty 7E0/7E8-liikenne. Flex tunnistaa passiivisesti 21→61- ja 22→62-lukuparit. Se ei lähetä jäljen perusteella mitään autolle eikä muuta sallintalistaa."));
   const textarea = create("textarea");
   textarea.setAttribute("aria-label", "Techstream J2534 trace");
@@ -144,7 +144,7 @@ function buildCaptureTool(root) {
 function buildCsvImportTool(root) {
   const details = create("details");
   details.open = true;
-  details.append(create("summary", "", "Techstream Data List CSV/text -importti"));
+  details.append(create("summary", "", "1 · Tuo Techstream-arvot"));
   details.append(create("p", "techstream-gap-note", "Tuo Techstreamin Data List -exportti. DPF/EGR-tutkimus poimii DPF Differential Pressure-, EGR Lift Sensor Output / EGR Lift Position-, Engine Speed- ja MAF-arvot sekä säilyttää CSV:n aikasarjarivit myöhempää korrelaatiota varten. Vanhojen polttoainekohteiden importti säilyy ennallaan."));
 
   const file = create("input", "techstream-gap-file");
@@ -221,8 +221,7 @@ function renderBundleAnalysis(root, result) {
 
 function buildDpfEgrBundleTool(root) {
   const details = create("details");
-  details.open = true;
-  details.append(create("summary", "", "DPF/EGR · vaiheittainen varmennusbundle"));
+  details.append(create("summary", "", "3 · Vertaa kaikki mittausvaiheet"));
   details.append(create("p", "techstream-gap-note", "Tämä työkalu yhdistää useiden Techstream-vaiheiden referenssiarvot saman vaiheen passiivisiin J2534-vastauksiin. Se kokeilee vain raakadatasta 8- ja 16-bittisiä kanavia ja lineaarista sovitusta löytääkseen tutkittavat byte-offsetit. Tulos ei ole vielä tuotantodekooderi."));
   const file = create("input", "techstream-gap-file");
   file.type = "file";
@@ -271,23 +270,23 @@ function ensurePanel() {
   if (typeof document === "undefined") return null;
   let root = document.getElementById(PANEL_ID);
   if (root) return root;
-  const connectionPage = document.getElementById("page-connection");
-  const diagnosticCard = document.getElementById("elmDiagnosticCard");
-  if (!connectionPage) return null;
+  const mount = document.getElementById("dpfEgrResearchMount");
+  const fallback = document.getElementById("page-connection");
+  const host = mount || fallback;
+  if (!host) return null;
   ensureStyles();
-  root = create("details", "techstream-gap");
+  root = create("section", "techstream-gap");
   root.id = PANEL_ID;
-  const head = create("summary", "techstream-gap-head");
-  head.append(create("strong", "", "Techstream · DPF/EGR signaalien varmennus"), create("span", "", "PASSIIVINEN CAPTURE · EI PID-ARVAUSTA"));
+  const head = create("div", "techstream-gap-head");
+  head.append(create("strong", "", "Techstream + J2534"), create("span", "", "OFFLINE · PASSIIVINEN"));
   root.append(head);
-  root.append(create("p", "techstream-gap-note", "Offline-tutkimustyökalu. Tavoite on löytää tämän 2AD-FHV:n oikea DPF Differential Pressure- ja EGR Lift Sensor Output -transaktio sekä todentaa tavurakenne Techstreamiä vasten ennen kuin arvo julkaistaan Flexin live-datana."));
+  root.append(create("p", "techstream-gap-note", "Tuo ensin Techstreamin vertailuarvot ja sen jälkeen saman mittausvaiheen J2534-liikenne. Flex etsii vastaavan raakakanavan ilman uusia autolle lähetettäviä komentoja."));
   renderCaptureProtocol(root);
   renderTargets(root);
-  buildDpfEgrBundleTool(root);
   buildCsvImportTool(root);
   buildCaptureTool(root);
-  if (diagnosticCard?.parentNode === connectionPage) diagnosticCard.before(root);
-  else connectionPage.append(root);
+  buildDpfEgrBundleTool(root);
+  host.append(root);
   return root;
 }
 

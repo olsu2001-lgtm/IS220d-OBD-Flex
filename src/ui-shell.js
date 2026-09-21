@@ -13,27 +13,32 @@ function el(tag, attrs = {}, children = []) {
 }
 
 const TEST_LINKS = [
-  ["dtc", "Vikakoodit", "MODE 03 / 07 / 0A"],
-  ["injector-test", "Suuttimet", "45 s tasapainotesti", "is220d"],
-  ["dpnr", "DPNR", "Paine, lämpötilat ja regenerointi", "is220d"],
-  ["drive", "Koeajo", "Tallenna diagnostiikkadata"],
-  ["power", "Tehotesti", "GPS-pohjainen mittaus"],
+  ["dtc", "Vikakoodit", "Lue moottorin vikakoodit"],
+  ["injector-test", "Suutintesti", "45 s mittaus", "is220d"],
+  ["dpnr", "DPF / DPNR", "Mittaus ja letkutesti", "is220d"],
+  ["drive", "Koeajo", "Tallenna mittaus ajon aikana"],
+  ["power", "Kiihtyvyys / teho", "GPS + OBD"],
   ["ct-test", "CT 200h ostotesti", "Hybridijärjestelmän tarkistus", "ct200h"]
 ];
 
 const MORE_LINKS = [
-  ["connection", "Yhteys ja ajoneuvo", "Adapteri, protokolla ja ECU"],
-  ["appearance", "Ulkoasu", "Teema ja näyttö"],
+  ["connection", "Yhteys", "OBD-lukija ja auto"],
   ["sessions", "Tallennetut ajot", "Raportit ja aiemmat mittaukset"],
-  ["component-diagnostics", "Komponenttidiagnostiikka", "BOM ja tarkastuskohteet", "is220d"],
-  ["trace-tools", "BLE-jälkianalyysi", "Quicklynks / OBD Plus -asiantuntijatyökalu"],
-  ["terminal", "Raakaterminaali", "Asiantuntijatyökalut"]
+  ["dpf-egr-research", "DPF/EGR varmennus", "Techstream + J2534 · offline", "is220d"],
+  ["component-diagnostics", "Varaosat ja tarkastukset", "BOM + diagnostiikkatieto", "is220d"],
+  ["advanced", "Asiantuntijatyökalut", "BLE-jäljet ja tekniset työkalut"],
+  ["appearance", "Ulkoasu", "Teema ja näyttö"]
+];
+
+const ADVANCED_LINKS = [
+  ["trace-tools", "BLE-jälkianalyysi", "Quicklynks / OBD Plus"],
+  ["terminal", "Tekninen komentotila", "Vain sallitut lukukomennot"]
 ];
 
 const HUB_ICONS = {
   connection: "⌁", appearance: "Aa", live: "⌁", dtc: "!", "injector-test": "INJ", dpnr: "DPF",
   drive: "●", power: "↗", "ct-test": "HV", sessions: "▤", "trace-tools":"BLE",
-  "component-diagnostics": "◫", terminal: ">_"
+  "component-diagnostics": "◫", "dpf-egr-research":"DPF", advanced:"••", terminal: ">_"
 };
 
 const HEALTH_TARGETS = { engine:"dtc", air:"live", fuel:"live", dpnr:"dpnr", electrical:"live", coverage:"connection" };
@@ -138,6 +143,24 @@ function buildMovedPage(id, eyebrow, title, source) {
   return section;
 }
 
+function buildResearchPage() {
+  const section=el("section",{id:"page-dpf-egr-research",class:"page ios-root-page", "data-vehicle-only":"is220d"});
+  section.append(
+    el("div",{class:"ios-large-title"},[
+      el("div",{class:"eyebrow",text:"DPF / EGR · VARMENNUS"}),
+      el("h2",{text:"DPF/EGR varmennus"}),
+      el("p",{text:"Vertaa Techstreamin arvoja passiiviseen J2534-liikenteeseen. Flex ei lähetä tästä näkymästä uusia komentoja autolle."})
+    ]),
+    el("div",{class:"ios-research-steps"},[
+      el("div",{},[el("span",{text:"1"}),el("strong",{text:"Mittaa"}),el("small",{text:"Techstream Data List"})]),
+      el("div",{},[el("span",{text:"2"}),el("strong",{text:"Tuo"}),el("small",{text:"CSV + J2534-jälki"})]),
+      el("div",{},[el("span",{text:"3"}),el("strong",{text:"Vertaa"}),el("small",{text:"Etsi vastaava raakakanava"})])
+    ]),
+    el("div",{id:"dpfEgrResearchMount"})
+  );
+  return section;
+}
+
 function installPages() {
   const main=document.querySelector("main");
   if(!main||document.querySelector("#page-status")) return;
@@ -147,6 +170,8 @@ function installPages() {
   main.prepend(buildStatusPage());
   main.append(buildHub("tests","OHJATUT DIAGNOSTIIKAT","Testit",TEST_LINKS));
   main.append(buildHub("more","ASETUKSET JA TYÖKALUT","Lisää",MORE_LINKS));
+  main.append(buildHub("advanced","TEKNISET TYÖKALUT","Asiantuntijatyökalut",ADVANCED_LINKS));
+  main.append(buildResearchPage());
   main.append(buildMovedPage("appearance","ULKOASU","Ulkoasu",themeCard));
   main.append(buildMovedPage("trace-tools","ASIANTUNTIJATYÖKALU","BLE-jälkianalyysi",traceCard));
   document.querySelector("#page-connection")?.classList.add("ios-connection-page");
@@ -173,7 +198,14 @@ function installNavigation() {
 function parentHub(page) {
   if (TEST_LINKS.some(([p])=>p===page)) return "tests";
   if (MORE_LINKS.some(([p])=>p===page)) return "more";
+  if (ADVANCED_LINKS.some(([p])=>p===page)) return "advanced";
   return "";
+}
+
+function rootHub(page) {
+  if (page==="tests" || TEST_LINKS.some(([p])=>p===page)) return "tests";
+  if (page==="more" || MORE_LINKS.some(([p])=>p===page) || ADVANCED_LINKS.some(([p])=>p===page)) return "more";
+  return page;
 }
 
 function showPage(page) {
@@ -181,10 +213,7 @@ function showPage(page) {
   if(!target) return false;
   document.querySelectorAll("main > .page").forEach(p=>p.classList.toggle("active",p===target));
   document.querySelectorAll(".ios-tab").forEach(tab=>{
-    const direct=tab.dataset.iosPage===page;
-    const tests=tab.dataset.iosPage==="tests"&&TEST_LINKS.some(([p])=>p===page);
-    const more=tab.dataset.iosPage==="more"&&MORE_LINKS.some(([p])=>p===page);
-    const active=direct||tests||more;
+    const active=tab.dataset.iosPage===rootHub(page);
     tab.classList.toggle("active",active);
     if(active) tab.setAttribute("aria-current","page"); else tab.removeAttribute("aria-current");
   });
@@ -193,12 +222,12 @@ function showPage(page) {
 }
 
 function installSubpageBackButtons() {
-  [...TEST_LINKS, ...MORE_LINKS].forEach(([page])=>{
+  [...TEST_LINKS, ...MORE_LINKS, ...ADVANCED_LINKS].forEach(([page])=>{
     const section=document.querySelector(`#page-${page}`);
     if(!section||typeof section.querySelector!=="function"||typeof section.prepend!=="function") return;
     if(section.querySelector(":scope > .ios-back")) return;
     const hub=parentHub(page);
-    const label=hub==="tests"?"Testit":"Lisää";
+    const label=hub==="tests"?"Testit":hub==="advanced"?"Asiantuntijatyökalut":"Lisää";
     const button=el("button", { class:"ios-back", type:"button", text:`‹ ${label}` });
     button.dataset.go=hub;
     button.setAttribute("aria-label", `Takaisin: ${label}`);
@@ -296,7 +325,8 @@ function syncHealth(){
   const rail=finiteText('#metric-railPressure .metric-value');
   const dp=finiteText('#metric-dpnrDifferentialPressure .metric-value,#dpnrDifferentialPressure');
   const volts=finiteText('#metric-voltage .metric-value,#dpnrVoltage');
-  const available=[maf,boost,rail,dp,volts].filter(value=>value!==null).length;
+  const verifiedCore=[maf,boost,rail,volts].filter(value=>value!==null).length;
+  const available=verifiedCore;
   const dtc=dtcEvidence();
 
   if(!ecu) status(rows.engine,"attention","Tarkista yhteys","Moottori-ECU ei ole vahvistunut");
@@ -304,18 +334,18 @@ function syncHealth(){
   else if(dtc.read) status(rows.engine,"ok","Ei vikakoodeja","ECU vastaa ja DTC-luku on tehty");
   else status(rows.engine,"available","ECU vastaa","Vikakoodit ovat vielä lukematta");
 
-  status(rows.air,maf!==null||boost!==null?"available":"unavailable",maf!==null||boost!==null?"Dataa saatavilla":"Ei mittausdataa");
+  status(rows.air,maf!==null||boost!==null?"available":"unavailable",maf!==null||boost!==null?"MAF / ahtodata saatavilla":"Ei mittausdataa");
   status(rows.fuel,rail!==null?"available":"unavailable",rail!==null?"Rail-data saatavilla":"Ei mittausdataa");
-  status(rows.dpnr,dp!==null?"available":"unavailable",dp!==null?"DPNR-data saatavilla":"Ei DPNR-dataa");
+  status(rows.dpnr,dp!==null?"attention":"unavailable",dp!==null?"Raakadataa · varmennus kesken":"Ei varmennettua DPF-dataa");
   status(rows.electrical,volts!==null?"available":"unavailable",volts!==null?`${String(volts).replace(".",",")} V mitattu`:"Ei jännitedataa");
-  status(rows.coverage,available?"available":"attention",available?`${available}/5 ydinarvoa näkyvissä`:"Aja Live tai testi");
+  status(rows.coverage,available?"available":"attention",available?`${available}/5 varmennettua ydinarvoa`:"Aja Live tai testi");
 
-  const complete=ecu&&dtc.read&&!dtc.codes.length&&available===5;
-  if(headline)headline.textContent=dtc.codes.length?"Tarkistettavaa löytyi":complete?"Health Check valmis":ecu?"Dataa kerätty":"OBD yhdistetty";
+  const complete=ecu&&dtc.read&&!dtc.codes.length&&available===4;
+  if(headline)headline.textContent=dtc.codes.length?"Tarkistettavaa löytyi":complete?"Perustarkistus valmis":ecu?"Dataa kerätty":"OBD yhdistetty";
   if(subline)subline.textContent=dtc.codes.length
     ? `${dtc.codes.length} vahvistettua vikakooditunnistetta näkyvissä.`
     : complete
-      ? "Vikakoodiluku ja kaikki ydinarvot ovat saatavilla."
+      ? "Moottorin perustiedot ovat saatavilla. DPF/EGR-varmennus on vielä kesken."
       : dtc.read
         ? "Vikakoodiluku valmis. Jatka Live-datalla kattavuuden täydentämiseksi."
         : "ECU-yhteys toimii. Lue vikakoodit ja käynnistä Live-data.";
@@ -449,6 +479,105 @@ function enhanceLive(){
   applyLiveMetricFilter();
 }
 
+
+function moveLabelAndControl(details, controlId) {
+  const control=document.getElementById(controlId);
+  if(!control)return;
+  const label=document.querySelector(`label[for="${controlId}"]`);
+  if(label)details.append(label);
+  details.append(control);
+}
+
+function enhanceConnection(){
+  const page=document.querySelector("#page-connection");
+  if(!page||page.dataset.iosEnhanced==="true")return;
+  page.dataset.iosEnhanced="true";
+  const hero=page.querySelector(".hero-card");
+  if(hero){
+    const title=hero.querySelector("h2"),copy=hero.querySelector("p");
+    if(title)title.textContent="Yhdistä autoon";
+    if(copy)copy.textContent="Valitse OBD-lukija. Auto ja protokolla tunnistetaan automaattisesti.";
+  }
+  const connectionCard=document.querySelector("#deviceSelect")?.closest(".card");
+  if(connectionCard){
+    connectionCard.classList.add("ios-connect-card");
+    const advanced=el("details",{class:"ios-connect-advanced"});
+    advanced.append(el("summary",{text:"Ajoneuvo ja protokolla"}));
+    moveLabelAndControl(advanced,"vehicleSelect");
+    const vehicleHint=document.querySelector("#vehicleSelect + .hint");
+    if(vehicleHint)advanced.append(vehicleHint);
+    for(const id of ["vehicleDetection","detectVehicleButton"]) {
+      const node=document.getElementById(id);
+      if(node)advanced.append(node);
+    }
+    moveLabelAndControl(advanced,"protocolSelect");
+    connectionCard.querySelector(".button-row")?.before(advanced);
+    const connect=document.getElementById("connectButton");
+    if(connect)connect.textContent="Yhdistä autoon";
+  }
+
+  const meta=document.querySelector("#adapterIdentity")?.closest(".card");
+  const checklist=page.querySelector(".checklist");
+  if(meta||checklist){
+    const details=el("details",{class:"card ios-connection-meta"});
+    details.append(el("summary",{text:"Yhteyden lisätiedot"}));
+    if(meta)details.append(meta);
+    if(checklist)details.append(checklist);
+    page.append(details);
+  }
+
+  const diagnostics=[document.getElementById("elmDiagnosticCard"),document.getElementById("quicklynksDiagnosticCard")].filter(Boolean);
+  if(diagnostics.length){
+    const details=el("details",{class:"card ios-connection-diagnostics"});
+    details.append(el("summary",{text:"Yhteysdiagnostiikka"}));
+    diagnostics[0].before(details);
+    diagnostics.forEach(node=>details.append(node));
+  }
+}
+
+function enhanceDtc(){
+  const page=document.querySelector("#page-dtc");
+  if(!page||page.dataset.iosEnhanced==="true")return;
+  page.dataset.iosEnhanced="true";
+  const eyebrow=page.querySelector(".section-title .eyebrow");
+  if(eyebrow)eyebrow.textContent="MOOTTORIN DIAGNOSTIIKKA";
+  const scan=document.getElementById("scanDtcButton");
+  if(scan)scan.textContent="Lue vikakoodit";
+  const clear=document.getElementById("clearDtcButton");
+  const clearHint=document.getElementById("dtcClearHint");
+  if(clear)clear.classList.add("hidden");
+  if(clearHint)clearHint.classList.add("hidden");
+  const groups=[...page.querySelectorAll(".dtc-group")];
+  const secondary=groups.filter(group=>/Odottavat|Pysyvät|hybridiohjain/i.test(group.querySelector("h3")?.textContent||""));
+  if(secondary.length){
+    const details=el("details",{class:"ios-dtc-more"});
+    details.append(el("summary",{text:"Muut vikakoodityypit"}));
+    secondary[0].before(details);
+    secondary.forEach(group=>details.append(group));
+  }
+}
+
+function enhanceDpnr(){
+  const page=document.querySelector("#page-dpnr");
+  if(!page||page.dataset.iosEnhanced==="true")return;
+  page.dataset.iosEnhanced="true";
+  const title=page.querySelector(".section-title h2");
+  const eyebrow=page.querySelector(".section-title .eyebrow");
+  if(title)title.textContent="DPF / DPNR";
+  if(eyebrow)eyebrow.textContent="MITTAUS · VAIN LUKU";
+  const notice=document.getElementById("dpnrSupportNotice");
+  if(notice)notice.textContent="Nykyisten Toyota 217E / 217F / 212C -arvojen merkitys odottaa Techstream-varmennusta. Flex säilyttää raakavasteet vertailua varten.";
+  const raw=page.querySelector(".raw-card");
+  const warning=[...page.querySelectorAll(".inline-message.warning")].find(node=>/Thermal Deteriorate|PM Block|No Activate/i.test(node.textContent||""));
+  if(raw||warning){
+    const details=el("details",{class:"ios-dpnr-technical"});
+    details.append(el("summary",{text:"Raakadata ja tekniset tiedot"}));
+    if(raw)raw.before(details);
+    if(raw)details.append(raw);
+    if(warning)details.append(warning);
+  }
+}
+
 function installStyle(){
   if(document.getElementById(UI_STYLE_ID))return;
   const link=document.createElement("link");
@@ -487,6 +616,9 @@ function bootUiShell(){
   installNavigation();
   installSubpageBackButtons();
   installRouting();
+  enhanceConnection();
+  enhanceDtc();
+  enhanceDpnr();
   enhanceLive();
   if(typeof MutationObserver==="function"){
     new MutationObserver(scheduleSync).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["class"]});

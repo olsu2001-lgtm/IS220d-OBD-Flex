@@ -2,22 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
 
-test("passive Techstream DPF/EGR panel mounts outside hidden ELM diagnostics and stays collapsed", async () => {
+test("passive Techstream DPF/EGR panel mounts on the dedicated offline research page", async () => {
   const dom = new JSDOM(`<!doctype html><html><head></head><body>
     <main>
-      <section id="page-connection" class="page active">
-        <div class="card">Connection</div>
-        <div id="elmDiagnosticCard" class="card hidden">
-          <div id="diagnosticSummary" class="inline-message hidden"></div>
-        </div>
+      <section id="page-connection" class="page"></section>
+      <section id="page-dpf-egr-research" class="page active">
+        <div id="dpfEgrResearchMount"></div>
       </section>
     </main>
   </body></html>`, { url: "https://example.test/" });
 
-  const previous = {
-    window: globalThis.window,
-    document: globalThis.document
-  };
+  const previous = { window: globalThis.window, document: globalThis.document };
   globalThis.window = dom.window;
   globalThis.document = dom.window.document;
 
@@ -26,18 +21,15 @@ test("passive Techstream DPF/EGR panel mounts outside hidden ELM diagnostics and
     await Promise.resolve();
     await Promise.resolve();
 
-    const page = dom.window.document.querySelector("#page-connection");
+    const mount = dom.window.document.querySelector("#dpfEgrResearchMount");
     const panel = dom.window.document.querySelector("#techstreamDataListGap");
-    const hiddenDiagnostic = dom.window.document.querySelector("#elmDiagnosticCard");
-
     assert.ok(panel);
-    assert.equal(panel.tagName, "DETAILS");
-    assert.equal(panel.open, false);
-    assert.equal(panel.parentElement, page);
-    assert.equal(panel.nextElementSibling, hiddenDiagnostic);
-    assert.ok(hiddenDiagnostic.classList.contains("hidden"));
-    assert.match(panel.querySelector("summary")?.textContent || "", /Techstream/);
-    assert.match(panel.textContent, /Offline-tutkimustyökalu/);
+    assert.equal(panel.tagName, "SECTION");
+    assert.equal(panel.parentElement, mount);
+    assert.match(panel.querySelector(".techstream-gap-head")?.textContent || "", /Techstream \+ J2534/);
+    assert.match(panel.textContent, /Tuo ensin Techstreamin vertailuarvot/);
+    assert.equal(panel.querySelectorAll(":scope > details").length, 3);
+    assert.match(panel.querySelector(":scope > details[open] summary")?.textContent || "", /1 · Tuo Techstream-arvot/);
     assert.ok(panel.querySelector('input[accept*=".json"]'));
     assert.ok(panel.querySelector('input[accept*=".csv"]'));
   } finally {
