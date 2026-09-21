@@ -225,11 +225,20 @@ function decodeIsoTpFrames(frames) {
 
     if (pciType === 0x0) {
       const payloadLength = Number.parseInt(first, 16) & 0x0f;
-      if (payloadLength < 1 || bytes.length - 1 < payloadLength) {
+      const available = bytes.slice(1);
+      const serviceAtPayloadStart = directServices.includes(available[0]);
+      if (!serviceAtPayloadStart || payloadLength < 1) {
         incompleteCount += 1;
         continue;
       }
-      finish(frame, bytes.slice(1, 1 + payloadLength), "iso-tp-single-frame");
+      // Real CAN captures normally use an ISO-TP single-frame length here. Some
+      // Techstream/J2534 text loggers expose a legacy compact prefix whose value
+      // does not match the copied byte count. Preserve that older accepted input
+      // without letting zero padding become candidate data.
+      const trailing = available.slice(payloadLength);
+      const exactOrZeroPadded = available.length >= payloadLength && trailing.every(byte => byte === "00");
+      const payload = exactOrZeroPadded ? available.slice(0, payloadLength) : available;
+      finish(frame, payload, exactOrZeroPadded ? "iso-tp-single-frame" : "compact-length-prefixed");
       continue;
     }
 
