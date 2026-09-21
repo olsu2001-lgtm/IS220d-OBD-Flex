@@ -19,3 +19,11 @@ html,body{background:var(--ios-bg)}body{font-family:-apple-system,BlinkMacSystem
 .ios-connect-card>label[for="deviceSelect"]{font-size:13px;font-weight:700}.ios-connect-advanced,.ios-dtc-more,.ios-dpnr-technical{margin-top:12px;border-top:1px solid var(--ios-separator);padding-top:10px}.ios-connect-advanced>summary,.ios-dtc-more>summary,.ios-dpnr-technical>summary,.ios-connection-meta>summary,.ios-connection-diagnostics>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--ios-blue);font-size:14px;font-weight:650}.ios-connect-advanced>label{margin-top:10px}.ios-connection-meta>.card,.ios-connection-diagnostics>.card,.ios-dpnr-technical>.card{margin:8px 0 0;box-shadow:none}.ios-connection-meta>.card,.ios-connection-diagnostics>.card{border-radius:14px}.ios-connection-page>.checklist{display:none}.ios-dtc-more .dtc-group{margin-top:12px}.ios-dpnr-technical>.inline-message{margin-top:8px}
 #page-dpf-egr-research .techstream-gap{margin-top:0}
 @media(max-width:420px){.ios-research-steps{grid-template-columns:1fr}.ios-research-steps>div{grid-template-columns:auto 1fr;column-gap:9px}.ios-research-steps small{grid-column:2}}
+
+/* Non-destructive collapsible simplification: preserve runtime DOM relationships. */
+.ios-connection-page:not(.ios-connection-expanded) .ios-connection-advanced-field{display:none!important}
+.ios-connection-page:not(.ios-connection-expanded) .ios-connection-secondary{display:none!important}
+.ios-connection-toggle{margin:10px 0}
+#page-dtc:not(.ios-dtc-expanded) .ios-dtc-secondary{display:none!important}
+#page-dpnr:not(.ios-dpnr-expanded) .ios-dpnr-secondary{display:none!important}
+#iosDtcMoreToggle,#iosDpnrTechnicalToggle{margin:10px 0 14px}
