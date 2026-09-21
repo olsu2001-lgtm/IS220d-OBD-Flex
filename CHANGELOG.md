@@ -1,5 +1,22 @@
 # Muutoshistoria
 
+## Kehitys · DPF/EGR Techstream-capture
+
+- Lisätty passiivinen Techstream/J2534-tutkimuspolku oikean DPF Differential
+  Pressure- ja EGR Lift Sensor Output -transaktion tunnistamiseen ilman uusia
+  autolle lähetettäviä komentoja.
+- Techstream CSV/text -importti poimii nyt DPF-paineen, EGR-liftin, RPM:n ja
+  MAFin sekä säilyttää aikasarjarivit.
+- J2534-jälkianalyysi hyväksyy 7E0/7E8-kompaktimuodon sekä nelitavuisen CAN-ID:n
+  sisältävän lokimuodon ja luokittelee nykyiset, hylätyt ja uudet read-only
+  kandidaatit erikseen.
+- Lisätty vaiheittainen DPF/EGR-capture-bundle ja offline-korrelaatio, joka
+  etsii 8-/16-bittisiä tavukanavia ja lineaarisia skaalaehdokkaita. Tulos ei
+  koskaan muuta sallintalistaa eikä merkitse signaalia tuotantovarmennetuksi.
+- Lisätty dokumentoitu target-vehicle-portti: Techstream/J2534-capture,
+  toistuva numeerinen vertailu ja kolme Flex-varmennusajoa ennen live-julkaisua.
+- Ei versionumeron muutosta eikä APK-julkaisua.
+
 ## 0.9.3 · Yhtenäinen versiointi ja julkaisulukko
 
 - Versio tulee vain package.json-tiedostosta APK:hon, näkyvään käyttöliittymään

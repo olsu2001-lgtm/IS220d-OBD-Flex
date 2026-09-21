@@ -1,3 +1,6 @@
+import "./ui-shell.js";
+import "./ui-reference-layer.js";
+import "./techstream-data-list-gap-ui.js";
 import { APP_VERSION } from "./app-version.js";
 import { configureDpnrTestLive } from "./dpnr-test-live.js";
 import {

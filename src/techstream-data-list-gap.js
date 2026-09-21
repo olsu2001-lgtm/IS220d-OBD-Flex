@@ -1,8 +1,12 @@
-export const TECHSTREAM_DATA_LIST_GAP_SCHEMA_VERSION = 1;
-export const TECHSTREAM_DATA_LIST_GAP_SOURCE = "Techstream/GTS Data List evidence; raw transaction pending target capture";
+export const TECHSTREAM_DATA_LIST_GAP_SCHEMA_VERSION = 2;
+export const TECHSTREAM_DATA_LIST_GAP_SOURCE = "Techstream/GTS Data List evidence; passive J2534 transaction capture";
 
-const VERIFIED_PRODUCTION_COMMANDS = new Set(["212C", "217E", "217F"]);
+const CURRENT_PRODUCTION_COMMANDS = new Set(["212C", "217E", "217F"]);
 const FIELD_REJECTED_COMMANDS = new Set(["219C"]);
+const PASSIVE_READ_SERVICES = Object.freeze({
+  "21": "61",
+  "22": "62"
+});
 
 function deepFreeze(value) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
@@ -12,6 +16,34 @@ function deepFreeze(value) {
 }
 
 export const TECHSTREAM_DATA_LIST_GAP_TARGETS = deepFreeze([
+  {
+    id: "dpf-differential-pressure",
+    label: "DPF Differential Pressure",
+    componentIds: ["engine.dpnr_differential_pressure_sensor", "engine.dpnr_catalyst"],
+    unit: "kPa",
+    channels: 1,
+    operatingState: "koeo-idle-3000rpm",
+    status: "capture-required",
+    dataListPath: "Powertrain / Engine and ECT / Data List / All Data",
+    evidence: "Toyota/TME service information identifies DPF Differential Pressure as the DPF/DPNR pressure value to compare with MAF.",
+    rawTransaction: null,
+    rejectedCommands: [],
+    note: "Target-vehicle field runs returned NO DATA for the current 217E hypothesis. Capture the actual Techstream transaction instead of guessing another identifier."
+  },
+  {
+    id: "egr-lift-sensor-output",
+    label: "EGR Lift Sensor Output",
+    componentIds: ["engine.egr_valve", "engine.egr_position_sensor"],
+    unit: "%",
+    channels: 1,
+    operatingState: "warm-idle-and-techstream-step-test",
+    status: "capture-required",
+    dataListPath: "Powertrain / Engine and ECT / Data List",
+    evidence: "Toyota/TME service information uses EGR Lift Sensor Output while Control the EGR Step Position is operated in Techstream/IT2.",
+    rawTransaction: null,
+    rejectedCommands: [],
+    note: "212C responds on the target vehicle, but response presence alone does not prove that it is EGR lift feedback. Correlate the captured bytes against Techstream's displayed lift value."
+  },
   {
     id: "injector-feedback-1-4",
     label: "Injection Feedback Val #1–#4",
@@ -56,69 +88,218 @@ export const TECHSTREAM_DATA_LIST_GAP_TARGETS = deepFreeze([
   }
 ]);
 
-const cleanHex = value => String(value || "").replace(/[^0-9A-F]/gi, "").toUpperCase();
+const hexTokens = value => String(value || "").toUpperCase().match(/[0-9A-F]{2,8}/g) || [];
 
-function bytesAfterHeader(line, header) {
-  const upper = String(line || "").toUpperCase();
-  const index = upper.indexOf(header);
-  if (index < 0) return [];
-  const tail = upper.slice(index + header.length);
-  const tokens = tail.match(/(?:^|[^0-9A-F])([0-9A-F]{2})(?=$|[^0-9A-F])/g) || [];
-  return tokens.map(token => token.replace(/[^0-9A-F]/g, "")).filter(token => token.length === 2);
+function timestampFromLine(line) {
+  const text = String(line || "");
+  const named = text.match(/(?:timestamp|time\s*stamp|ts)\s*[:=]\s*(\d+(?:\.\d+)?)/i);
+  if (named) return Number(named[1]);
+  const bracket = text.match(/^\s*\[(\d+(?:\.\d+)?)\]/);
+  if (bracket) return Number(bracket[1]);
+  const leading = text.match(/^\s*(\d+\.\d+)\s+(?:TX|RX)\b/i);
+  return leading ? Number(leading[1]) : null;
 }
 
-function serviceIndex(bytes, service, direction) {
-  for (let index = 0; index < bytes.length - 1; index += 1) {
-    if (bytes[index] !== service) continue;
-    if (index === 0) return index;
-    if (direction === "request" && index === 1 && /^0[2-7]$/.test(bytes[0])) return index;
-    if (direction === "response" && index === 1 && /^0[2-7]$/.test(bytes[0])) return index;
-    if (direction === "response" && index === 2 && bytes[0] === "10") return index;
+function frameFromTokens(tokens) {
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === "7E0" || token === "7E8") {
+      return { header: token, bytes: tokens.slice(index + 1).filter(item => item.length === 2) };
+    }
+    if (index + 3 < tokens.length &&
+        tokens[index] === "00" && tokens[index + 1] === "00" &&
+        tokens[index + 2] === "07" && (tokens[index + 3] === "E0" || tokens[index + 3] === "E8")) {
+      return { header: `7${tokens[index + 3]}`, bytes: tokens.slice(index + 4).filter(item => item.length === 2) };
+    }
   }
-  return -1;
+  return null;
 }
 
-function parseTraceLine(line, lineNumber) {
-  const upper = String(line || "").toUpperCase();
-  const headerMatch = upper.match(/\b(7E0|7E8)\b/);
-  if (!headerMatch) return null;
-  const header = headerMatch[1];
-  const bytes = bytesAfterHeader(upper, header);
-  const direction = header === "7E0" ? "request" : "response";
-  const service = direction === "request" ? "21" : "61";
-  const index = serviceIndex(bytes, service, direction);
-  if (index < 0 || !bytes[index + 1]) return null;
-  const id = bytes[index + 1];
-  const command = `21${id}`;
+function parseDiagnosticPayload(payloadBytes, frame) {
+  if (!Array.isArray(payloadBytes) || !payloadBytes.length) return null;
+  const direction = frame.direction;
+  const service = payloadBytes[0];
+  const services = direction === "request" ? Object.keys(PASSIVE_READ_SERVICES) : Object.values(PASSIVE_READ_SERVICES);
+  if (!services.includes(service)) return null;
+  const idLength = identifierLength(service);
+  const idBytes = payloadBytes.slice(1, 1 + idLength);
+  if (idBytes.length !== idLength) return null;
+  const identifierHex = idBytes.join("");
+  const requestService = direction === "request"
+    ? service
+    : Object.entries(PASSIVE_READ_SERVICES).find(([, response]) => response === service)?.[0];
+  if (!requestService) return null;
+  const command = `${requestService}${identifierHex}`;
   return Object.freeze({
-    lineNumber,
-    header,
+    lineNumber: frame.lineNumber,
+    endLineNumber: frame.endLineNumber || frame.lineNumber,
+    header: frame.header,
     direction,
     command,
-    responsePrefix: `61${id}`,
-    payload: bytes.slice(index + 2).join("")
+    responsePrefix: `${PASSIVE_READ_SERVICES[requestService]}${identifierHex}`,
+    payload: payloadBytes.slice(1 + idLength).join(""),
+    timestamp: frame.timestamp,
+    endTimestamp: frame.endTimestamp ?? frame.timestamp,
+    transport: frame.transport || "unframed"
   });
 }
 
+function identifierLength(service) {
+  return service === "22" || service === "62" ? 2 : 1;
+}
+
+function traceFrames(traceText) {
+  const lines = String(traceText || "").split(/\r?\n/).slice(0, 50000);
+  const frames = [];
+  let contextDirection = "";
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/PassThruWriteMsgs/i.test(line)) contextDirection = "request";
+    else if (/PassThruReadMsgs/i.test(line)) contextDirection = "response";
+    const raw = frameFromTokens(hexTokens(line));
+    if (!raw) continue;
+    const direction = raw.header === "7E0" ? "request" : "response";
+    if (contextDirection && contextDirection !== direction) continue;
+    frames.push(Object.freeze({
+      lineNumber: index + 1,
+      header: raw.header,
+      direction,
+      bytes: Object.freeze(raw.bytes),
+      timestamp: timestampFromLine(line)
+    }));
+    contextDirection = "";
+  }
+  return { lines, frames };
+}
+
+function decodeIsoTpFrames(frames) {
+  const events = [];
+  const assemblies = new Map();
+  let incompleteCount = 0;
+  let sequenceErrorCount = 0;
+
+  const finish = (frame, payload, transport, start = frame) => {
+    const parsed = parseDiagnosticPayload(payload, {
+      ...start,
+      endLineNumber: frame.lineNumber,
+      endTimestamp: frame.timestamp,
+      transport
+    });
+    if (parsed) events.push(parsed);
+  };
+
+  for (const frame of frames) {
+    const bytes = [...frame.bytes];
+    if (!bytes.length) continue;
+    const key = `${frame.direction}:${frame.header}`;
+    const active = assemblies.get(key);
+    const first = bytes[0];
+    const pciType = Number.parseInt(first, 16) >> 4;
+
+    if (active && pciType === 0x2) {
+      const sequence = Number.parseInt(first, 16) & 0x0f;
+      if (sequence !== active.expectedSequence) {
+        assemblies.delete(key);
+        sequenceErrorCount += 1;
+        continue;
+      }
+      active.payload.push(...bytes.slice(1));
+      active.expectedSequence = (active.expectedSequence + 1) & 0x0f;
+      if (active.payload.length >= active.totalLength) {
+        assemblies.delete(key);
+        finish(frame, active.payload.slice(0, active.totalLength), "iso-tp-multiframe", active.startFrame);
+      }
+      continue;
+    }
+
+    if (active) {
+      assemblies.delete(key);
+      incompleteCount += 1;
+    }
+
+    const directServices = frame.direction === "request" ? Object.keys(PASSIVE_READ_SERVICES) : Object.values(PASSIVE_READ_SERVICES);
+    if (directServices.includes(first)) {
+      finish(frame, bytes, "j2534-payload");
+      continue;
+    }
+
+    if (pciType === 0x0) {
+      const payloadLength = Number.parseInt(first, 16) & 0x0f;
+      const available = bytes.slice(1);
+      const serviceAtPayloadStart = directServices.includes(available[0]);
+      if (!serviceAtPayloadStart || payloadLength < 1) {
+        incompleteCount += 1;
+        continue;
+      }
+      // Real CAN captures normally use an ISO-TP single-frame length here. Some
+      // Techstream/J2534 text loggers expose a legacy compact prefix whose value
+      // does not match the copied byte count. Preserve that older accepted input
+      // without letting zero padding become candidate data.
+      const trailing = available.slice(payloadLength);
+      const exactOrZeroPadded = available.length >= payloadLength && trailing.every(byte => byte === "00");
+      const payload = exactOrZeroPadded ? available.slice(0, payloadLength) : available;
+      finish(frame, payload, exactOrZeroPadded ? "iso-tp-single-frame" : "compact-length-prefixed");
+      continue;
+    }
+
+    if (pciType === 0x1 && bytes.length >= 2) {
+      const totalLength = ((Number.parseInt(first, 16) & 0x0f) << 8) | Number.parseInt(bytes[1], 16);
+      if (totalLength < 1) {
+        incompleteCount += 1;
+        continue;
+      }
+      const payload = bytes.slice(2);
+      if (payload.length >= totalLength) {
+        finish(frame, payload.slice(0, totalLength), "iso-tp-first-frame-complete");
+      } else {
+        assemblies.set(key, {
+          totalLength,
+          payload,
+          expectedSequence: 1,
+          startFrame: frame
+        });
+      }
+      continue;
+    }
+
+    // Flow-control and orphan consecutive frames are transport metadata, not diagnostic payloads.
+  }
+
+  incompleteCount += assemblies.size;
+  return { events, incompleteCount, sequenceErrorCount };
+}
+
+function traceEvents(traceText) {
+  const { lines, frames } = traceFrames(traceText);
+  const decoded = decodeIsoTpFrames(frames);
+  return {
+    lines,
+    events: decoded.events,
+    isoTpIncompleteCount: decoded.incompleteCount,
+    isoTpSequenceErrorCount: decoded.sequenceErrorCount
+  };
+}
+
 export function analyzeTechstreamDataListTrace(traceText) {
-  const lines = String(traceText || "").split(/\r?\n/).slice(0, 10000);
+  const { lines, events, isoTpIncompleteCount, isoTpSequenceErrorCount } = traceEvents(traceText);
   const pending = new Map();
   const aggregates = new Map();
   const unmatchedResponses = [];
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const parsed = parseTraceLine(lines[index], index + 1);
-    if (!parsed) continue;
+  for (const parsed of events) {
     if (parsed.direction === "request") {
-      pending.set(parsed.command, parsed);
+      const queue = pending.get(parsed.command) || [];
+      queue.push(parsed);
+      pending.set(parsed.command, queue.slice(-32));
       continue;
     }
-    const request = pending.get(parsed.command);
+    const queue = pending.get(parsed.command);
+    const request = queue?.shift();
     if (!request) {
       unmatchedResponses.push(parsed);
       continue;
     }
-    pending.delete(parsed.command);
+    if (!queue.length) pending.delete(parsed.command);
     let aggregate = aggregates.get(parsed.command);
     if (!aggregate) {
       aggregate = {
@@ -128,18 +309,26 @@ export function analyzeTechstreamDataListTrace(traceText) {
         payloadLengths: new Set(),
         payloads: new Set(),
         firstRequestLine: request.lineNumber,
-        firstResponseLine: parsed.lineNumber
+        firstResponseLine: parsed.lineNumber,
+        captures: []
       };
       aggregates.set(parsed.command, aggregate);
     }
     aggregate.observations += 1;
     aggregate.payloadLengths.add(parsed.payload.length / 2);
     if (parsed.payload) aggregate.payloads.add(parsed.payload);
+    aggregate.captures.push(Object.freeze({
+      requestLine: request.lineNumber,
+      responseLine: parsed.lineNumber,
+      requestTimestamp: request.timestamp,
+      responseTimestamp: parsed.timestamp,
+      payloadHex: parsed.payload
+    }));
   }
 
   const allPairs = [...aggregates.values()].map(item => {
     const fieldRejected = FIELD_REJECTED_COMMANDS.has(item.command);
-    const alreadyVerified = VERIFIED_PRODUCTION_COMMANDS.has(item.command);
+    const currentProductionCommand = CURRENT_PRODUCTION_COMMANDS.has(item.command);
     return Object.freeze({
       command: item.command,
       responsePrefix: item.responsePrefix,
@@ -148,26 +337,33 @@ export function analyzeTechstreamDataListTrace(traceText) {
       distinctPayloadCount: item.payloads.size,
       firstRequestLine: item.firstRequestLine,
       firstResponseLine: item.firstResponseLine,
+      captures: Object.freeze(item.captures),
       fieldRejected,
-      alreadyVerified,
-      status: fieldRejected ? "field-rejected" : alreadyVerified ? "already-verified" : "capture-candidate"
+      currentProductionCommand,
+      alreadyVerified: currentProductionCommand,
+      status: fieldRejected ? "field-rejected" : currentProductionCommand ? "current-production" : "capture-candidate"
     });
   }).sort((a, b) => b.observations - a.observations || b.distinctPayloadCount - a.distinctPayloadCount || a.command.localeCompare(b.command));
 
   const candidates = allPairs.filter(item => item.status === "capture-candidate");
   const rejected = allPairs.filter(item => item.status === "field-rejected");
-  const existing = allPairs.filter(item => item.status === "already-verified");
+  const existing = allPairs.filter(item => item.status === "current-production");
   return deepFreeze({
     schemaVersion: TECHSTREAM_DATA_LIST_GAP_SCHEMA_VERSION,
     source: TECHSTREAM_DATA_LIST_GAP_SOURCE,
     lineCount: lines.length,
+    eventCount: events.length,
+    isoTpIncompleteCount,
+    isoTpSequenceErrorCount,
     pairCount: allPairs.reduce((sum, item) => sum + item.observations, 0),
     candidateCount: candidates.length,
     candidates,
     rejected,
     existing,
+    allPairs,
     unmatchedResponseCount: unmatchedResponses.length,
-    authorizationChanged: false
+    authorizationChanged: false,
+    vehicleCommandSent: false
   });
 }
 
@@ -178,6 +374,10 @@ export function buildTechstreamDataListCaptureTemplate() {
     calibrationId: "35360000",
     state: "warm-idle",
     techstreamValues: {
+      dpfDifferentialPressureKpa: null,
+      egrLiftSensorPercent: null,
+      engineSpeedRpm: null,
+      mafGps: null,
       injectionFeedbackMm3PerStroke: [null, null, null, null],
       targetCommonRailPressureKpa: null,
       targetPumpScvCurrentMa: null
@@ -191,13 +391,16 @@ export function buildTechstreamDataListGapTextReport(traceAnalysis = analyzeTech
     "===== TECHSTREAM DATA LIST GAP CAPTURE =====",
     `Schema: ${TECHSTREAM_DATA_LIST_GAP_SCHEMA_VERSION}`,
     "Vehicle: Lexus IS220d / 2AD-FHV",
-    "Targets: Injection Feedback Val #1-#4 | Target Common Rail Pressure | Target Pump SCV Current",
+    "Primary targets: DPF Differential Pressure | EGR Lift Sensor Output",
+    "Context: Engine Speed | MAF",
+    "Secondary targets: Injection Feedback Val #1-#4 | Target Common Rail Pressure | Target Pump SCV Current",
     "Policy: passive trace analysis only; no vehicle command is authorized or transmitted",
     `Trace pairs: ${traceAnalysis.pairCount}`,
-    `New 21xx candidates: ${traceAnalysis.candidateCount}`
+    `New read candidates: ${traceAnalysis.candidateCount}`
   ];
   for (const item of traceAnalysis.candidates) lines.push(`- ${item.command} -> ${item.responsePrefix} | observations=${item.observations} | payload_bytes=${item.payloadLengths.join("/") || "-"} | distinct=${item.distinctPayloadCount}`);
+  for (const item of traceAnalysis.existing) lines.push(`- CURRENT ${item.command} -> ${item.responsePrefix} | observed in passive trace; current allowlist status is not proof of target-value semantics`);
   for (const item of traceAnalysis.rejected) lines.push(`- BLOCKED ${item.command} -> ${item.responsePrefix} | field-rejected; does not become a candidate`);
-  lines.push("Next gate: correlate a candidate response with the simultaneously displayed Techstream value, derive the byte layout, repeat on the target vehicle, then review a separate allowlist change.");
+  lines.push("Next gate: correlate response bytes with simultaneously displayed Techstream values over multiple operating states, repeat on the target vehicle, then review a separate profile/allowlist change.");
   return `${lines.join("\n")}\n`;
 }
