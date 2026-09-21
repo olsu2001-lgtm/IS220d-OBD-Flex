@@ -135,3 +135,9 @@ test("broken ISO-TP sequence fails closed instead of correlating a partial respo
   assert.equal(result.candidateCount, 0);
   assert.equal(result.isoTpSequenceErrorCount, 1);
 });
+
+
+test("real app entrypoint bundles the passive Techstream DPF/EGR capture UI", () => {
+  const main = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
+  assert.match(main, /import\s+["']\.\/techstream-data-list-gap-ui\.js["']/);
+});
