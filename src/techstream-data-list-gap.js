@@ -115,31 +115,14 @@ function frameFromTokens(tokens) {
   return null;
 }
 
-function servicePosition(bytes, direction) {
+function parseDiagnosticPayload(payloadBytes, frame) {
+  if (!Array.isArray(payloadBytes) || !payloadBytes.length) return null;
+  const direction = frame.direction;
+  const service = payloadBytes[0];
   const services = direction === "request" ? Object.keys(PASSIVE_READ_SERVICES) : Object.values(PASSIVE_READ_SERVICES);
-  for (let index = 0; index < bytes.length; index += 1) {
-    if (!services.includes(bytes[index])) continue;
-    if (index === 0) return index;
-    if (index === 1 && /^0[2-7]$/.test(bytes[0])) return index;
-    if (direction === "response" && index === 2 && bytes[0] === "10") return index;
-  }
-  return -1;
-}
-
-function identifierLength(service) {
-  return service === "22" || service === "62" ? 2 : 1;
-}
-
-function parseTraceLine(line, lineNumber, directionHint = "") {
-  const frame = frameFromTokens(hexTokens(line));
-  if (!frame) return null;
-  const direction = frame.header === "7E0" ? "request" : "response";
-  if (directionHint && directionHint !== direction) return null;
-  const index = servicePosition(frame.bytes, direction);
-  if (index < 0) return null;
-  const service = frame.bytes[index];
+  if (!services.includes(service)) return null;
   const idLength = identifierLength(service);
-  const idBytes = frame.bytes.slice(index + 1, index + 1 + idLength);
+  const idBytes = payloadBytes.slice(1, 1 + idLength);
   if (idBytes.length !== idLength) return null;
   const identifierHex = idBytes.join("");
   const requestService = direction === "request"
@@ -147,52 +130,167 @@ function parseTraceLine(line, lineNumber, directionHint = "") {
     : Object.entries(PASSIVE_READ_SERVICES).find(([, response]) => response === service)?.[0];
   if (!requestService) return null;
   const command = `${requestService}${identifierHex}`;
-  const responsePrefix = `${PASSIVE_READ_SERVICES[requestService]}${identifierHex}`;
   return Object.freeze({
-    lineNumber,
+    lineNumber: frame.lineNumber,
+    endLineNumber: frame.endLineNumber || frame.lineNumber,
     header: frame.header,
     direction,
     command,
-    responsePrefix,
-    payload: frame.bytes.slice(index + 1 + idLength).join(""),
-    timestamp: timestampFromLine(line)
+    responsePrefix: `${PASSIVE_READ_SERVICES[requestService]}${identifierHex}`,
+    payload: payloadBytes.slice(1 + idLength).join(""),
+    timestamp: frame.timestamp,
+    endTimestamp: frame.endTimestamp ?? frame.timestamp,
+    transport: frame.transport || "unframed"
   });
 }
 
-function traceEvents(traceText) {
+function identifierLength(service) {
+  return service === "22" || service === "62" ? 2 : 1;
+}
+
+function traceFrames(traceText) {
   const lines = String(traceText || "").split(/\r?\n/).slice(0, 50000);
-  const events = [];
+  const frames = [];
   let contextDirection = "";
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     if (/PassThruWriteMsgs/i.test(line)) contextDirection = "request";
     else if (/PassThruReadMsgs/i.test(line)) contextDirection = "response";
-    const parsed = parseTraceLine(line, index + 1, contextDirection);
-    if (parsed) {
-      events.push(parsed);
-      contextDirection = "";
-    }
+    const raw = frameFromTokens(hexTokens(line));
+    if (!raw) continue;
+    const direction = raw.header === "7E0" ? "request" : "response";
+    if (contextDirection && contextDirection !== direction) continue;
+    frames.push(Object.freeze({
+      lineNumber: index + 1,
+      header: raw.header,
+      direction,
+      bytes: Object.freeze(raw.bytes),
+      timestamp: timestampFromLine(line)
+    }));
+    contextDirection = "";
   }
-  return { lines, events };
+  return { lines, frames };
+}
+
+function decodeIsoTpFrames(frames) {
+  const events = [];
+  const assemblies = new Map();
+  let incompleteCount = 0;
+  let sequenceErrorCount = 0;
+
+  const finish = (frame, payload, transport, start = frame) => {
+    const parsed = parseDiagnosticPayload(payload, {
+      ...start,
+      endLineNumber: frame.lineNumber,
+      endTimestamp: frame.timestamp,
+      transport
+    });
+    if (parsed) events.push(parsed);
+  };
+
+  for (const frame of frames) {
+    const bytes = [...frame.bytes];
+    if (!bytes.length) continue;
+    const key = `${frame.direction}:${frame.header}`;
+    const active = assemblies.get(key);
+    const first = bytes[0];
+    const pciType = Number.parseInt(first, 16) >> 4;
+
+    if (active && pciType === 0x2) {
+      const sequence = Number.parseInt(first, 16) & 0x0f;
+      if (sequence !== active.expectedSequence) {
+        assemblies.delete(key);
+        sequenceErrorCount += 1;
+        continue;
+      }
+      active.payload.push(...bytes.slice(1));
+      active.expectedSequence = (active.expectedSequence + 1) & 0x0f;
+      if (active.payload.length >= active.totalLength) {
+        assemblies.delete(key);
+        finish(frame, active.payload.slice(0, active.totalLength), "iso-tp-multiframe", active.startFrame);
+      }
+      continue;
+    }
+
+    if (active) {
+      assemblies.delete(key);
+      incompleteCount += 1;
+    }
+
+    const directServices = frame.direction === "request" ? Object.keys(PASSIVE_READ_SERVICES) : Object.values(PASSIVE_READ_SERVICES);
+    if (directServices.includes(first)) {
+      finish(frame, bytes, "j2534-payload");
+      continue;
+    }
+
+    if (pciType === 0x0) {
+      const payloadLength = Number.parseInt(first, 16) & 0x0f;
+      if (payloadLength < 1 || bytes.length - 1 < payloadLength) {
+        incompleteCount += 1;
+        continue;
+      }
+      finish(frame, bytes.slice(1, 1 + payloadLength), "iso-tp-single-frame");
+      continue;
+    }
+
+    if (pciType === 0x1 && bytes.length >= 2) {
+      const totalLength = ((Number.parseInt(first, 16) & 0x0f) << 8) | Number.parseInt(bytes[1], 16);
+      if (totalLength < 1) {
+        incompleteCount += 1;
+        continue;
+      }
+      const payload = bytes.slice(2);
+      if (payload.length >= totalLength) {
+        finish(frame, payload.slice(0, totalLength), "iso-tp-first-frame-complete");
+      } else {
+        assemblies.set(key, {
+          totalLength,
+          payload,
+          expectedSequence: 1,
+          startFrame: frame
+        });
+      }
+      continue;
+    }
+
+    // Flow-control and orphan consecutive frames are transport metadata, not diagnostic payloads.
+  }
+
+  incompleteCount += assemblies.size;
+  return { events, incompleteCount, sequenceErrorCount };
+}
+
+function traceEvents(traceText) {
+  const { lines, frames } = traceFrames(traceText);
+  const decoded = decodeIsoTpFrames(frames);
+  return {
+    lines,
+    events: decoded.events,
+    isoTpIncompleteCount: decoded.incompleteCount,
+    isoTpSequenceErrorCount: decoded.sequenceErrorCount
+  };
 }
 
 export function analyzeTechstreamDataListTrace(traceText) {
-  const { lines, events } = traceEvents(traceText);
+  const { lines, events, isoTpIncompleteCount, isoTpSequenceErrorCount } = traceEvents(traceText);
   const pending = new Map();
   const aggregates = new Map();
   const unmatchedResponses = [];
 
   for (const parsed of events) {
     if (parsed.direction === "request") {
-      pending.set(parsed.command, parsed);
+      const queue = pending.get(parsed.command) || [];
+      queue.push(parsed);
+      pending.set(parsed.command, queue.slice(-32));
       continue;
     }
-    const request = pending.get(parsed.command);
+    const queue = pending.get(parsed.command);
+    const request = queue?.shift();
     if (!request) {
       unmatchedResponses.push(parsed);
       continue;
     }
-    pending.delete(parsed.command);
+    if (!queue.length) pending.delete(parsed.command);
     let aggregate = aggregates.get(parsed.command);
     if (!aggregate) {
       aggregate = {
@@ -246,6 +344,8 @@ export function analyzeTechstreamDataListTrace(traceText) {
     source: TECHSTREAM_DATA_LIST_GAP_SOURCE,
     lineCount: lines.length,
     eventCount: events.length,
+    isoTpIncompleteCount,
+    isoTpSequenceErrorCount,
     pairCount: allPairs.reduce((sum, item) => sum + item.observations, 0),
     candidateCount: candidates.length,
     candidates,

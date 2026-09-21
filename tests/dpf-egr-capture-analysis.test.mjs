@@ -65,7 +65,7 @@ test("linear research correlation finds a synthetic EGR byte without promoting i
       trace: trace("21B2", raw.toString(16).padStart(2, "0").toUpperCase() + "99AA")
     };
   });
-  const result = analyzeDpfEgrCaptureBundle({ schemaVersion: 1, phases });
+  const result = analyzeDpfEgrCaptureBundle({ schemaVersion: 1, calibrationId: "35360000", phases });
   const best = result.egr.candidates[0];
   assert.equal(best.command, "21B2");
   assert.equal(best.featureKey, "u8@0");
@@ -80,7 +80,7 @@ test("constant target values do not produce a false decoder candidate", () => {
     techstream: { dpfDifferentialPressureKpa: 0.5 },
     trace: trace("21A1", (100 + index).toString(16).padStart(4, "0") + "00")
   }));
-  const result = analyzeDpfEgrCaptureBundle({ schemaVersion: 1, phases });
+  const result = analyzeDpfEgrCaptureBundle({ schemaVersion: 1, calibrationId: "35360000", phases });
   assert.equal(result.dpf.candidates.length, 0);
   assert.equal(result.dpf.status, "no-correlation");
 });
@@ -99,4 +99,42 @@ test("capture correlation module has no vehicle transport or authorization path"
   assert.match(source, /authorizationChanged:\s*false/);
   assert.match(source, /vehicleCommandSent:\s*false/);
   assert.match(source, /productionVerified:\s*false/);
+});
+
+
+test("bundle rejects wrong calibration and duplicate phase identities", () => {
+  const wrongCalibration = parseDpfEgrCaptureBundle({
+    schemaVersion: 1,
+    calibrationId: "00000000",
+    phases: [{ id: "dpf-koeo", techstream: { dpfDifferentialPressureKpa: 0 }, trace: "" }]
+  });
+  assert.equal(wrongCalibration.valid, false);
+  assert.match(wrongCalibration.errors.join(" "), /35360000/);
+
+  const duplicate = parseDpfEgrCaptureBundle({
+    schemaVersion: 1,
+    calibrationId: "35360000",
+    phases: [
+      { id: "dpf-idle", techstream: { dpfDifferentialPressureKpa: 0.5 }, trace: "" },
+      { id: "dpf-idle", techstream: { dpfDifferentialPressureKpa: 1.0 }, trace: "" }
+    ]
+  });
+  assert.equal(duplicate.valid, false);
+  assert.match(duplicate.errors.join(" "), /yksilöllisiä/);
+});
+
+test("repeated samples from only three independent states cannot qualify as a research candidate", () => {
+  const pressures = [0, 0, 1, 1, 2, 2];
+  const phases = pressures.map((value, index) => {
+    const raw = 100 + Math.round(value * 100);
+    return {
+      id: `dpf-repeat-${index}`,
+      techstream: { dpfDifferentialPressureKpa: value },
+      trace: trace("21A1", raw.toString(16).padStart(4, "0").toUpperCase() + "00")
+    };
+  });
+  const result = analyzeDpfEgrCaptureBundle({ schemaVersion: 1, calibrationId: "35360000", phases });
+  assert.equal(result.dpf.status, "no-correlation");
+  assert.equal(result.dpf.qualifiedCandidateCount, 0);
+  assert.ok(result.dpf.weakCandidates.length > 0);
 });

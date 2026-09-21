@@ -101,8 +101,8 @@ function linearFit(points) {
 function candidateStrength(fit, targetKey) {
   const minRange = TARGET_META[targetKey]?.minimumRange ?? 1;
   if (!fit || fit.targetRange < minRange) return "insufficient-variation";
-  if (fit.count >= 5 && fit.r2 >= 0.995 && fit.normalizedRmse <= 0.03) return "strong-research-candidate";
-  if (fit.count >= 4 && fit.r2 >= 0.98 && fit.normalizedRmse <= 0.08) return "research-candidate";
+  if (fit.count >= 5 && fit.distinctX >= 5 && fit.distinctY >= 5 && fit.r2 >= 0.995 && fit.normalizedRmse <= 0.03) return "strong-research-candidate";
+  if (fit.count >= 4 && fit.distinctX >= 4 && fit.distinctY >= 4 && fit.r2 >= 0.98 && fit.normalizedRmse <= 0.08) return "research-candidate";
   return "weak-correlation";
 }
 
@@ -130,11 +130,15 @@ export function parseDpfEgrCaptureBundle(textOrObject) {
   if (!raw || Number(raw.schemaVersion) !== DPF_EGR_CAPTURE_SCHEMA_VERSION) errors.push(`schemaVersion pitää olla ${DPF_EGR_CAPTURE_SCHEMA_VERSION}`);
   const phases = Array.isArray(raw?.phases) ? raw.phases.slice(0, 40).map(normalizePhase) : [];
   if (!phases.length) errors.push("phases puuttuu");
+  const phaseIds = phases.map(phase => phase.id);
+  if (new Set(phaseIds).size !== phaseIds.length) errors.push("phase-id:t pitää olla yksilöllisiä");
+  const calibrationId = String(raw?.calibrationId || "").trim();
+  if (calibrationId !== "35360000") errors.push("calibrationId pitää olla target-auton 35360000");
   return Object.freeze({
     valid: errors.length === 0,
     errors: Object.freeze(errors),
     vehicle: String(raw?.vehicle || ""),
-    calibrationId: String(raw?.calibrationId || ""),
+    calibrationId,
     phases: Object.freeze(phases)
   });
 }
@@ -235,14 +239,18 @@ export function correlateDpfEgrCaptureBundle(bundleInput, targetKey) {
   });
 
   const usablePhases = parsed.phases.filter(phase => Number.isFinite(phase.techstream[targetKey])).length;
+  const qualifiedCandidates = candidates.filter(candidate => candidate.strength === "research-candidate" || candidate.strength === "strong-research-candidate");
+  const weakCandidates = candidates.filter(candidate => !qualifiedCandidates.includes(candidate));
   return Object.freeze({
     schemaVersion: DPF_EGR_CAPTURE_SCHEMA_VERSION,
     targetKey,
     targetLabel: meta.label,
     unit: meta.unit,
     usablePhases,
-    status: usablePhases < 4 ? "need-more-phases" : candidates.length ? "research-candidates" : "no-correlation",
-    candidates: Object.freeze(candidates.slice(0, 30)),
+    qualifiedCandidateCount: qualifiedCandidates.length,
+    status: usablePhases < 4 ? "need-more-phases" : qualifiedCandidates.length ? "research-candidates" : "no-correlation",
+    candidates: Object.freeze(qualifiedCandidates.slice(0, 30)),
+    weakCandidates: Object.freeze(weakCandidates.slice(0, 30)),
     authorizationChanged: false,
     vehicleCommandSent: false,
     productionVerified: false,

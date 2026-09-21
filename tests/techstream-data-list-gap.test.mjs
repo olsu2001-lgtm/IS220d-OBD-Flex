@@ -106,3 +106,32 @@ test("capture modules contain no vehicle transport path", () => {
     assert.doesNotMatch(source, /state\.client|safeCommand\s*\(|\.send\s*\(|\.command\s*\(|NativeElmTransport|ATSH|ATCRA/i);
   }
 });
+
+
+test("passive parser reassembles ISO-TP multi-frame Data List responses", () => {
+  const trace = [
+    "TX 7E0 02 21 A1 00 00 00 00 00",
+    "RX 7E8 10 0A 61 A1 01 02 03 04",
+    "RX 7E8 21 05 06 07 08 00 00 00"
+  ].join("\n");
+  const result = analyzeTechstreamDataListTrace(trace);
+  assert.equal(result.pairCount, 1);
+  assert.equal(result.candidateCount, 1);
+  assert.equal(result.candidates[0].command, "21A1");
+  assert.equal(result.candidates[0].captures[0].payloadHex, "0102030405060708");
+  assert.deepEqual(result.candidates[0].payloadLengths, [8]);
+  assert.equal(result.isoTpIncompleteCount, 0);
+  assert.equal(result.isoTpSequenceErrorCount, 0);
+});
+
+test("broken ISO-TP sequence fails closed instead of correlating a partial response", () => {
+  const trace = [
+    "TX 7E0 02 21 A1 00 00 00 00 00",
+    "RX 7E8 10 0A 61 A1 01 02 03 04",
+    "RX 7E8 22 05 06 07 08 00 00 00"
+  ].join("\n");
+  const result = analyzeTechstreamDataListTrace(trace);
+  assert.equal(result.pairCount, 0);
+  assert.equal(result.candidateCount, 0);
+  assert.equal(result.isoTpSequenceErrorCount, 1);
+});

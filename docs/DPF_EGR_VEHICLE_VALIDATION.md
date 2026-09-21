@@ -37,7 +37,7 @@ These references do **not** authorize a raw request or conversion in Flex. The t
 
 The preferred method is a J2534 shim/logger between Techstream and the actual MINI VCI J2534 DLL. A suitable logger must record PassThruWriteMsgs payloads, PassThruReadMsgs payloads, order/timestamps, and CAN/ISO15765 message bytes including the 7E0/7E8 relationship.
 
-The repository passive parser accepts both compact lines such as:
+The repository passive parser reconstructs ISO-TP single- and multi-frame payloads before looking for diagnostic services. Incomplete or out-of-sequence multi-frame responses are discarded instead of being correlated as partial Data List values. It accepts both compact lines such as:
 
     TX 7E0 02 21 AB 00 00 00 00 00
     RX 7E8 06 61 AB 01 02 03 04 05
@@ -85,6 +85,8 @@ This sequence also answers the 212C question. If 212C follows the commanded step
 ## Offline correlation in Flex
 
 src/dpf-egr-capture-analysis.js accepts a phase bundle containing the Techstream reference value for each phase and the matching passive J2534 trace.
+
+The bundle is target-vehicle-specific: its calibration ID must be `35360000` and phase IDs must be unique. Repeating the same physical state does not satisfy the promotion gate; a research candidate needs at least four independently varying raw/reference states, and the strongest class needs at least five.
 
 For every observed read request/response pair it tests, without transmission:
 
