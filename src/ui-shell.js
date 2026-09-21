@@ -480,14 +480,6 @@ function enhanceLive(){
 }
 
 
-function moveLabelAndControl(details, controlId) {
-  const control=document.getElementById(controlId);
-  if(!control)return;
-  const label=document.querySelector(`label[for="${controlId}"]`);
-  if(label)details.append(label);
-  details.append(control);
-}
-
 function enhanceConnection(){
   const page=document.querySelector("#page-connection");
   if(!page||page.dataset.iosEnhanced==="true")return;
@@ -501,38 +493,35 @@ function enhanceConnection(){
   const connectionCard=document.querySelector("#deviceSelect")?.closest(".card");
   if(connectionCard){
     connectionCard.classList.add("ios-connect-card");
-    const advanced=el("details",{class:"ios-connect-advanced"});
-    advanced.append(el("summary",{text:"Ajoneuvo ja protokolla"}));
-    moveLabelAndControl(advanced,"vehicleSelect");
-    const vehicleHint=document.querySelector("#vehicleSelect + .hint");
-    if(vehicleHint)advanced.append(vehicleHint);
-    for(const id of ["vehicleDetection","detectVehicleButton"]) {
-      const node=document.getElementById(id);
-      if(node)advanced.append(node);
+    const vehicle=document.getElementById("vehicleSelect");
+    const vehicleHint=vehicle?.nextElementSibling;
+    const advancedNodes=[
+      document.querySelector('label[for="vehicleSelect"]'), vehicle, vehicleHint?.classList?.contains("hint")?vehicleHint:null,
+      document.getElementById("vehicleDetection"), document.getElementById("detectVehicleButton"),
+      document.querySelector('label[for="protocolSelect"]'), document.getElementById("protocolSelect"),
+      document.getElementById("bleDiagnostic"), document.getElementById("copyBleDiagnostics")
+    ].filter(Boolean);
+    advancedNodes.forEach(node=>node.classList.add("ios-connection-advanced-field"));
+    const buttonRow=connectionCard.querySelector(".button-row");
+    if(buttonRow&&!document.getElementById("iosConnectionAdvancedToggle")){
+      const toggle=el("button",{id:"iosConnectionAdvancedToggle",class:"secondary full compact ios-connection-toggle",type:"button",text:"Näytä lisäasetukset"});
+      toggle.setAttribute("aria-expanded","false");
+      toggle.addEventListener("click",()=>{
+        const expanded=page.classList.toggle("ios-connection-expanded");
+        toggle.textContent=expanded?"Piilota lisäasetukset":"Näytä lisäasetukset";
+        toggle.setAttribute("aria-expanded",String(expanded));
+      });
+      buttonRow.before(toggle);
     }
-    moveLabelAndControl(advanced,"protocolSelect");
-    connectionCard.querySelector(".button-row")?.before(advanced);
     const connect=document.getElementById("connectButton");
     if(connect)connect.textContent="Yhdistä autoon";
   }
-
-  const meta=document.querySelector("#adapterIdentity")?.closest(".card");
-  const checklist=page.querySelector(".checklist");
-  if(meta||checklist){
-    const details=el("details",{class:"card ios-connection-meta"});
-    details.append(el("summary",{text:"Yhteyden lisätiedot"}));
-    if(meta)details.append(meta);
-    if(checklist)details.append(checklist);
-    page.append(details);
-  }
-
-  const diagnostics=[document.getElementById("elmDiagnosticCard"),document.getElementById("quicklynksDiagnosticCard")].filter(Boolean);
-  if(diagnostics.length){
-    const details=el("details",{class:"card ios-connection-diagnostics"});
-    details.append(el("summary",{text:"Yhteysdiagnostiikka"}));
-    diagnostics[0].before(details);
-    diagnostics.forEach(node=>details.append(node));
-  }
+  [
+    document.querySelector("#adapterIdentity")?.closest(".card"),
+    page.querySelector(".checklist"),
+    document.getElementById("elmDiagnosticCard"),
+    document.getElementById("quicklynksDiagnosticCard")
+  ].filter(Boolean).forEach(node=>node.classList.add("ios-connection-secondary"));
 }
 
 function enhanceDtc(){
@@ -549,11 +538,16 @@ function enhanceDtc(){
   if(clearHint)clearHint.classList.add("hidden");
   const groups=[...page.querySelectorAll(".dtc-group")];
   const secondary=groups.filter(group=>/Odottavat|Pysyvät|hybridiohjain/i.test(group.querySelector("h3")?.textContent||""));
-  if(secondary.length){
-    const details=el("details",{class:"ios-dtc-more"});
-    details.append(el("summary",{text:"Muut vikakoodityypit"}));
-    secondary[0].before(details);
-    secondary.forEach(group=>details.append(group));
+  secondary.forEach(group=>group.classList.add("ios-dtc-secondary"));
+  if(secondary.length&&!document.getElementById("iosDtcMoreToggle")){
+    const toggle=el("button",{id:"iosDtcMoreToggle",class:"secondary full compact",type:"button",text:"Näytä muut vikakoodityypit"});
+    toggle.setAttribute("aria-expanded","false");
+    toggle.addEventListener("click",()=>{
+      const expanded=page.classList.toggle("ios-dtc-expanded");
+      toggle.textContent=expanded?"Piilota muut vikakoodityypit":"Näytä muut vikakoodityypit";
+      toggle.setAttribute("aria-expanded",String(expanded));
+    });
+    secondary[0].before(toggle);
   }
 }
 
@@ -569,12 +563,17 @@ function enhanceDpnr(){
   if(notice)notice.textContent="Nykyisten Toyota 217E / 217F / 212C -arvojen merkitys odottaa Techstream-varmennusta. Flex säilyttää raakavasteet vertailua varten.";
   const raw=page.querySelector(".raw-card");
   const warning=[...page.querySelectorAll(".inline-message.warning")].find(node=>/Thermal Deteriorate|PM Block|No Activate/i.test(node.textContent||""));
-  if(raw||warning){
-    const details=el("details",{class:"ios-dpnr-technical"});
-    details.append(el("summary",{text:"Raakadata ja tekniset tiedot"}));
-    if(raw)raw.before(details);
-    if(raw)details.append(raw);
-    if(warning)details.append(warning);
+  if(raw)raw.classList.add("ios-dpnr-secondary");
+  if(warning)warning.classList.add("ios-dpnr-secondary");
+  if((raw||warning)&&!document.getElementById("iosDpnrTechnicalToggle")){
+    const toggle=el("button",{id:"iosDpnrTechnicalToggle",class:"secondary full compact",type:"button",text:"Näytä raakadata ja tekniset tiedot"});
+    toggle.setAttribute("aria-expanded","false");
+    toggle.addEventListener("click",()=>{
+      const expanded=page.classList.toggle("ios-dpnr-expanded");
+      toggle.textContent=expanded?"Piilota raakadata":"Näytä raakadata ja tekniset tiedot";
+      toggle.setAttribute("aria-expanded",String(expanded));
+    });
+    (raw||warning).before(toggle);
   }
 }
 
