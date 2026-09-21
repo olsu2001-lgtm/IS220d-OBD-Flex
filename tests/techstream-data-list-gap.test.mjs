@@ -143,11 +143,12 @@ test("real app entrypoint bundles the passive Techstream DPF/EGR capture UI", ()
 });
 
 
-test("passive capture UI stays accessible offline and collapsed outside the hidden ELM diagnostic card", () => {
+test("passive capture UI stays transport-free and mounts on the dedicated offline research host", () => {
   const ui = fs.readFileSync(new URL("../src/techstream-data-list-gap-ui.js", import.meta.url), "utf8");
+  assert.match(ui, /document\.getElementById\("dpfEgrResearchMount"\)/);
   assert.match(ui, /document\.getElementById\("page-connection"\)/);
-  assert.match(ui, /document\.getElementById\("elmDiagnosticCard"\)/);
-  assert.match(ui, /create\("details", "techstream-gap"\)/);
-  assert.match(ui, /diagnosticCard\.before\(root\)/);
+  assert.match(ui, /create\("section", "techstream-gap"\)/);
+  assert.match(ui, /host\.append\(root\)/);
+  assert.doesNotMatch(ui, /document\.getElementById\("elmDiagnosticCard"\)/);
   assert.doesNotMatch(ui, /document\.getElementById\("diagnosticSummary"\)/);
 });
