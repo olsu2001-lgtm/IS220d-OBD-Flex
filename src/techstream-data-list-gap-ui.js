@@ -271,21 +271,23 @@ function ensurePanel() {
   if (typeof document === "undefined") return null;
   let root = document.getElementById(PANEL_ID);
   if (root) return root;
-  const anchor = document.getElementById("diagnosticSummary");
-  if (!anchor?.parentNode) return null;
+  const connectionPage = document.getElementById("page-connection");
+  const diagnosticCard = document.getElementById("elmDiagnosticCard");
+  if (!connectionPage) return null;
   ensureStyles();
-  root = create("section", "techstream-gap");
+  root = create("details", "techstream-gap");
   root.id = PANEL_ID;
-  const head = create("div", "techstream-gap-head");
+  const head = create("summary", "techstream-gap-head");
   head.append(create("strong", "", "Techstream · DPF/EGR signaalien varmennus"), create("span", "", "PASSIIVINEN CAPTURE · EI PID-ARVAUSTA"));
   root.append(head);
-  root.append(create("p", "techstream-gap-note", "Tavoite on löytää tämän 2AD-FHV:n oikea DPF Differential Pressure- ja EGR Lift Sensor Output -transaktio sekä todentaa tavurakenne Techstreamiä vasten ennen kuin arvo julkaistaan Flexin live-datana."));
+  root.append(create("p", "techstream-gap-note", "Offline-tutkimustyökalu. Tavoite on löytää tämän 2AD-FHV:n oikea DPF Differential Pressure- ja EGR Lift Sensor Output -transaktio sekä todentaa tavurakenne Techstreamiä vasten ennen kuin arvo julkaistaan Flexin live-datana."));
   renderCaptureProtocol(root);
   renderTargets(root);
   buildDpfEgrBundleTool(root);
   buildCsvImportTool(root);
   buildCaptureTool(root);
-  anchor.insertAdjacentElement("afterend", root);
+  if (diagnosticCard?.parentNode === connectionPage) diagnosticCard.before(root);
+  else connectionPage.append(root);
   return root;
 }
 
