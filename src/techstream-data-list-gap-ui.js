@@ -27,41 +27,84 @@ function create(tag, className = "", text = "") {
   return node;
 }
 
+function buildResearchStatus(root) {
+  const strip = create("div", "techstream-research-status");
+  for (const [id, label, value, detail] of [
+    ["reference", "Techstream", "0/2", "Odottaa vertailuarvoja"],
+    ["trace", "J2534", "0", "Ei analysoitua jälkeä"],
+    ["correlation", "Vertailu", "–", "Ei analysoitu"]
+  ]) {
+    const card = create("div", "techstream-status-card");
+    card.dataset.researchStatus = id;
+    card.dataset.state = "idle";
+    card.append(create("span", "", label), create("strong", "", value), create("small", "", detail));
+    strip.append(card);
+  }
+  root.append(strip);
+}
+
+function setResearchStatus(root, id, state, value, detail) {
+  const card = root.querySelector(`[data-research-status="${id}"]`);
+  if (!card) return;
+  card.dataset.state = state;
+  card.querySelector("strong").textContent = String(value);
+  card.querySelector("small").textContent = String(detail);
+}
+
 function ensureStyles() {
   if (document.getElementById(STYLE_ID)) return;
   const style = create("style");
   style.id = STYLE_ID;
   style.textContent = `
-    .techstream-gap{margin:10px 0;padding:11px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
-    .techstream-gap-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.techstream-gap-head strong{font-size:11px}.techstream-gap-head span{color:var(--warning);font-size:8px;font-weight:850;text-align:right}
-    .techstream-gap-note{margin:7px 0;color:var(--muted);font-size:9px;line-height:1.4}.techstream-gap-targets{display:grid;gap:6px;margin-top:8px}.techstream-gap-target{padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--surface-inset)}
-    .techstream-gap-target strong{display:block;font-size:10px}.techstream-gap-target small{display:block;margin-top:3px;color:var(--muted);font-size:8px;line-height:1.35}.techstream-gap-target b{display:inline-block;margin-top:5px;color:var(--warning);font-size:8px}
-    .techstream-gap details{margin-top:9px;border-top:1px solid var(--line);padding-top:8px}.techstream-gap summary{cursor:pointer;color:var(--info);font-size:9px;font-weight:850}
-    .techstream-gap textarea{width:100%;min-height:145px;margin-top:8px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-inset);color:var(--text-strong);resize:vertical;font:8px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-    .techstream-gap-file{width:100%;margin-top:7px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--surface-inset);color:var(--muted);font-size:8px}
-    .techstream-gap-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.techstream-gap-actions button{min-height:34px;font-size:8px}.techstream-gap-results{display:grid;gap:5px;margin-top:8px}.techstream-gap-result{padding:7px;border-radius:8px;background:var(--surface-inset);font-size:8px;line-height:1.4;overflow-wrap:anywhere}.techstream-gap-result strong{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.techstream-gap-result.rejected{border-left:3px solid var(--warning)}.techstream-gap-result.complete{border-left:3px solid var(--success)}.techstream-gap-result.partial{border-left:3px solid var(--warning)}.techstream-gap-result.research{border-left:3px solid var(--info)}
-    .techstream-capture-protocol{margin:8px 0 0;padding:8px 8px 8px 24px;border:1px solid var(--line);border-radius:9px;background:var(--surface-inset);color:var(--text-strong);font-size:8px;line-height:1.5}.techstream-capture-protocol li+li{margin-top:4px}
-    @media(max-width:420px){.techstream-gap-actions{grid-template-columns:1fr}}
-  `;
+    .techstream-gap{margin:0;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
+    .techstream-gap-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.techstream-gap-head strong{font-size:16px}.techstream-gap-head span{color:var(--warning);font-size:10px;font-weight:800;text-align:right;letter-spacing:.05em}
+    .techstream-gap-note{margin:9px 0 12px;color:var(--muted);font-size:13px;line-height:1.45}
+    .techstream-research-status{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+    .techstream-status-card{display:grid;gap:3px;min-height:74px;padding:11px;border:1px solid var(--line);border-radius:14px;background:var(--surface-inset)}
+    .techstream-status-card span{color:var(--muted);font-size:10px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}.techstream-status-card strong{font-size:15px}.techstream-status-card small{color:var(--muted);font-size:11px;line-height:1.25}
+    .techstream-status-card[data-state="ready"]{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--success) 45%,transparent)}.techstream-status-card[data-state="research"]{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--info) 45%,transparent)}.techstream-status-card[data-state="attention"]{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--warning) 40%,transparent)}
+    .techstream-gap-targets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.techstream-gap-target{padding:11px;border:1px solid var(--line);border-radius:13px;background:var(--surface-inset)}
+    .techstream-gap-target strong{display:block;font-size:13px}.techstream-gap-target small{display:block;margin-top:4px;color:var(--muted);font-size:11px;line-height:1.35}.techstream-gap-target b{display:inline-block;margin-top:7px;color:var(--warning);font-size:10px}
+    .techstream-gap details{margin-top:10px;border-top:1px solid var(--line);padding-top:9px}.techstream-gap summary{min-height:40px;display:flex;align-items:center;cursor:pointer;color:var(--info);font-size:13px;font-weight:750}
+    .techstream-gap textarea{width:100%;min-height:132px;margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:11px;background:var(--surface-inset);color:var(--text-strong);resize:vertical;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .techstream-gap-file{width:100%;margin-top:8px;padding:9px;border:1px solid var(--line);border-radius:11px;background:var(--surface-inset);color:var(--muted);font-size:12px}
+    .techstream-gap-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px}.techstream-gap-actions button{min-height:42px;font-size:11px}
+    .techstream-gap-results{display:grid;gap:6px;margin-top:9px}.techstream-gap-result{padding:9px;border-radius:10px;background:var(--surface-inset);font-size:11px;line-height:1.4;overflow-wrap:anywhere}.techstream-gap-result strong{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.techstream-gap-result.rejected{border-left:3px solid var(--warning)}.techstream-gap-result.complete{border-left:3px solid var(--success)}.techstream-gap-result.partial{border-left:3px solid var(--warning)}.techstream-gap-result.research{border-left:3px solid var(--info)}
+    .techstream-capture-protocol{margin:4px 0 0;padding:8px 8px 8px 26px;color:var(--text-strong);font-size:12px;line-height:1.5}.techstream-capture-protocol li+li{margin-top:5px}
+    .techstream-secondary-targets .techstream-gap-targets{grid-template-columns:1fr}
+    @media(max-width:520px){.techstream-research-status,.techstream-gap-targets{grid-template-columns:1fr}.techstream-status-card{min-height:auto}.techstream-gap-actions{grid-template-columns:1fr}}
+`
   document.head.append(style);
 }
 
+function targetCard(target) {
+  const card = create("div", "techstream-gap-target");
+  card.append(
+    create("strong", "", `${target.label} · ${target.unit}`),
+    create("small", "", target.note),
+    create("b", "", "ODOTTAA VARMENNETTUA RAAKATRANSAKTIOTA")
+  );
+  return card;
+}
+
 function renderTargets(root) {
+  const primary = create("div", "techstream-gap-targets");
+  for (const target of TECHSTREAM_DATA_LIST_GAP_TARGETS.slice(0, 2)) primary.append(targetCard(target));
+  root.append(primary);
+
+  const secondaryTargets = TECHSTREAM_DATA_LIST_GAP_TARGETS.slice(2);
+  if (!secondaryTargets.length) return;
+  const details = create("details", "techstream-secondary-targets");
+  details.append(create("summary", "", `Muut Techstream-kohteet (${secondaryTargets.length})`));
   const list = create("div", "techstream-gap-targets");
-  for (const target of TECHSTREAM_DATA_LIST_GAP_TARGETS) {
-    const card = create("div", "techstream-gap-target");
-    card.append(
-      create("strong", "", `${target.label} · ${target.unit}`),
-      create("small", "", `${target.dataListPath} · tila ${target.operatingState}`),
-      create("small", "", target.note),
-      create("b", "", "RAAKATRANSAKTIO PUUTTUU · CAPTURE VAADITAAN")
-    );
-    list.append(card);
-  }
-  root.append(list);
+  secondaryTargets.forEach(target => list.append(targetCard(target)));
+  details.append(list);
+  root.append(details);
 }
 
 function renderCaptureProtocol(root) {
+  const details = create("details", "techstream-measurement-guide");
+  details.append(create("summary", "", "Mittausohje"));
   const list = create("ol", "techstream-capture-protocol");
   for (const text of [
     "DPF: KOEO, lämmin tyhjäkäynti, 1500, 2000, 2500 ja 3000 rpm. Jokaisessa vaiheessa kirjaa Techstreamin DPF Differential Pressure, RPM ja MAF sekä tallenna samaan aikaan J2534-jälki.",
@@ -69,13 +112,16 @@ function renderCaptureProtocol(root) {
     "Pidä jokainen vaihe omana lyhyenä capturena. Flex analysoi vain passiivisesti Techstreamin jo tekemät pyynnöt ja vastaukset.",
     "Hyvä korrelaatio tuottaa vain tutkimuskandidaatin. Tuotantoarvo hyväksytään vasta, kun sama request/decoder toistaa Techstreamin arvon Flexillä useassa käyttötilassa."
   ]) list.append(create("li", "", text));
-  root.append(list);
+  details.append(list);
+  root.append(details);
 }
 
 function renderAnalysis(root, analysis) {
   const results = root.querySelector(".techstream-gap-results.trace-results");
   if (!results) return;
   results.replaceChildren();
+  const traceState = analysis.pairCount > 0 ? "ready" : analysis.isoTpSequenceErrorCount || analysis.isoTpIncompleteCount ? "attention" : "idle";
+  setResearchStatus(root, "trace", traceState, analysis.pairCount, analysis.pairCount > 0 ? `${analysis.candidateCount} uutta read-kandidaattia` : "Ei analysoituja read-pareja");
   results.append(create("div", "techstream-gap-result", `Pareja ${analysis.pairCount} · uusia kandidaatteja ${analysis.candidateCount} · nykyisiä komentoja ${analysis.existing.length} · parittomia vastauksia ${analysis.unmatchedResponseCount}`));
   for (const item of analysis.candidates) {
     results.append(create("div", "techstream-gap-result research", `${item.command} → ${item.responsePrefix} · havaintoja ${item.observations} · payload ${item.payloadLengths.join("/") || "–"} B · eri vasteita ${item.distinctPayloadCount}`));
@@ -97,6 +143,8 @@ function renderDataListExport(root, result) {
   const results = root.querySelector(".techstream-gap-results.csv-results");
   if (!results) return;
   results.replaceChildren();
+  const referenceState = result.dpfEgrComplete ? "ready" : result.dpfEgrTargetCount > 0 ? "attention" : "idle";
+  setResearchStatus(root, "reference", referenceState, `${result.dpfEgrTargetCount}/2`, result.dpfEgrComplete ? "DPF + EGR referenssit löytyivät" : result.dpfEgrTargetCount ? "Referenssi on vielä osittainen" : "Odottaa vertailuarvoja");
   const dpfEgrClass = result.dpfEgrComplete ? "complete" : "partial";
   results.append(create("div", `techstream-gap-result ${dpfEgrClass}`, `DPF/EGR-kattavuus ${result.dpfEgrTargetCount}/2 · aikasarjarivejä ${result.sampleCount} · ${result.dpfEgrComplete ? "MOLEMMAT REFERENSSIT LÖYTYIVÄT" : "OSITTAINEN REFERENSSI"}`));
   results.append(create("div", "techstream-gap-result", `DPF Differential Pressure: ${formatValue(result.values.dpfDifferentialPressureKpa, " kPa")}`));
@@ -209,9 +257,14 @@ function renderBundleAnalysis(root, result) {
   if (!results) return;
   results.replaceChildren();
   if (!result.bundle?.valid) {
-    results.append(create("div", "techstream-gap-result rejected", `Bundle ei kelpaa: ${(result.bundle?.errors || []).join(" · ") || "tuntematon virhe"}`));
+    setResearchStatus(root, "correlation", "idle", "–", "Odottaa mittausbundlea");
+    results.append(create("div", "techstream-gap-result partial", "Lisää mittausbundle vasta, kun usean käyttötilan Techstream-arvot ja J2534-jäljet ovat valmiina."));
     return;
   }
+  const dpfCount = result.dpf?.candidates?.length || 0;
+  const egrCount = result.egr?.candidates?.length || 0;
+  const total = dpfCount + egrCount;
+  setResearchStatus(root, "correlation", total ? "research" : "attention", total || "0", total ? `DPF ${dpfCount} · EGR ${egrCount} tutkimuskandidaattia` : "Ei vielä riittävää korrelaatiota");
   for (const [label, section, unit] of [["DPF", result.dpf, "kPa"], ["EGR", result.egr, "%"]]) {
     results.append(create("div", `techstream-gap-result ${section.status === "research-candidates" ? "research" : "partial"}`, `${label}: ${section.status} · käyttökelpoisia vaiheita ${section.usablePhases} · kandidaatteja ${section.candidates.length}`));
     for (const candidate of section.candidates.slice(0, 5)) results.append(create("div", "techstream-gap-result", candidateText(candidate, unit)));
@@ -281,6 +334,7 @@ function ensurePanel() {
   head.append(create("strong", "", "Techstream + J2534"), create("span", "", "OFFLINE · PASSIIVINEN"));
   root.append(head);
   root.append(create("p", "techstream-gap-note", "Tuo ensin Techstreamin vertailuarvot ja sen jälkeen saman mittausvaiheen J2534-liikenne. Flex etsii vastaavan raakakanavan ilman uusia autolle lähetettäviä komentoja."));
+  buildResearchStatus(root);
   renderCaptureProtocol(root);
   renderTargets(root);
   buildCsvImportTool(root);
