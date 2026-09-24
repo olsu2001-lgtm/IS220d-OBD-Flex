@@ -1,0 +1,31 @@
+name: Prepare requested Flex release version
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-version:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/release-integration-20260924'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Allocate from the live shared registry
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm run version:next
+      - name: Return exact prepared package metadata for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: flex-prepared-version-${{ github.event.pull_request.head.sha }}
+          path: |
+            package.json
+            package-lock.json
+          retention-days: 7

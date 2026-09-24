@@ -1,5 +1,21 @@
 # Muutoshistoria
 
+## Julkaisuvalmistelu · käyttöliittymä ja DPNR · 24.9.2026
+
+- Korjattu 0.9.7:n paketointivirhe: uuden mobiilikäyttöliittymän tyylitiedosto
+  sisältyy molempiin APK:ihin. Julkaisutarkistus vertaa tyylejä lähdetiedostoihin.
+- Korjattu Lisää-valikon BOM-linkki sekä sivujen avaaminen niin, että Live-,
+  DPNR- ja tallennettujen ajojen näkymät suorittavat omat päivitystoimintonsa.
+- Yhdistetty Health/Live-näkymän ja viitevertailun päivitys samaan vaiheeseen.
+  Käyttöliittymän omat DOM-muutokset eivät enää ylläpidä jatkuvaa piirto-silmukkaa.
+- Tuotu PR #54:n DPNR-mittaus suoraan lähdekoodiin. Molemmat ohjatut testit
+  lukevat tuoreen 217E-vastauksen sekä RPM:n; raakamuotoinen varareitti säilyy.
+- Pohjana rekisteröity 0.9.7 ja PR #53:n myöhempi DPF/EGR-vertailutyö.
+  Säilytetty neljä päävälilehteä ja nykyinen ECU Survey -kautta toimiva
+  komponenttitulosten julkaisu; rinnakkaista käyttöliittymäkuorta ei lisätty.
+- vLinkerin Classic-parituksen palautus ja vastaamattoman 219C-suutinkyselyn
+  esto säilyvät. Todellisen auton DPF/EGR-varmennus on edelleen tekemättä.
+
 ## Kehitys · DPF/EGR Techstream-capture
 
 - Lisätty passiivinen Techstream/J2534-tutkimuspolku oikean DPF Differential

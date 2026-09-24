@@ -1,4 +1,11 @@
+import { syncReferences } from "./ui-reference-layer.js";
+
 const UI_STYLE_ID = "flex-ios-health-ui";
+let runtimeNavigate = null;
+
+export function configureUiShellNavigation(navigate) {
+  runtimeNavigate = navigate;
+}
 
 function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
@@ -208,15 +215,25 @@ function rootHub(page) {
   return page;
 }
 
-function showPage(page) {
-  const target=document.querySelector(`#page-${page}`);
-  if(!target) return false;
-  document.querySelectorAll("main > .page").forEach(p=>p.classList.toggle("active",p===target));
+export function syncUiShellNavigation(page) {
   document.querySelectorAll(".ios-tab").forEach(tab=>{
     const active=tab.dataset.iosPage===rootHub(page);
     tab.classList.toggle("active",active);
     if(active) tab.setAttribute("aria-current","page"); else tab.removeAttribute("aria-current");
   });
+  installSubpageBackButtons();
+}
+
+function showPage(page) {
+  const target=document.querySelector(`#page-${page}`);
+  const vehicleOnly=[...TEST_LINKS,...MORE_LINKS,...ADVANCED_LINKS].find(([id])=>id===page)?.[3];
+  if(!target || (vehicleOnly && vehicleOnly!==detectedVehicleKey()) || (!vehicleOnly && target.classList.contains("hidden"))) return false;
+  target.classList.remove("hidden");
+  if(runtimeNavigate) runtimeNavigate(page);
+  else {
+    document.querySelectorAll("main > .page").forEach(p=>p.classList.toggle("active",p===target));
+    syncUiShellNavigation(page);
+  }
   window.scrollTo({top:0,behavior:"instant"});
   return true;
 }
@@ -240,7 +257,10 @@ function installRouting() {
     const tab=e.target.closest("[data-ios-page]");
     if(tab){e.preventDefault();e.stopImmediatePropagation();showPage(tab.dataset.iosPage);return;}
     const link=e.target.closest("[data-go]");
-    if(link&&showPage(link.dataset.go)){e.preventDefault();e.stopImmediatePropagation();}
+    if(link){
+      e.preventDefault();e.stopImmediatePropagation();
+      if(!link.classList.contains("hidden")) showPage(link.dataset.go);
+    }
   },true);
 }
 
@@ -268,7 +288,7 @@ function detectedVehicleKey(){
 
 function syncVehicleVisibility(){
   const key=detectedVehicleKey();
-  document.querySelectorAll("#page-tests [data-vehicle-only],#page-more [data-vehicle-only]").forEach(n=>{
+  document.querySelectorAll("#page-tests [data-vehicle-only],#page-more [data-vehicle-only],#page-advanced [data-vehicle-only]").forEach(n=>{
     n.classList.toggle("hidden", !key || n.dataset.vehicleOnly!==key);
   });
 }
@@ -587,6 +607,8 @@ function installStyle(){
 }
 
 let syncScheduled=false;
+let shellObserver=null;
+const shellObserverOptions={subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["class"]};
 function hasDom(){
   return typeof document!=="undefined"&&Boolean(document?.body);
 }
@@ -596,6 +618,7 @@ function syncAll(){
   syncLiveCore();
   syncLiveStatus();
   applyLiveMetricFilter();
+  syncReferences();
 }
 function scheduleSync(){
   if(!hasDom()||syncScheduled)return;
@@ -603,7 +626,11 @@ function scheduleSync(){
   const run=()=>{
     syncScheduled=false;
     if(!hasDom())return;
-    syncAll();
+    // The projection writes text/classes itself. Observing those writes creates
+    // an endless animation-frame loop even when no vehicle data is changing.
+    shellObserver?.disconnect();
+    try { syncAll(); }
+    finally { shellObserver?.observe(document.body,shellObserverOptions); }
   };
   if(typeof requestAnimationFrame==="function")requestAnimationFrame(run);else setTimeout(run,0);
 }
@@ -620,7 +647,8 @@ function bootUiShell(){
   enhanceDpnr();
   enhanceLive();
   if(typeof MutationObserver==="function"){
-    new MutationObserver(scheduleSync).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["class"]});
+    shellObserver=new MutationObserver(scheduleSync);
+    shellObserver.observe(document.body,shellObserverOptions);
   }
   queueMicrotask(scheduleSync);
 }

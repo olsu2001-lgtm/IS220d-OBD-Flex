@@ -14,6 +14,8 @@ This directory separates the **active development contract** from historical Dri
 8. [`TECHSTREAM_REFERENCE.md`](TECHSTREAM_REFERENCE.md) — neutral external-reference schema and explicit Techstream/ECU Survey comparison boundary.
 9. [`EVIDENCE_SUPPORT_BUNDLE.md`](EVIDENCE_SUPPORT_BUNDLE.md) — compact privacy-bounded JSON export for field-validation/support analysis without raw CAN/ELM data.
 10. Executable source and regression tests — the final source of truth for shipped behavior.
+11. [`FLEX_UI_DESIGN_SYSTEM.md`](FLEX_UI_DESIGN_SYSTEM.md) and
+    [`../skills/flex-ui/SKILL.md`](../skills/flex-ui/SKILL.md) — mobile UI review contract.
 
 Historical documents never expand the active command allowlist by themselves.
 
