@@ -1,6 +1,8 @@
 # Muutoshistoria
 
-## Julkaisuvalmistelu · käyttöliittymä ja DPNR · 24.9.2026
+## 0.9.8 · käyttöliittymän ja DPNR-testien korjaukset · 24.9.2026
+
+- Uusi yhteisestä rekisteristä valmisteltu versio 0.9.8 / versionCode 908.
 
 - Korjattu 0.9.7:n paketointivirhe: uuden mobiilikäyttöliittymän tyylitiedosto
   sisältyy molempiin APK:ihin. Julkaisutarkistus vertaa tyylejä lähdetiedostoihin.
@@ -14,7 +16,10 @@
   Säilytetty neljä päävälilehteä ja nykyinen ECU Survey -kautta toimiva
   komponenttitulosten julkaisu; rinnakkaista käyttöliittymäkuorta ei lisätty.
 - vLinkerin Classic-parituksen palautus ja vastaamattoman 219C-suutinkyselyn
-  esto säilyvät. Todellisen auton DPF/EGR-varmennus on edelleen tekemättä.
+  esto säilyvät. Suutintestin painikkeen tila alustetaan heti käynnistyksessä.
+  Todellisen auton DPF/EGR-varmennus on edelleen tekemättä.
+- APK:n käynnistystesti käyttää oikeaa DOM-toteutusta ja tarkistaa myös näkyvän
+  Lisää/BOM-reitin ja paketoitujen tyylien vaikutuksen navigaatioon.
 
 ## Kehitys · DPF/EGR Techstream-capture
 

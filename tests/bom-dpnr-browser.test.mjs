@@ -62,6 +62,7 @@ test("production-transformed app installs BOM after startup and opens it by real
   const dom = await browser();
   try {
     const w = dom.window, d = w.document;
+    assert.equal(d.querySelector("#startInjectorTest").disabled, true, "unsupported injector test is disabled at startup");
     const button = d.querySelector("#nav-component-diagnostics");
     assert.ok(button, "dynamic BOM navigation is installed");
     button.click();

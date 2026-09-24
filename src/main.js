@@ -4322,6 +4322,7 @@ async function init() {
   renderCtPurchaseProgress();
   renderInjectorProgress();
   renderInjectorSample();
+  updateConnectionButtons();
   applyPowerVehicleDefaults();
   renderPowerTestStatus();
   renderPowerHistory();
