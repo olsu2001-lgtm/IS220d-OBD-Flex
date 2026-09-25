@@ -19,10 +19,14 @@ Lexus IS220d / XE20 / 2AD-FHV European profile.
 |---|---|---|---|
 | DPNR pressure and regeneration states | `217E` | `02217E0000000000` | `617E` |
 | DPNR inlet and outlet temperatures | `217F` | `02217F0000000000` | `617F` |
-| EGR position | `212C` | `02212C0000000000` | `612C` |
+| EGR production signal (legacy label: position; commanded-vs-lift semantics pending Techstream capture) | `212C` | `02212C0000000000` | `612C` |
 
 The executable source of truth is `src/is220d-profile.js`. These are the
-normal production live-data requests.
+normal production live-data requests. This allowlist status does not by itself
+prove that a displayed semantic label matches the Techstream Data List item.
+Target-vehicle evidence from 2026-09-10 returned `NO DATA` for `217E`/`217F`
+and a complete `612C` response for `212C`; the DPF/EGR semantic cross-check is
+therefore tracked separately in `DPF_EGR_VEHICLE_VALIDATION.md`.
 
 `2193` (fuel temperature), `2196` (rail pressure) and `21AF` (injection
 timing) remain Techstream-derived screening candidates outside normal live

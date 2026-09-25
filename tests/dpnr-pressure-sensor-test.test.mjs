@@ -124,7 +124,7 @@ test("DPNR pressure sensor build transform fails closed if required main anchors
     /DPNR page navigation anchor missing|ambiguous/i
   );
   assert.throws(
-    () => patchMainForDpnrPressureSensorTest(mainSource.replace('    start: () => { if (!state.liveActive) void startLive(); },', "")),
+    () => patchMainForDpnrPressureSensorTest(mainSource.replace('    capture: captureFreshDpnrPressureTestSample,', "")),
     /test-live adapter anchor missing|ambiguous/i
   );
 });

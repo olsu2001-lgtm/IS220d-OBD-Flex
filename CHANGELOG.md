@@ -1,5 +1,43 @@
 # Muutoshistoria
 
+## 0.9.8 · käyttöliittymän ja DPNR-testien korjaukset · 24.9.2026
+
+- Uusi yhteisestä rekisteristä valmisteltu versio 0.9.8 / versionCode 908.
+
+- Korjattu 0.9.7:n paketointivirhe: uuden mobiilikäyttöliittymän tyylitiedosto
+  sisältyy molempiin APK:ihin. Julkaisutarkistus vertaa tyylejä lähdetiedostoihin.
+- Korjattu Lisää-valikon BOM-linkki sekä sivujen avaaminen niin, että Live-,
+  DPNR- ja tallennettujen ajojen näkymät suorittavat omat päivitystoimintonsa.
+- Yhdistetty Health/Live-näkymän ja viitevertailun päivitys samaan vaiheeseen.
+  Käyttöliittymän omat DOM-muutokset eivät enää ylläpidä jatkuvaa piirto-silmukkaa.
+- Tuotu PR #54:n DPNR-mittaus suoraan lähdekoodiin. Molemmat ohjatut testit
+  lukevat tuoreen 217E-vastauksen sekä RPM:n; raakamuotoinen varareitti säilyy.
+- Pohjana rekisteröity 0.9.7 ja PR #53:n myöhempi DPF/EGR-vertailutyö.
+  Säilytetty neljä päävälilehteä ja nykyinen ECU Survey -kautta toimiva
+  komponenttitulosten julkaisu; rinnakkaista käyttöliittymäkuorta ei lisätty.
+- vLinkerin Classic-parituksen palautus ja vastaamattoman 219C-suutinkyselyn
+  esto säilyvät. Suutintestin painikkeen tila alustetaan heti käynnistyksessä.
+  Todellisen auton DPF/EGR-varmennus on edelleen tekemättä.
+- APK:n käynnistystesti käyttää oikeaa DOM-toteutusta ja tarkistaa myös näkyvän
+  Lisää/BOM-reitin ja paketoitujen tyylien vaikutuksen navigaatioon.
+
+## Kehitys · DPF/EGR Techstream-capture
+
+- Lisätty passiivinen Techstream/J2534-tutkimuspolku oikean DPF Differential
+  Pressure- ja EGR Lift Sensor Output -transaktion tunnistamiseen ilman uusia
+  autolle lähetettäviä komentoja.
+- Techstream CSV/text -importti poimii nyt DPF-paineen, EGR-liftin, RPM:n ja
+  MAFin sekä säilyttää aikasarjarivit.
+- J2534-jälkianalyysi hyväksyy 7E0/7E8-kompaktimuodon sekä nelitavuisen CAN-ID:n
+  sisältävän lokimuodon ja luokittelee nykyiset, hylätyt ja uudet read-only
+  kandidaatit erikseen.
+- Lisätty vaiheittainen DPF/EGR-capture-bundle ja offline-korrelaatio, joka
+  etsii 8-/16-bittisiä tavukanavia ja lineaarisia skaalaehdokkaita. Tulos ei
+  koskaan muuta sallintalistaa eikä merkitse signaalia tuotantovarmennetuksi.
+- Lisätty dokumentoitu target-vehicle-portti: Techstream/J2534-capture,
+  toistuva numeerinen vertailu ja kolme Flex-varmennusajoa ennen live-julkaisua.
+- Ei versionumeron muutosta eikä APK-julkaisua.
+
 ## 0.9.3 · Yhtenäinen versiointi ja julkaisulukko
 
 - Versio tulee vain package.json-tiedostosta APK:hon, näkyvään käyttöliittymään
