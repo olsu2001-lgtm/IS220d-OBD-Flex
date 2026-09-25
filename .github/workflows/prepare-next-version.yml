@@ -1,0 +1,21 @@
+name: Prepare requested Flex version
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: github.head_ref == 'work/prepare-flex-20260925-0806'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Allocate from live registry
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          npm run version:next
+          git diff -- package.json package-lock.json
