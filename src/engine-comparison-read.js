@@ -14,16 +14,28 @@ export async function readEngineComparison(client) {
   return transaction.responses.map(response => {
     const probe = probes.find(p => p.command === response.command);
     const decoded = !response.error && decodeToyotaReadDataResponse(response.raw, probe.identifier, "is220d");
+    const fieldOutcome = response.error
+      ? "field-no-response"
+      : decoded?.complete
+        ? "decoded-candidate"
+        : "decode-gap";
+    const evidence = fieldOutcome === "field-no-response"
+      ? "field-observed-no-response; suora 7E0→7E8 lukumuoto ei palauttanut arvoa tässä ajossa"
+      : "techstream-derived; ajoneuvovarmennus puuttuu";
     return { command: probe.command, timestamp: transaction.endedAt, durationMs: response.durationMs,
       requestHeader: "7E0", responseHeader: "7E8", transactionId: transaction.transactionId,
-      raw: response.raw, error: response.error, evidence: "techstream-derived; ajoneuvovarmennus puuttuu",
+      raw: response.raw, error: response.error, fieldOutcome, evidence,
       fields: probe.fields.map(field => {
         const rawValue = decoded?.complete ? decoded.values?.[field.valueKey] : null;
         const value = rawValue == null ? null : Number(rawValue);
         const plausible = Number.isFinite(value) && value >= field.plausibleRange[0] && value <= field.plausibleRange[1];
         return { id: field.id, name: field.label, unit: field.unit, value: plausible ? value : null,
           plausibleRange: field.plausibleRange, decoder: probe.id,
-          status: plausible ? "vertailtava Techstreamiin" : "ei kelvollista arvoa" };
+          status: plausible
+            ? "vertailtava Techstreamiin"
+            : fieldOutcome === "field-no-response"
+              ? "ECU ei palauttanut tietoa"
+              : "ei kelvollista arvoa" };
       }) };
   });
 }
