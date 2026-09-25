@@ -77,7 +77,7 @@ try {
   d.querySelector('[data-ios-page="more"]').click();
   d.querySelector('#page-more [data-go="app-diagnostics"]').click();
   assert.ok(byId("page-app-diagnostics").classList.contains("active"));
-  byId("page-app-diagnostics").querySelector("button").click();
+  byId("page-app-diagnostics").querySelector("button.primary").click();
   const report = JSON.parse(byId("page-app-diagnostics").querySelector("textarea").value);
   assert.equal(report.type, "flex-query-value-diagnostics");
   if (expectedVersion) assert.equal(report.appVersion, expectedVersion);

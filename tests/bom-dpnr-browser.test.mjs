@@ -88,6 +88,24 @@ test("production-transformed app installs BOM after startup and opens it by real
   } finally { dom.window.close(); }
 });
 
+test("packaged report opens through More and records the actual application snapshot", async () => {
+  const dom = await browser();
+  try {
+    const d = dom.window.document;
+    d.querySelector('[data-ios-page="more"]').click();
+    d.querySelector('#page-more [data-go="app-diagnostics"]').click();
+    const page = d.querySelector("#page-app-diagnostics.active");
+    assert.ok(page.querySelector(".ios-back"));
+    page.querySelector("button.primary").click();
+    const report = JSON.parse(page.querySelector("textarea").value);
+    assert.equal(report.type, "flex-query-value-diagnostics");
+    assert.equal(report.connected, false);
+    assert.ok(report.values.length > 0);
+    assert.equal(report.summary.missing, report.summary.total);
+    assert.equal(report.comparison.length, 0);
+  } finally { dom.window.close(); }
+});
+
 test("mobile navigation runs page lifecycle and opens the dynamically installed BOM", async () => {
   const dom = await browser({ controlledFrames: true });
   try {
