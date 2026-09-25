@@ -1,6 +1,7 @@
 import { configureUiShellNavigation, syncUiShellNavigation } from "./ui-shell.js";
 import "./techstream-data-list-gap-ui.js";
 import { APP_VERSION } from "./app-version.js";
+import { appTraffic, configureAppDiagnostics } from "./app-diagnostics.js";
 import "./dpnr-pressure-sensor-test.js";
 globalThis.__IS220D_DPNR_PRESSURE_SENSOR_TEST_V3__ = true;
 import { configureDpnrTestLive } from "./dpnr-test-live.js";
@@ -527,6 +528,7 @@ async function detectVehicleProfile({ userInitiated = false } = {}) {
 }
 
 function logTraffic(entry) {
+  appTraffic.record(entry);
   const time = new Date(entry.timestamp).toLocaleTimeString("fi-FI", { hour12: false });
   if (entry.binary) {
     const category = entry.research
@@ -889,6 +891,7 @@ function updateDeviceHelp() {
 
 async function connect() {
   if (state.connected || state.connecting) return;
+  appTraffic.reset();
   const selectedOption = $("#deviceSelect").selectedOptions[0];
   const address = selectedOption?.dataset.address || "";
   const simulated = selectedOption?.dataset.simulated === "true";
@@ -4290,6 +4293,21 @@ async function captureFreshDpnrPressureTestSample(phase = {}) {
 }
 
 async function init() {
+  configureAppDiagnostics(() => ({
+    appVersion: APP_VERSION, vehicleKey: state.vehicleKey,
+    simulated: state.transport === fakeTransport,
+    connected: state.connected, liveActive: state.liveActive,
+    binary: state.quicklynks, connectionStages: state.connectionStages,
+    definitions: activeMetricDefinitions(), supportedPids: state.supportedPids,
+    values: state.values, updatedAt: state.updatedAt, valueSources: state.valueSources,
+    poll: pollingQualitySnapshot(), traffic: appTraffic.snapshot(),
+    ui: Object.fromEntries(activeMetricDefinitions().map(def => {
+      const card = document.getElementById(`metric-${def.id}`);
+      const text = card?.querySelector(".metric-value")?.textContent ?? null;
+      return [def.id, { present: Boolean(card), text,
+        matches: Number.isFinite(state.values[def.id]) && text === formatValue(def, state.values[def.id]) }];
+    }))
+  }));
   configureUiShellNavigation(goToPage);
   configureDpnrTestLive({
     available: () => state.vehicleKey === VEHICLE_KEYS.IS220D && state.connected &&

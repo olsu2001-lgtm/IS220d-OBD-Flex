@@ -27,3 +27,6 @@ html,body{background:var(--ios-bg)}body{font-family:-apple-system,BlinkMacSystem
 #page-dtc:not(.ios-dtc-expanded) .ios-dtc-secondary{display:none!important}
 #page-dpnr:not(.ios-dpnr-expanded) .ios-dpnr-secondary{display:none!important}
 #iosDtcMoreToggle,#iosDpnrTechnicalToggle{margin:10px 0 14px}
+#page-app-diagnostics { overflow-wrap: anywhere; }
+#page-app-diagnostics button, #page-app-diagnostics summary { min-height: 44px; }
+#page-app-diagnostics textarea { width: 100%; min-height: 260px; box-sizing: border-box; color: var(--text); background: var(--surface); }

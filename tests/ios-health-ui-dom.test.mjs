@@ -78,6 +78,8 @@ test("iOS Health Check shell mounts, relocates secondary tools and summarizes ev
     assert.ok(dom.window.document.querySelector("#page-trace-tools #obdPlusTraceCard"));
     assert.ok(dom.window.document.querySelector("#page-dpf-egr-research #dpfEgrResearchMount"));
     assert.ok(dom.window.document.querySelector('#page-more [data-go="advanced"]'));
+    assert.ok(dom.window.document.querySelector('#page-more [data-go="app-diagnostics"]'));
+    assert.ok(dom.window.document.querySelector('#page-app-diagnostics textarea[readonly]'));
     assert.ok(dom.window.document.querySelector('#page-advanced [data-go="trace-tools"]'));
     assert.ok(dom.window.document.querySelector("#page-live #iosLiveCore"));
     assert.ok(dom.window.document.querySelector("#metricGrid.ios-metrics-collapsed"));

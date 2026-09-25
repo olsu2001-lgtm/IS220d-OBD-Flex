@@ -1,4 +1,5 @@
 import { syncReferences } from "./ui-reference-layer.js";
+import { buildAppDiagnosticsPage } from "./app-diagnostics.js";
 
 const UI_STYLE_ID = "flex-ios-health-ui";
 let runtimeNavigate = null;
@@ -29,6 +30,7 @@ const TEST_LINKS = [
 ];
 
 const MORE_LINKS = [
+  ["app-diagnostics", "Kyselyt ja arvot", "Puuttuvat arvot ja kopioitava diagnostiikka"],
   ["connection", "Yhteys", "OBD-lukija ja auto"],
   ["sessions", "Tallennetut ajot", "Raportit ja aiemmat mittaukset"],
   ["dpf-egr-research", "DPF/EGR varmennus", "Techstream + J2534 · offline", "is220d"],
@@ -179,6 +181,7 @@ function installPages() {
   main.append(buildHub("more","ASETUKSET JA TYÖKALUT","Lisää",MORE_LINKS));
   main.append(buildHub("advanced","TEKNISET TYÖKALUT","Asiantuntijatyökalut",ADVANCED_LINKS));
   main.append(buildResearchPage());
+  main.append(buildAppDiagnosticsPage());
   main.append(buildMovedPage("appearance","ULKOASU","Ulkoasu",themeCard));
   main.append(buildMovedPage("trace-tools","ASIANTUNTIJATYÖKALU","BLE-jälkianalyysi",traceCard));
   document.querySelector("#page-connection")?.classList.add("ios-connection-page");
