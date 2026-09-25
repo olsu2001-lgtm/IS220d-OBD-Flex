@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
 import { ROOT, readVersion, apkNames, sourceSha } from "./release-version.mjs";
 import { assertUnused, createRegistryClient } from "./release-registry.mjs";
+import { verifyPackagedWebStyles } from "./web-assets.mjs";
 
 export function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 
@@ -68,6 +69,7 @@ export function verifyArtifacts() {
     const apk = path.join(dist, file);
     const bytes = fs.readFileSync(apk);
     const zip = new AdmZip(bytes);
+    verifyPackagedWebStyles(zip, ROOT);
     for (const entry of ["AndroidManifest.xml", "classes.dex", "assets/index.html", "assets/app.bundle.js", "assets/flex-version.json"]) {
       if (!zip.getEntry(entry)) throw new Error(`Missing ${entry} in ${file}`);
     }

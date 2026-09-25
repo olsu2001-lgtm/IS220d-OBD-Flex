@@ -20,7 +20,7 @@ const settle = async (predicate, description, maxTurns = 4000) => {
   throw new Error(`Timed out waiting for ${description}`);
 };
 
-async function browser() {
+async function browser({ controlledFrames = false } = {}) {
   const result = await build({
     absWorkingDir: root, entryPoints: ["src/main.js"], write: false,
     bundle: true, format: "iife", platform: "browser", target: "chrome90",
@@ -34,6 +34,19 @@ async function browser() {
   });
   const dom = new JSDOM(html, { url: "https://flex.invalid", runScripts: "outside-only", pretendToBeVisual: true });
   const w = dom.window;
+  if (controlledFrames) {
+    const frames = new Map();
+    let nextFrame = 0;
+    w.requestAnimationFrame = callback => { frames.set(++nextFrame, callback); return nextFrame; };
+    w.cancelAnimationFrame = id => frames.delete(id);
+    w.testFrames = frames;
+    w.flushTestFrame = async () => {
+      const pending = [...frames.values()];
+      frames.clear();
+      for (const callback of pending) callback(0);
+      await flush();
+    };
+  }
   w.localStorage.setItem("lexusVehicleProfile", "is220d");
   w.scrollTo = () => {};
   w.matchMedia = () => ({ matches: false, addEventListener() {} });
@@ -49,6 +62,7 @@ test("production-transformed app installs BOM after startup and opens it by real
   const dom = await browser();
   try {
     const w = dom.window, d = w.document;
+    assert.equal(d.querySelector("#startInjectorTest").disabled, true, "unsupported injector test is disabled at startup");
     const button = d.querySelector("#nav-component-diagnostics");
     assert.ok(button, "dynamic BOM navigation is installed");
     button.click();
@@ -71,6 +85,45 @@ test("production-transformed app installs BOM after startup and opens it by real
     button.click();
     assert.ok(page.classList.contains("active"));
     assert.equal(page.classList.contains("hidden"), false);
+  } finally { dom.window.close(); }
+});
+
+test("mobile navigation runs page lifecycle and opens the dynamically installed BOM", async () => {
+  const dom = await browser({ controlledFrames: true });
+  try {
+    const w = dom.window, d = w.document;
+    for (let i = 0; i < 3; i++) await w.flushTestFrame();
+    d.querySelector('[data-ios-page="tests"]').click();
+    d.querySelector('#page-tests [data-go="dpnr"]').click();
+    assert.ok(d.querySelector("#page-dpnr.active"));
+    assert.ok(w.testFrames.size > 0, "DPNR navigation schedules its runtime render");
+    assert.ok(d.querySelector('[data-ios-page="tests"].active'));
+    d.querySelector('[data-ios-page="more"]').click();
+    d.querySelector('#page-more [data-go="component-diagnostics"]').click();
+    assert.ok(d.querySelector("#page-component-diagnostics.active:not(.hidden)"));
+    assert.ok(d.querySelector('#page-component-diagnostics > .ios-back'));
+    assert.equal(d.querySelectorAll(".page.active").length, 1);
+    w.testApp.goToPage("live");
+    assert.ok(d.querySelector('[data-ios-page="live"].active'));
+    w.testApp.state.vehicleKey = "ct200h";
+    w.testApp.applyVehicleProfileUi();
+    d.querySelector('#page-more [data-go="component-diagnostics"]').click();
+    assert.equal(d.querySelector("#page-component-diagnostics").classList.contains("active"), false);
+  } finally { dom.window.close(); }
+});
+
+test("idle Health and Live projections stop scheduling frames and react to later data", async () => {
+  const dom = await browser({ controlledFrames: true });
+  try {
+    const w = dom.window, d = w.document;
+    for (let i = 0; i < 4; i++) await w.flushTestFrame();
+    assert.equal(w.testFrames.size, 0, "projection must not observe its own DOM writes forever");
+    d.querySelector("#connectionBadge").classList.add("online");
+    await flush();
+    assert.ok(w.testFrames.size > 0, "a new connection state schedules a projection");
+    await w.flushTestFrame();
+    assert.equal(d.querySelector("#iosLiveState").textContent, "Live pysäytetty");
+    assert.equal(w.testFrames.size, 0, "the update settles after external data is projected");
   } finally { dom.window.close(); }
 });
 

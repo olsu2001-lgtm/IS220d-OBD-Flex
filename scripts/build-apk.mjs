@@ -12,6 +12,7 @@ import { IM_READINESS_BUILD_MARKER, patchMainForImReadiness } from "./im-readine
 import { RESPONSIVE_UI_BUILD_MARKER, patchMainForResponsiveness } from "./responsive-ui-transform.mjs";
 import { VLINKER_RECOVERY_BUILD_MARKER, patchMainForVLinkerRecovery } from "./vlinker-recovery-main-transform.mjs";
 import { DPNR_PRESSURE_SENSOR_BUILD_MARKER, patchMainForDpnrPressureSensorTest } from "./dpnr-pressure-sensor-main-transform.mjs";
+import { copyWebStyles, verifyPackagedWebStyles } from "./web-assets.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const buildRoot = path.join(root, ".build");
@@ -101,9 +102,10 @@ cliSource = cliSource
 fs.writeFileSync(cliPath, cliSource, "utf8");
 
 fs.mkdirSync(nitronProject, { recursive: true });
-for (const name of ["app.js", "styles.css", "package.json"]) {
+for (const name of ["app.js", "package.json"]) {
   fs.copyFileSync(path.join(root, name), path.join(nitronProject, name));
 }
+copyWebStyles(root, nitronProject);
 fs.cpSync(path.join(root, "assets"), path.join(nitronProject, "assets"), { recursive: true });
 fs.writeFileSync(path.join(nitronProject, "flex-version.json"), JSON.stringify({ ...version, gitSha: buildSha }));
 const bundledHtml = fs.readFileSync(path.join(root, "index.html"), "utf8")
@@ -151,6 +153,7 @@ async function buildVariant(label, minify, filename) {
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.copyFileSync(generated, output);
   const finalZip = new AdmZip(output);
+  verifyPackagedWebStyles(finalZip, root);
   for (const entry of requiredEntries) {
     if (!finalZip.getEntry(entry)) throw new Error(`${label}-APK:sta puuttuu ${entry}`);
   }
