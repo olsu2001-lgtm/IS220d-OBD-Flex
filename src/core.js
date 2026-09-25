@@ -3098,6 +3098,9 @@ export class Elm327Client {
     this.pidResponseCache = new Map();
     this.toyotaLiveMetricIds = new Set();
     this.toyotaResponseCache = new Map();
+    this.toyotaQueryForms = new Map();
+    this.discoveryDiagnostics = [];
+    this.elmRestoreFailed = false;
     this.ecuTransactionSequence = 0;
     this.vehicleKey = options.vehicleKey === VEHICLE_KEYS.AUTO
       ? VEHICLE_KEYS.AUTO
@@ -3111,6 +3114,8 @@ export class Elm327Client {
     this.vehicleKey = getVehicleProfile(normalized) ? normalized : VEHICLE_KEYS.AUTO;
     this.toyotaLiveMetricIds.clear();
     this.toyotaResponseCache.clear();
+    this.toyotaQueryForms.clear();
+    this.discoveryDiagnostics = [];
     return this.vehicleKey;
   }
 
@@ -3128,6 +3133,7 @@ export class Elm327Client {
   }
 
   async initializeConnected(transportInfo, protocol = "auto") {
+    this.elmRestoreFailed = false;
     this.transportInfo = { ...(transportInfo || {}) };
     this.connected = true;
     this.ecuConnected = false;
@@ -3328,6 +3334,11 @@ export class Elm327Client {
   }
 
   async transmitQueuedCommand(cmd, timeout = 2500, transactionId = "") {
+    if (this.elmRestoreFailed) {
+      const error = new Error("ELM-asetusten palautus epäonnistui; yhdistä uudelleen");
+      error.code = "ELM_RESTORE_FAILED";
+      throw error;
+    }
     const command = normalizeElmCommand(cmd);
     this.onTraffic({ direction: "tx", command, transactionId, timestamp: Date.now() });
     let raw;
@@ -3373,6 +3384,7 @@ export class Elm327Client {
     requestHeader,
     responseHeader = "",
     setupCommands = [],
+    restoreSetupCommands = [],
     requests = [],
     clearResponseFilter = true,
     cleanupResponseFilter = true,
@@ -3389,7 +3401,8 @@ export class Elm327Client {
         ? "7E0"
         : "";
     const setup = setupCommands.map(normalizeElmCommand);
-    for (const command of setup) {
+    const restoreSetup = restoreSetupCommands.map(normalizeElmCommand);
+    for (const command of [...setup, ...restoreSetup]) {
       if (!ELM_PROFILE_SETUP_COMMANDS.has(command)) throw new Error(`ECU-transaktion turvallisuussallintalista esti asetuskomennon ${command || "(tyhjä)"}`);
     }
     if (!Array.isArray(requests) || !requests.length) throw new Error("ECU-transaktiossa pitää olla vähintään yksi lukupyyntö");
@@ -3408,13 +3421,13 @@ export class Elm327Client {
     return this.enqueue(async () => {
       const startedAt = Date.now();
       const responses = [];
-      for (const command of setup) await this.transmitQueuedCommand(command, 4500, transactionId);
-      if (clearResponseFilter && !rxHeader) {
-        try { await this.transmitQueuedCommand("ATCRA", 3500, transactionId); } catch {}
-      }
-      await this.transmitQueuedCommand(`ATSH${txHeader}`, 4500, transactionId);
-      if (rxHeader) await this.transmitQueuedCommand(`ATCRA${rxHeader}`, 4500, transactionId);
       try {
+        for (const command of setup) await this.transmitQueuedCommand(command, 4500, transactionId);
+        if (clearResponseFilter && !rxHeader) {
+          try { await this.transmitQueuedCommand("ATCRA", 3500, transactionId); } catch {}
+        }
+        await this.transmitQueuedCommand(`ATSH${txHeader}`, 4500, transactionId);
+        if (rxHeader) await this.transmitQueuedCommand(`ATCRA${rxHeader}`, 4500, transactionId);
         for (const request of normalizedRequests) {
           const requestStartedAt = Date.now();
           try {
@@ -3451,11 +3464,24 @@ export class Elm327Client {
         error.responseHeader = rxHeader;
         throw error;
       } finally {
+        let restoreError = null;
+        for (const command of restoreSetup) {
+          try { await this.transmitQueuedCommand(command, 3500, transactionId); }
+          catch (error) { restoreError ||= error; }
+        }
         if (rxHeader && cleanupResponseFilter) {
-          try { await this.transmitQueuedCommand("ATCRA", 3500, transactionId); } catch {}
+          try { await this.transmitQueuedCommand("ATCRA", 3500, transactionId); }
+          catch (error) { if (restoreSetup.length) restoreError ||= error; }
         }
         if (restoreHeader && restoreHeader !== txHeader) {
           try { await this.transmitQueuedCommand(`ATSH${restoreHeader}`, 4500, transactionId); } catch {}
+        }
+        if (restoreError) {
+          this.elmRestoreFailed = true;
+          this.ecuConnected = false;
+          const error = new Error(`ELM-asetusten palautus epäonnistui; yhdistä uudelleen: ${restoreError.message}`);
+          error.code = "ELM_RESTORE_FAILED";
+          throw error;
         }
       }
       return Object.freeze({
@@ -3473,20 +3499,34 @@ export class Elm327Client {
 
   async readSupportedPids() {
     const all = new Set();
+    this.discoveryDiagnostics = [];
     let start = 0x00;
     for (let range = 0; range < 6; range++) {
-      const raw = await this.command(`01${hexByte(start)}`, 3200);
+      let raw;
+      try {
+        raw = await this.command(`01${hexByte(start)}`, 3200);
+        if ((findModePidBytes(raw, 0x41, start)?.length || 0) < 4) {
+          throw new Error(`01${hexByte(start)}: puutteellinen tukibittivastaus`);
+        }
+      } catch (error) {
+        this.discoveryDiagnostics.push({ command: `01${hexByte(start)}`, error: error.message });
+        if (start === 0x00 || /socket|closed|disconnect|katke|suljettu/i.test(error.message)) throw error;
+        break;
+      }
       const supported = parseSupportedPids(raw, start);
       supported.forEach(pid => all.add(pid));
       const next = start + 0x20;
       if (!supported.has(next)) break;
       start = next;
     }
-    if (getVehicleProfile(this.vehicleKey) && (this.adapterProfile?.vlinker || this.vehicleKey === VEHICLE_KEYS.CT200H)) {
+    if (getVehicleProfile(this.vehicleKey)) {
       try {
         const toyotaMetricIds = await this.discoverToyotaLiveMetrics();
         toyotaMetricIds.forEach(id => all.add(id));
-      } catch {}
+      } catch (error) {
+        this.discoveryDiagnostics.push({ command: "Toyota-live", error: error.message });
+        if (error.code === "ELM_RESTORE_FAILED" || /socket|closed|disconnect|katke|suljettu/i.test(error.message)) throw error;
+      }
     }
     this.supportedPids = all;
     this.ecuConnected = true;
@@ -3497,6 +3537,7 @@ export class Elm327Client {
     const discovered = new Set();
     this.toyotaLiveMetricIds.clear();
     this.toyotaResponseCache.clear();
+    this.toyotaQueryForms.clear();
     const profile = getVehicleProfile(this.vehicleKey);
     const probes = getVehicleReadDataProbes(this.vehicleKey, { liveOnly: true });
     if (!profile || !probes.length) return discovered;
@@ -3514,23 +3555,36 @@ export class Elm327Client {
       profileKey: this.vehicleKey
     });
 
-    for (const result of transaction.responses) {
+    for (let result of transaction.responses) {
       const probe = getProfileReadDataProbe(result.command, this.vehicleKey);
-      if (!probe || result.error) continue;
-      const decoded = decodeToyotaReadDataResponse(result.raw, probe.identifier, this.vehicleKey);
+      if (!probe) continue;
+      let queryForm = "formatted";
+      let decoded = !result.error && decodeToyotaReadDataResponse(result.raw, probe.identifier, this.vehicleKey);
+      if (!decoded?.complete && this.vehicleKey === VEHICLE_KEYS.IS220D) {
+        this.discoveryDiagnostics.push({ command: probe.command, queryForm: "formatted", raw: result.raw, error: result.error || "Puutteellinen vastaus" });
+        const fallback = await this.readIs220dRawLiveProbe(probe, 6000);
+        queryForm = "raw-single-frame";
+        result = fallback.responses[0];
+        decoded = !result?.error && decodeToyotaReadDataResponse(result?.raw, probe.identifier, this.vehicleKey);
+        if (decoded?.complete) this.toyotaQueryForms.set(probe.command, "raw-single-frame");
+      }
+      this.discoveryDiagnostics.push({ command: probe.command, queryForm,
+        raw: result?.raw || "", complete: Boolean(decoded?.complete), error: result?.error || (!decoded?.complete ? "Puutteellinen vastaus" : "") });
       if (!decoded?.complete) continue;
       this.toyotaResponseCache.set(probe.command, {
         raw: result.raw,
         decoded,
         updatedAt: Date.now(),
         error: "",
-        transactionId: transaction.transactionId
+        transactionId: result.transactionId || transaction.transactionId
       });
       for (const definition of PID_DEFINITIONS) {
         if (!metricSupportsVehicle(definition, this.vehicleKey)) continue;
         if (definition.toyotaCommand !== probe.command || !definition.toyotaValueKey) continue;
         const value = decoded.values?.[definition.toyotaValueKey];
-        if (Number.isFinite(Number(value))) discovered.add(definition.id);
+        if (value == null) continue;
+        try { this.validateToyotaMetricValue(probe, definition, Number(value)); discovered.add(definition.id); }
+        catch (error) { this.discoveryDiagnostics.push({ command: probe.command, metricId: definition.id, error: error.message }); }
       }
     }
     this.toyotaLiveMetricIds = discovered;
@@ -3614,7 +3668,9 @@ export class Elm327Client {
     const fromCache = Boolean(entry && now - entry.updatedAt < probe.cacheMaxAgeMs);
     if (!fromCache) {
       try {
-        const transaction = await this.runReadOnlyEcuTransaction({
+        const transaction = this.toyotaQueryForms.get(probe.command) === "raw-single-frame"
+          ? await this.readIs220dRawLiveProbe(probe, timeoutMs)
+          : await this.runReadOnlyEcuTransaction({
           requestHeader: probe.requestHeader,
           requests: [{ command: probe.command, service: probe.service, timeoutMs: Math.max(1, Number(timeoutMs) || 5000) }],
           label: `${probe.id} · live-luku`,
@@ -3635,6 +3691,7 @@ export class Elm327Client {
           decoded: null,
           updatedAt: Date.now(),
           error: error.message || String(error),
+          code: error.code || "",
           transactionId: error.transactionId || ""
         };
       }
@@ -3642,11 +3699,26 @@ export class Elm327Client {
     }
     if (entry.error) {
       const error = new Error(entry.error);
+      error.code = entry.code;
       error.raw = entry.raw || "";
       error.transactionId = entry.transactionId || "";
       throw error;
     }
     return { ...entry, fromCache };
+  }
+
+  async readIs220dRawLiveProbe(probe, timeoutMs = 5000) {
+    const verified = getVehicleReadDataProbes(this.vehicleKey, { liveOnly: true }).find(item => item.command === probe?.command);
+    if (this.vehicleKey !== VEHICLE_KEYS.IS220D || !verified?.rawCommand || verified.rawCommand !== probe.rawCommand) {
+      throw new Error("Raaka live-varapyyntö ei kuulu IS220d-tuotantoprofiiliin");
+    }
+    return this.runReadOnlyEcuTransaction({
+      requestHeader: verified.requestHeader, responseHeader: verified.responseHeader,
+      setupCommands: ["ATSP6", "ATCAF0", "ATCFC0", "ATAL", "ATH1", "ATS1"],
+      restoreSetupCommands: ["ATCAF1", "ATCFC1", "ATH0", "ATS0"],
+      requests: [{ command: verified.rawCommand, service: verified.service, timeoutMs }],
+      continueOnReadError: true, profileKey: this.vehicleKey, label: `${verified.command} · raaka live-varapyyntö`
+    });
   }
 
   validateToyotaMetricValue(probe, definition, value) {
@@ -3675,7 +3747,7 @@ export class Elm327Client {
     }
     const entry = await this.readToyotaProbeResponse(probe, timeoutMs);
     const rawValue = entry.decoded?.values?.[definition.toyotaValueKey];
-    const value = typeof rawValue === "boolean" ? Number(rawValue) : Number(rawValue);
+    const value = rawValue == null ? NaN : Number(rawValue);
     try {
       this.validateToyotaMetricValue(probe, definition, value);
     } catch (error) {
@@ -3706,7 +3778,7 @@ export class Elm327Client {
       try {
         results = group.map(definition => {
           const rawValue = entry.decoded?.values?.[definition.toyotaValueKey];
-          const value = typeof rawValue === "boolean" ? Number(rawValue) : Number(rawValue);
+          const value = rawValue == null ? NaN : Number(rawValue);
           this.validateToyotaMetricValue(probe, definition, value);
           return Object.freeze({
             definition,

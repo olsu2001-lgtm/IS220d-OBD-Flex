@@ -2,6 +2,7 @@ import { configureUiShellNavigation, syncUiShellNavigation } from "./ui-shell.js
 import "./techstream-data-list-gap-ui.js";
 import { APP_VERSION } from "./app-version.js";
 import { appTraffic, configureAppDiagnostics } from "./app-diagnostics.js";
+import { readEngineComparison } from "./engine-comparison-read.js";
 import "./dpnr-pressure-sensor-test.js";
 globalThis.__IS220D_DPNR_PRESSURE_SENSOR_TEST_V3__ = true;
 import { configureDpnrTestLive } from "./dpnr-test-live.js";
@@ -170,6 +171,7 @@ const state = {
   toyotaProbeStatus: "ei ajettu",
   diagnosticRun: null,
   diagnosticRunning: false,
+  engineComparison: [],
   diagnosticAbortRequested: false,
   fullDiagnosticReport: "",
   diagnosticKind: "",
@@ -892,6 +894,7 @@ function updateDeviceHelp() {
 async function connect() {
   if (state.connected || state.connecting) return;
   appTraffic.reset();
+  state.engineComparison = [];
   const selectedOption = $("#deviceSelect").selectedOptions[0];
   const address = selectedOption?.dataset.address || "";
   const simulated = selectedOption?.dataset.simulated === "true";
@@ -2070,6 +2073,7 @@ function updateDerivedMetrics(cycleRaw) {
 }
 
 function isConnectionLossError(error) {
+  if (error?.code === "ELM_RESTORE_FAILED") return true;
   return /socket|katke|suljettu|not connected|ei BLE-yhteyttä|replay-yhteys katkesi/i.test(String(error?.message || error || ""));
 }
 
@@ -2099,6 +2103,7 @@ function renderPollHealth() {
 }
 
 async function startLive() {
+  if (state.diagnosticRunning) return toast("Odota diagnostiikan päättymistä ennen live-lukua");
   if (state.injectorTestRunning) return toast("Viimeistele suutintesti ennen live-lukua");
   if (!requireConnection() || state.liveActive) return;
   const liveClient = state.client;
@@ -4301,13 +4306,24 @@ async function init() {
     definitions: activeMetricDefinitions(), supportedPids: state.supportedPids,
     values: state.values, updatedAt: state.updatedAt, valueSources: state.valueSources,
     poll: pollingQualitySnapshot(), traffic: appTraffic.snapshot(),
+    discovery: state.client?.discoveryDiagnostics || [], comparison: state.engineComparison,
     ui: Object.fromEntries(activeMetricDefinitions().map(def => {
       const card = document.getElementById(`metric-${def.id}`);
       const text = card?.querySelector(".metric-value")?.textContent ?? null;
       return [def.id, { present: Boolean(card), text,
         matches: Number.isFinite(state.values[def.id]) && text === formatValue(def, state.values[def.id]) }];
     }))
-  }));
+  }), { readComparison: async () => {
+    if (!state.connected || !state.ecuConnected || state.quicklynks || state.vehicleKey !== VEHICLE_KEYS.IS220D) throw new Error("Yhdistä IS220d:hen ELM-lukijalla ennen vertailulukua");
+    if (state.liveActive || state.recording || state.diagnosticRunning || state.injectorTestRunning || powerRunActive()) throw new Error("Pysäytä Live-luku, tallennus ja testit ennen vertailulukua");
+    state.diagnosticRunning = true;
+    state.engineComparison = [];
+    try { state.engineComparison = await readEngineComparison(state.client); }
+    catch (error) {
+      if (isConnectionLossError(error)) { state.ecuConnected = false; setConnectionStatus("error", "Yhdistä uudelleen"); }
+      throw error;
+    } finally { state.diagnosticRunning = false; }
+  } });
   configureUiShellNavigation(goToPage);
   configureDpnrTestLive({
     available: () => state.vehicleKey === VEHICLE_KEYS.IS220D && state.connected &&

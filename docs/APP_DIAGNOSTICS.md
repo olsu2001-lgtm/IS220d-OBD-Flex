@@ -1,7 +1,7 @@
-# Query/value visibility diagnostics (source only)
+# Query/value visibility diagnostics
 
 Based on registered 0.9.8 source `25fe7c1735314f64a41e184c494b9bfb396a630a`.
-No version allocation or APK build.
+Included in the requested 0.9.9 APK, with the source-only diagnostics work reconciled.
 
 Open **Lisää → Kyselyt ja arvot**, run the existing Live reader, reproduce the
 problem and generate a report. Generation is a passive snapshot, not a scan.
@@ -20,8 +20,20 @@ MAC/VIN-like strings in free-text errors are redacted. Review before sharing.
 
 The copy button uses the clipboard, with a selectable textarea fallback.
 The report is not automatically uploaded or persisted. Refresh it manually
-after more measurements. No new polling loop, query, decoder, ECU write,
-permission or interpretation promotion is introduced.
+after more measurements. Report generation adds no polling loop or vehicle query.
+
+The collapsed comparison section has a separate explicit read button. Stop Live,
+recording and tests first. On IS220d with an ELM connection it reads only the existing
+2193, 2196 and 21AF screening queries. Results remain labelled Techstream comparison
+data, outside normal Live values; missing or implausible values remain null.
+The field-rejected 219C injector request remains blocked.
+
+Discovery results now record optional support-page errors and Toyota query forms.
+Generic ELM readers participate in profile discovery. Incomplete IS220d formatted
+live replies get one attempt using the exact existing raw single-frame form.
+Successful forms are remembered for Live. Adapter formatting and filtering are
+restored within the same queue transaction; a restoration failure blocks reads
+until reconnect. No new identifiers, formulas, ECU writes or permissions are added.
 
 ## Limits
 

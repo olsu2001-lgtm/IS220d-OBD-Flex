@@ -1,8 +1,9 @@
 import { pollSourceForDefinition } from "./poll-scheduler.js";
 
-// Passive observation only: this module never sends a vehicle command.
+// Report generation is passive. Comparison reads require a separate explicit action.
 let snapshotProvider = () => ({ definitions: [] });
-export function configureAppDiagnostics(provider) { snapshotProvider = provider; }
+let comparisonReader = null;
+export function configureAppDiagnostics(provider, { readComparison = null } = {}) { snapshotProvider = provider; comparisonReader = readComparison; }
 const redact = value => String(value ?? "").replace(/\b(?:[0-9A-F]{2}:){5}[0-9A-F]{2}\b/gi, "[MAC]")
   .replace(/\b[A-HJ-NPR-Z0-9]{17}\b/gi, "[VIN]").slice(0, 4096);
 const normal = value => String(value || "").replace(/\s+/g, "").toUpperCase();
@@ -90,6 +91,10 @@ export function buildAppDiagnosticsReport(snapshot, now = Date.now()) {
     summary: { total: values.length, displayed: values.filter(v => v.status === "displayed").length,
       cached: values.filter(v => v.status === "cached").length,
       missing: values.filter(v => v.value === null).length, uiGaps: values.filter(v => v.status === "ui-gap").length },
+    discovery: (snapshot.discovery || []).map(item => ({ ...item, error: redact(item.error),
+      raw: /^[\dA-Fa-f\s:>?.-]*$/.test(item.raw || "") ? String(item.raw || "").slice(0, 4096) : "[Tekstivastaus piilotettu]" })),
+    comparison: (snapshot.comparison || []).map(item => ({ ...item, error: redact(item.error),
+      raw: /^[\dA-Fa-f\s:>?.-]*$/.test(item.raw || "") ? String(item.raw || "").slice(0, 4096) : "[Tekstivastaus piilotettu]" })),
     values, traffic };
 }
 
@@ -121,6 +126,15 @@ export function buildAppDiagnosticsPage() {
       const report = buildAppDiagnosticsReport(snapshotProvider());
       output.value = JSON.stringify(report, null, 2);
       list.replaceChildren();
+      if (report.comparison.length) {
+        const card = node("div", "", "card");
+        card.append(node("h3", "Vertailulukemat — ei vielä varmennettu autossa"));
+        for (const query of report.comparison) {
+          for (const field of query.fields) card.append(node("p", `${field.name}: ${field.value ?? "–"} ${field.unit} · ${field.status}`));
+          if (query.error) card.append(node("p", query.error));
+        }
+        list.append(card);
+      }
       status.textContent = `${report.summary.displayed}/${report.summary.total} tuoretta arvoa Live-korteissa · ${report.summary.missing} puuttuu · ${report.summary.cached} vanhaa · ${report.summary.uiGaps} näyttöpuutetta. Tilannekuva ${report.createdAt}.`;
       for (const value of report.values) {
         const item = node("details", "", "card");
@@ -135,6 +149,20 @@ export function buildAppDiagnosticsPage() {
     try { await navigator.clipboard.writeText(output.value); status.textContent = "Raportti kopioitu. Voit lähettää sen jatkokehitystä varten."; }
     catch { details.open = true; output.focus(); output.select(); status.textContent = "Automaattinen kopiointi ei onnistunut. Kopioi valittu raporttiteksti käsin."; }
   });
-  page.append(generate, copy, status, list, details);
+  const comparisonTools = node("details", "", "card");
+  comparisonTools.append(node("summary", "Polttoainelämpö, Toyota-rail-paine ja ruiskutusajoitus"),
+    node("p", "Pysäytä Live-luku. Erillinen lukukerta käyttää kolmea sallittua kyselyä. Tulokset on verrattava Techstreamiin ennen käyttöä varmennettuina mittauksina. Suutinkorjausten kysely on edelleen estetty."));
+  const compare = node("button", "Lue vertailuarvot", "secondary");
+  compare.type = "button";
+  compare.addEventListener("click", async () => {
+    if (!comparisonReader) { status.textContent = "Vertailuluku ei ole käytettävissä."; return; }
+    compare.disabled = true;
+    status.textContent = "Luetaan kolme vertailukyselyä… Odota lukukerran valmistumista.";
+    try { await comparisonReader(); generate.click(); }
+    catch (error) { status.textContent = redact(error.message); }
+    finally { compare.disabled = false; }
+  });
+  comparisonTools.append(compare);
+  page.append(generate, copy, status, comparisonTools, list, details);
   return page;
 }

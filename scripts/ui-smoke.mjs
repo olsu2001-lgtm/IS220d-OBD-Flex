@@ -75,6 +75,16 @@ try {
   assert.ok(byId("page-live").classList.contains("active"), "visible Live tab did not open");
   assert.equal(d.querySelectorAll(".page.active").length, 1);
   d.querySelector('[data-ios-page="more"]').click();
+  d.querySelector('#page-more [data-go="app-diagnostics"]').click();
+  assert.ok(byId("page-app-diagnostics").classList.contains("active"));
+  byId("page-app-diagnostics").querySelector("button").click();
+  const report = JSON.parse(byId("page-app-diagnostics").querySelector("textarea").value);
+  assert.equal(report.type, "flex-query-value-diagnostics");
+  if (expectedVersion) assert.equal(report.appVersion, expectedVersion);
+  assert.ok(report.values.length > 0);
+  assert.equal(report.connected, false);
+  assert.equal(report.comparison.length, 0);
+  d.querySelector('[data-ios-page="more"]').click();
   d.querySelector('#page-more [data-go="component-diagnostics"]').click();
   assert.ok(d.querySelector("#page-component-diagnostics.active:not(.hidden)"), "visible More/BOM link did not open");
   d.querySelector('[data-ios-page="tests"]').click();
