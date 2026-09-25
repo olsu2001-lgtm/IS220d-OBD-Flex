@@ -44,16 +44,28 @@ export function buildAppDiagnosticsReport(snapshot, now = Date.now()) {
     const query = snapshot.binary ? null : traffic.entries.filter(e => e.command === command ||
       (def.toyotaCommand && e.command === `02${def.toyotaCommand}0000000000`)).at(-1);
     const quality = snapshot.poll?.sources?.find(s => s.key === source?.key);
+    const discovery = def.toyotaCommand
+      ? [...(snapshot.discovery || [])].reverse().find(item => normal(item.command) === normal(def.toyotaCommand))
+      : null;
     const value = Number.isFinite(snapshot.values?.[def.id]) ? snapshot.values[def.id] : null;
     const updatedAt = snapshot.updatedAt?.[def.id] ?? null;
     const ageMs = Number.isFinite(updatedAt) ? Math.max(0, now - updatedAt) : null;
     const supported = snapshot.supportedPids instanceof Set
-      ? snapshot.supportedPids.has(def.id) || (Number.isInteger(def.pid) && snapshot.supportedPids.has(def.pid)) : null;
+      ? def.derived || def.adapterOnly
+        ? null
+        : def.toyotaCommand
+          ? snapshot.supportedPids.has(def.id)
+          : Number.isInteger(def.pid)
+            ? snapshot.supportedPids.has(def.pid)
+            : snapshot.supportedPids.has(def.id)
+      : null;
     const ui = snapshot.ui?.[def.id] || { present: false, text: null, matches: false };
     let status, reason;
     if (value !== null) {
       if (quality?.lastError || query?.error || query?.responseStatus) {
         status = "cached"; reason = "Edellinen arvo säilyy, mutta viimeisin kysely epäonnistui";
+      } else if (snapshot.liveActive === false) {
+        status = "cached"; reason = "Live-luku on pysäytetty; viimeisin arvo säilyy";
       } else if (!snapshot.connected || ageMs === null || ageMs > Math.max(5000, (source?.intervalMs || 5000) * 3)) {
         status = "cached"; reason = "Tallennettu arvo; ei tuoretta mittausta";
       } else if (!ui.present || !ui.matches) {
@@ -69,12 +81,16 @@ export function buildAppDiagnosticsReport(snapshot, now = Date.now()) {
       status = "unavailable"; reason = "Ei varmennettua live-kyselyä tai dekooderia; uusia komentoja ei arvata";
     } else if (quality?.lastError || query?.error || query?.responseStatus) {
       status = "failed"; reason = redact(quality?.lastError || query.error || query.responseStatus);
+    } else if (def.toyotaCommand && discovery?.error) {
+      status = "field-no-response"; reason = redact(discovery.error);
     } else if (query?.direction === "rx" && query.responsePresent) {
       status = "decode-or-state-gap"; reason = "Vastaus havaittu, mutta tilasta puuttuu arvo; tarkista dekoodaus ja julkaisu";
     } else if (query?.direction === "tx") {
       status = "awaiting-response"; reason = "Lähetys havaittu, vastausta ei vielä tallennettu";
-    } else if (supported === false) {
-      status = "not-advertised"; reason = "Ei nykyisessä tukilistassa; tämä ei yksin osoita ECU-vikaa";
+    } else if (supported === false && !def.toyotaCommand) {
+      status = "not-advertised"; reason = "Ei Mode 01 -tukilistassa; tämä ei yksin osoita ECU-vikaa";
+    } else if (supported === false && def.toyotaCommand) {
+      status = "not-observed"; reason = "Toyota-lukupolku ei saanut vahvistettua arvoa tässä yhteydessä";
     } else { status = "not-observed"; reason = "Ei havaittua arvoa; käynnistä Live-luku ja päivitä raportti"; }
     return { id: def.id, name: def.name, unit: def.unit, command,
       path: snapshot.binary ? "quicklynks-binary" : "elm-ascii", supported, status, reason,
@@ -82,7 +98,14 @@ export function buildAppDiagnosticsReport(snapshot, now = Date.now()) {
       evidence: def.toyotaReadData ? "Toyota-tulkinta vaatii ajoneuvokohtaisen varmennuksen" : "Nykyinen sovellusdekooderi; ei komponentin kuntotulos",
       ui, lastQuery: query || null, polling: quality || null };
   });
-  return { type: "flex-query-value-diagnostics", schemaVersion: 1, createdAt: new Date(now).toISOString(),
+  const missingValues = values.filter(value => value.value === null);
+  const missingByStatus = Object.fromEntries(
+    [...new Set(missingValues.map(value => value.status))].sort().map(status => [
+      status,
+      missingValues.filter(value => value.status === status).length
+    ])
+  );
+  return { type: "flex-query-value-diagnostics", schemaVersion: 2, createdAt: new Date(now).toISOString(),
     appVersion: snapshot.appVersion, vehicleKey: snapshot.vehicleKey, simulated: Boolean(snapshot.simulated),
     connected: Boolean(snapshot.connected), liveActive: Boolean(snapshot.liveActive),
     connectionStages: Object.fromEntries(Object.entries(snapshot.connectionStages || {}).map(([key, stage]) =>
@@ -90,7 +113,11 @@ export function buildAppDiagnosticsReport(snapshot, now = Date.now()) {
     scope: "Nykyisen profiilin kaikki live-arvomäärittelyt ja rajattu liikenneloki. Ei uusia kyselyitä eikä ECU-kuntopäätelmää. UI tarkoittaa Live-kortin tekstiä, ei näytön pikselivarmennusta.",
     summary: { total: values.length, displayed: values.filter(v => v.status === "displayed").length,
       cached: values.filter(v => v.status === "cached").length,
-      missing: values.filter(v => v.value === null).length, uiGaps: values.filter(v => v.status === "ui-gap").length },
+      missing: missingValues.length, missingByStatus,
+      fieldNoResponse: missingValues.filter(v => v.status === "field-no-response").length,
+      unavailable: missingValues.filter(v => v.status === "unavailable").length,
+      notAdvertised: missingValues.filter(v => v.status === "not-advertised").length,
+      uiGaps: values.filter(v => v.status === "ui-gap").length },
     discovery: (snapshot.discovery || []).map(item => ({ ...item, error: redact(item.error),
       raw: /^[\dA-Fa-f\s:>?.-]*$/.test(item.raw || "") ? String(item.raw || "").slice(0, 4096) : "[Tekstivastaus piilotettu]" })),
     comparison: (snapshot.comparison || []).map(item => ({ ...item, error: redact(item.error),
@@ -135,7 +162,12 @@ export function buildAppDiagnosticsPage() {
         }
         list.append(card);
       }
-      status.textContent = `${report.summary.displayed}/${report.summary.total} tuoretta arvoa Live-korteissa · ${report.summary.missing} puuttuu · ${report.summary.cached} vanhaa · ${report.summary.uiGaps} näyttöpuutetta. Tilannekuva ${report.createdAt}.`;
+      const missingBreakdown = [
+        report.summary.fieldNoResponse ? `${report.summary.fieldNoResponse} kentässä ei vastausta` : "",
+        report.summary.notAdvertised ? `${report.summary.notAdvertised} ei Mode 01 -tukilistassa` : "",
+        report.summary.unavailable ? `${report.summary.unavailable} ilman varmennettua lukupolkua` : ""
+      ].filter(Boolean).join(" · ");
+      status.textContent = `${report.summary.displayed}/${report.summary.total} tuoretta arvoa Live-korteissa · ${report.summary.missing} puuttuu${missingBreakdown ? ` (${missingBreakdown})` : ""} · ${report.summary.cached} vanhaa · ${report.summary.uiGaps} näyttöpuutetta. Tilannekuva ${report.createdAt}.`;
       for (const value of report.values) {
         const item = node("details", "", "card");
         item.append(node("summary", `${value.name}: ${value.value ?? "–"} ${value.unit} — ${value.reason}`),

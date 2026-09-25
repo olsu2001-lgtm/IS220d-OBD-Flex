@@ -349,7 +349,7 @@ function applyVehicleProfileUi() {
   if ($("#diagnosticProfileHint")) {
     $("#diagnosticProfileHint").innerHTML = isCt
       ? "Testi tarkistaa CAN-yhteyden ja CT 200h:n hybridiohjaimen osoitteen <code>7E2/7EA</code>. Se lukee mallitunnisteen <code>21C1</code>, varaustilan <code>2101</code>, 14 lohkojännitettä <code>2181</code>, lämpötilat <code>2187</code>, sisäiset vastukset <code>2195</code> ja akun virran <code>2198</code>. Vain luku: ei Active Test-, poisto-, kirjoitus- tai pakkolatauskomentoja."
-      : "Testi tarkistaa CAN-yhteyden sekä IS220d:n varmennetut Toyota-lukupyynnöt <code>217E</code>, <code>217F</code> ja <code>212C</code>. Vain luku: ei Active Test-, poisto-, kirjoitus- tai regenerointikomentoja.";
+      : "Testi tarkistaa CAN-yhteyden sekä IS220d-profiilin Toyota-lukupyynnöt <code>217E</code>, <code>217F</code> ja <code>212C</code>; kohdeautossa vain <code>212C</code> on palauttanut positiivisen vastauksen. Vain luku: ei Active Test-, poisto-, kirjoitus- tai regenerointikomentoja.";
   }
   if ($("#injectorProfileState")) {
     $("#injectorProfileState").textContent = isIs220d
@@ -1990,7 +1990,7 @@ function updateDpnrAssessment() {
   const outlet = state.values.dpnrOutletTemperature;
   const pressure = state.values.dpnrDifferentialPressure;
   if (![inlet, outlet, pressure].some(Number.isFinite)) {
-    setNotice("dpnrAssessment", state.connected ? "Toyota 217E/217F -vastauksia odotetaan. Jos niitä ei tule, adapteri tai ECU ei tue tätä varmennettua lukupolkua." : "");
+    setNotice("dpnrAssessment", state.connected ? "Toyota 217E/217F -vastauksia ei ole saatu kohdeauton kalibroinnilla 35360000; kenttäajoissa molemmat ovat palauttaneet NO DATA. DPNR-arvojen tunnistus vaatii Techstream/J2534-kaappauksen." : "");
     return;
   }
   const identicalTemperatures = Number.isFinite(inlet) && Number.isFinite(outlet) && inlet === outlet;
@@ -2000,7 +2000,7 @@ function updateDpnrAssessment() {
       ? "Molemmat lämpötilat ovat täsmälleen 750 °C; tarkista alla oleva 217F-raakavaste, koska tämä voi olla anturin raja-arvo tai virheellinen data."
       : identicalTemperatures
         ? "Lämpötilat ovat täsmälleen samat; seuraa muuttuuko 217F-raakavaste kierrosten tai kuorman mukana."
-        : "Arvot tulevat suoraan varmennetuista Toyota 217E/217F -vastauksista.");
+        : "Arvot on dekoodattu Toyota 217E/217F -vastauksista; tulkinta vaatii ajoneuvokohtaisen varmennuksen.");
   setNotice("dpnrAssessment", message, suspicious750 || identicalTemperatures ? "warning" : "");
 }
 
@@ -2124,7 +2124,7 @@ async function startLive() {
       liveClient.binaryQuicklynks
         ? `${readable.length} varmennettua standardiarvoa luetaan Quicklynksin pääkehyksestä sekä Mode 01 -ryhmistä. Toyota 21 -kyselyitä ei lähetetä Quicklynksin suljetulle binäärikanavalle, joten ${isCt200h() ? "CT:n hybridimittarit vaativat vLinker MC+:n tai muun ASCII-ELM327:n" : "IS220d:n valmistajakohtaiset arvot eivät ole tällä kuljetuksella käytettävissä"}.`
         : toyotaLiveCount
-          ? `${readable.length} arvoa on tuettu. Näistä ${toyotaLiveCount} on tässä yhteydessä rakenteellisesti varmennettuja ${isCt200h() ? "CT 200h -hybridimittareita osoitteesta 7E2/7EA" : "IS220d Toyota Read Data -arvoja komennoista 217E, 217F ja 212C"}. Lähdekohtainen prioriteettipollaus lukee saman vastauksen vain kerran ja jakaa sen kaikille ryhmän mittareille.`
+          ? `${readable.length} arvoa on tuettu. Näistä ${toyotaLiveCount} on tässä yhteydessä positiivisen vastauksen saaneita ${isCt200h() ? "CT 200h -hybridimittareita osoitteesta 7E2/7EA" : "IS220d Toyota Read Data -arvoja"}. Lähdekohtainen prioriteettipollaus lukee saman vastauksen vain kerran ja jakaa sen kaikille ryhmän mittareille.`
           : `${readable.length} tämän näkymän standardoitua PID-arvoa on tuettu. Lähdekohtainen prioriteettipollaus painottaa nopeasti muuttuvia arvoja ja harventaa lämpötila-, jännite- ja tilatietoja.`,
       ""
     );
