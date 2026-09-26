@@ -64,19 +64,25 @@ Recovered examples:
 This corrects the old assumption that identifiers such as `0x0193`, `0x0196`,
 `0x019C` or `0x01AF` could be converted directly into `2193/2196/219C/21AF`.
 
-## Engine_P3.ddb record structure
+## Engine_P3.ddb 84-byte signal-record observations
 
-The relevant signal table uses fixed **84-byte records**.
+The extracted v12 `Engine_P3.ddb` contains a fixed 84-byte record family around the
+logical Data List IDs. **Its exact Techstream table/class identity is not yet proven.**
+It must not be called `CDbPidTable`: independent newer-Techstream factory evidence
+shows the actual `CDbPidTable` as a separate compact table. The modern P5 Data Monitor
+record grammar was also tested against these v12 rows and does not fit.
 
-For the records compared so far:
+What is directly observed in repeated v12 records:
 
-- record offset `+40`: logical Techstream signal ID;
-- record offset `+44`: communication-PID/group candidate;
-- offsets `+46/+48`: response bit/position range metadata;
-- later fields select data type/conversion and applicability metadata.
+- offset `+40`: the same logical Techstream signal ID used by the `.CT` grouping layer;
+- offset `+44`: a second compact field shared by groups of related signals;
+- offsets `+46/+48`: structured per-signal position/range fields;
+- later fields vary with conversion/presentation/applicability metadata.
 
-The interpretation of every field is not yet complete, but the separation between logical
-signal ID and communication PID is structurally demonstrated by repeated records.
+Thus the important proven result is narrower than the earlier interpretation: the logical
+signal ID and the compact `+44` field are distinct. The semantic name
+`communication PID` for `+44` remains a research hypothesis until its consumer is
+traced through the v12 command/DDB code path.
 
 ### Control records
 
@@ -153,6 +159,34 @@ Observed mappings include:
 Therefore a logical signal cannot be mapped to a request without also resolving the
 vehicle/ECU applicability record. Selecting the first matching signal ID is unsafe.
 
+## P3 runtime support evidence
+
+The user-supplied Techstream 12.20.024 binaries expose P3-specific command paths:
+
+- `CCmdValidIdListPidP3`;
+- `GetPidIdDataP3`;
+- `GetEcuPidIdDataP3`;
+- `CCmdCommPidData::GetPidData`;
+- `CCmdCommPidDataEx`.
+
+The same v12 `CommandCommon.dll` contains the diagnostic string:
+
+`When PID[0x%02X] is not in the response of Mode$A8(E8 01 %02X).`
+
+This is direct static evidence that P3 PID availability is resolved at runtime with an
+`A8` request and an `E8 01 ...` response. Independent Toyota diagnostic captures
+show the corresponding `A8 01` request returning an `E8 01` payload containing
+PID-like entries and associated lengths/masks. That external capture is structural
+corroboration only; its contents are not assumed to describe this IS220d ECU.
+
+Working model, pending exact v12 consumer tracing:
+
+`.CT logical signal -> v12 84-byte signal record -> compact +44 key -> P3 runtime A8/E8 support resolution -> CCmdCommPidData/GetPidIdDataP3 -> actual read frame`.
+
+This model also explains why duplicate logical signals can coexist in the database without
+making either mapping universally valid. The target ECU's runtime support result and vehicle
+applicability must both be resolved.
+
 ## Communication service evidence
 
 Techstream binaries contain P3 helpers named `GetPidIdDataP3`,
@@ -165,7 +199,7 @@ with `61 xx` positive responses and an `A8 01` support query with an `E8 01`
 response. This makes `21 <communication PID>` a strong protocol-level hypothesis for
 the P3 communication-PID field, but it is still not a target-vehicle authorization.
 
-Current strongest static candidates include:
+Current **unverified** static hypotheses include (kept only to guide tracing; the +44 consumer is not yet proven):
 
 | Signal family | DDB communication PID | Static request hypothesis |
 | --- | ---: | --- |
