@@ -59,6 +59,9 @@ test("explicit comparison reads only three existing queries and keeps absent val
   assert.deepEqual(sent.filter(c => !c.startsWith("AT")), ["2193", "2196", "21AF"]);
   assert.deepEqual(results.map(r => r.fields[0].value), [40, null, 5]);
   assert.equal(results[0].fields[0].status, "vertailtava Techstreamiin");
+  assert.equal(results[1].fieldOutcome, "field-no-response");
+  assert.match(results[1].evidence, /field-observed-no-response/);
+  assert.equal(results[1].fields[0].status, "ECU ei palauttanut tietoa");
   assert.equal(client.toyotaLiveMetricIds.size, 0);
   const count = sent.length;
   client.binaryQuicklynks = true;

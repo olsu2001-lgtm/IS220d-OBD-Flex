@@ -3,6 +3,47 @@
 This is a source-only development track. It does **not** allocate a new Flex
 version and it does not build, register or distribute an APK.
 
+## PRIORITY #1 — extract the real Techstream read requests
+
+**All further Toyota signal-ID guessing and ordinary Vikadiag row expansion are
+secondary until this work is exhausted.**
+
+The immediate development target is to recover the actual IS220d Data List read
+requests from the available Techstream 12.20.024 material and correlate them with
+calibration `35360000`.
+
+Research order:
+
+1. unpack the complete Techstream installation archive;
+2. inventory databases, XML/configuration resources, DDB/DB files and DLL/EXE
+   modules that contain vehicle/Data List definitions;
+3. search for IS220d / 2AD-FHV / XE20 / calibration-family identifiers and the
+   target Data List names;
+4. trace each Data List definition to its diagnostic service, identifier,
+   request header/response header, payload layout and conversion where present;
+5. if the request is assembled in native code, follow the call path to the J2534
+   write boundary and recover the request bytes statically;
+6. only if static extraction cannot resolve a target, use a J2534 logger/passive
+   capture against Techstream as the fallback evidence source.
+
+First target signals:
+
+- DPF/DPNR Differential Pressure;
+- exhaust temperature before/after DPNR;
+- EGR Lift Sensor Output;
+- fuel temperature;
+- common-rail target/actual pressure;
+- injection timing;
+- injector feedback/correction values.
+
+Current target-vehicle evidence must be treated as a filter for the static search:
+`212C -> 612C00` responds, while direct `217E`, `217F`, `2193`, `2196`
+and `21AF` forms returned NO DATA on calibration `35360000`.
+
+Do not promote another guessed `21xx` identifier merely because a Techstream
+label appears to match it. A new production query requires either recovered
+Techstream request evidence or an independently captured read transaction.
+
 ## Source of truth
 
 The row review starts from the current Google Drive workbook `Bom-kaapija`, tab
@@ -56,9 +97,9 @@ of `Vikadiag_kohteet`:
 | 2 | EGR valve 25620-26101 | ready with existing signals | verified 212C + MAF + MAP |
 | 3 | EGR No.2 / exhaust gas door 25630-26010 | needs component-specific signal verification | indirect EGR/air/DPNR/EGT context only |
 | 4 | MAF 22204-30010 | ready with existing signals | standard MAF + MAP + verified EGR position |
-| 5 | DPNR differential-pressure sensor 89480-53010 | dedicated test already implemented in 0.9.4 | verified 217E + RPM |
-| 6 | EGT sensor 1 89425-53010 | ready with existing signals | verified 217F inlet + coolant/RPM context |
-| 7 | EGT sensor 2 89425-53020 | ready with existing signals | verified 217F outlet/inlet + coolant/RPM context |
+| 5 | DPNR differential-pressure sensor 89480-53010 | dedicated UI/test path exists, but signal request is blocked | 217E returned NO DATA on target calibration; request extraction is Priority #1 |
+| 6 | EGT sensor 1 89425-53010 | blocked pending request extraction | 217F returned NO DATA on target calibration; coolant/RPM remain context only |
+| 7 | EGT sensor 2 89425-53020 | blocked pending request extraction | 217F returned NO DATA on target calibration; coolant/RPM remain context only |
 | 8 | Main injectors 23670-29105 | indirect screening only | standard rail pressure + RPM; 219C remains field-rejected |
 | 9 | Exhaust fuel-addition injector 23710-26011 | indirect screening only | DPNR pressure + EGT pair + standard rail pressure |
 | 10 | SCV 04226-0L040 | indirect screening only | standard rail pressure + RPM |
@@ -70,7 +111,11 @@ field-rejected.
 
 ## Continuation order
 
-Continue through the sheet in small reviewed batches. Prefer diagnostic groups 1,
+**Paused behind Priority #1.** Continue ordinary row-by-row expansion only after
+the Techstream static-extraction pass above has either recovered the required
+requests or documented why a target must move to passive J2534 capture.
+
+After that gate, continue through the sheet in small reviewed batches. Prefer diagnostic groups 1,
 3 and 4 first because they have the strongest OBD/Techstream role, then cooling,
 starting/charging, chassis/ABS and body modules. Do not infer that every row
 containing the word “Techstream” is directly OBD-testable; many rows use ECU data
@@ -282,7 +327,8 @@ Validation:
 - Only catalog, deterministic tests and roadmap changed; package/lockfile version,
   release registry, production read-only boundaries and workflows remain unchanged.
 
-Next unreviewed row: **69**.
+Next unreviewed row: **69**, but row expansion is intentionally secondary to
+Priority #1 Techstream request extraction.
 
 ## First reviewed image integration (2026-09-15)
 

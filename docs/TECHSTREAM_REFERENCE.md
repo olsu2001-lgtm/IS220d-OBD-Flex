@@ -1,5 +1,11 @@
 # Techstream reference evidence
 
+> **Development priority #1:** before guessing further Toyota Data List identifiers,
+> inspect the available Techstream 12.20.024 installation material and recover the
+> actual IS220d read requests statically where possible. Runtime J2534 capture is
+> the fallback, not the first step. This research task is separate from Flex's
+> user-facing Techstream-reference import feature described below.
+
 Status: **local, read-only external-evidence import for ECU Survey comparison; not a parser for Techstream proprietary files**.
 
 ## Why this layer exists
@@ -9,6 +15,26 @@ The project development study defines Techstream System Select / Health Check as
 The currently available project material does not contain a stable Health Check export file format that Flex can safely implement as a proprietary-file parser. The Techstream Drive folder contains the installation archive, while the project maintenance evidence confirms that a real IS220d Health Check completed on 2026-09-06 and records several DTC observations. That is useful vehicle evidence, but it is not a complete machine-readable system inventory.
 
 Flex therefore uses its own small neutral JSON evidence schema.
+
+## Static Techstream research boundary
+
+The **Flex app feature** below does not parse proprietary Techstream files. That
+does not prevent repository development work from inspecting the locally supplied
+Techstream installation material to identify read-only diagnostic definitions.
+
+Static research may inspect database/configuration files and disassemble or trace
+local DLL/EXE code paths to recover:
+
+- target vehicle/profile selection keys;
+- Data List item identifiers and units;
+- diagnostic service and local identifier;
+- 7E0/7E8 or other ECU addressing;
+- response layout and conversion metadata;
+- the bytes passed toward the J2534 write boundary.
+
+Recovered information remains research evidence until independently checked
+against the target vehicle. No static finding automatically changes the production
+allowlist or marks a decoder vehicle-verified.
 
 ## Boundary
 

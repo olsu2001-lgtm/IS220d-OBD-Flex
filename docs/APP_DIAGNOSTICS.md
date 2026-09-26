@@ -28,6 +28,27 @@ recording and tests first. On IS220d with an ELM connection it reads only the ex
 data, outside normal Live values; missing or implausible values remain null.
 The field-rejected 219C injector request remains blocked.
 
+## Target-vehicle field evidence 2026-09-25
+
+On the target IS220d, calibration `35360000`, generic ELM transport with engine ECU
+`7E0 -> 7E8` was healthy while the comparison run returned **NO DATA** for all
+three direct candidate reads:
+
+- `2193` — fuel temperature candidate;
+- `2196` — common-rail pressure candidate;
+- `21AF` — injection-timing candidate.
+
+The same field session continued to return a complete `612C00` response for
+`212C`, while both formatted and raw-single-frame forms of `217E` and `217F`
+returned NO DATA. Therefore these direct query forms must not be described as
+vehicle-verified values on this calibration. Their signals require Techstream/J2534
+passive capture or equivalent target-vehicle evidence before production promotion.
+
+Report schema v2 keeps this distinction explicit: Toyota discovery NO DATA is
+`field-no-response`, Mode 01 support-bit absence remains `not-advertised`, and
+values retained after Live is stopped are `cached` rather than `displayed`.
+The summary also breaks missing values down by status.
+
 Discovery results now record optional support-page errors and Toyota query forms.
 Generic ELM readers participate in profile discovery. Incomplete IS220d formatted
 live replies get one attempt using the exact existing raw single-frame form.
