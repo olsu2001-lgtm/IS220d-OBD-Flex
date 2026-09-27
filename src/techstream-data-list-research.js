@@ -139,6 +139,9 @@ export async function runTechstreamDataListResearchCapture(command = "21AD") {
 
   const capturedAt = Date.now();
   const transportResult = await runtime.capture(candidate);
+  if (transportResult?.researchReadOnly !== true) {
+    throw new Error("21AD-tutkimusajo hylättiin: transportti ei vahvistanut research-only-gatea.");
+  }
   const raw = String(transportResult?.raw || "");
   const analysis = analyzeTechstreamResearchReadDataResponse(raw, candidate);
 
