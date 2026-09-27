@@ -4214,6 +4214,7 @@ async function captureTechstreamDataListResearchCandidate(candidate = {}) {
     raw: response.raw || "",
     error: response.error || "",
     responseClass: response.responseClass || "",
+    researchReadOnly: transaction.researchReadOnly === true && response.researchReadOnly === true,
     transactionId: transaction.transactionId || response.transactionId || ""
   };
 }
