@@ -3435,6 +3435,7 @@ export class Elm327Client {
               durationMs: Math.max(0, Date.now() - requestStartedAt),
               requestHeader: txHeader,
               responseHeader: rxHeader,
+              researchReadOnly: Boolean(request.researchReadOnly),
               transactionId
             }));
           } catch (error) {
@@ -3448,6 +3449,7 @@ export class Elm327Client {
               durationMs: Math.max(0, Date.now() - requestStartedAt),
               requestHeader: txHeader,
               responseHeader: rxHeader,
+              researchReadOnly: Boolean(request.researchReadOnly),
               transactionId
             }));
             if (!continueOnReadError || outcome.kind === "disconnected") throw error;
@@ -3469,6 +3471,7 @@ export class Elm327Client {
       return Object.freeze({
         transactionId,
         label,
+        researchReadOnly: normalizedRequests.some(request => request.researchReadOnly),
         requestHeader: txHeader,
         responseHeader: rxHeader,
         restoredRequestHeader: restoreHeader,
