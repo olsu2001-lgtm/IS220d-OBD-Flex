@@ -94,6 +94,7 @@ test("research capture requires explicit availability and returns raw evidence",
     capture: async candidate => ({
       raw: `7E8 06 61 ${candidate.identifierHex} 80 81 7F 82\r>`,
       responseClass: "positive-response",
+      researchReadOnly: true,
       transactionId: "ECU-RESEARCH-0001",
       error: ""
     })
@@ -105,6 +106,7 @@ test("research capture requires explicit availability and returns raw evidence",
     assert.equal(result.payloadHex, "80817F82");
     assert.equal(result.transactionId, "ECU-RESEARCH-0001");
     assert.equal(result.responseClass, "positive-response");
+    assert.equal(result.researchReadOnly, true);
     await assert.rejects(() => runTechstreamDataListResearchCapture("219C"), /tutkimussallintalista/i);
   } finally {
     configureTechstreamDataListResearch({});
@@ -125,6 +127,7 @@ test("research report keeps Techstream reference values separate from raw 61AD d
   assert.match(report, /Payload HEX: 80817F82/);
   assert.match(report, /-0.5 \/ 0.25 \/ 1 \/ -0.75 mm³\/st/);
   assert.match(report, /Dekoodaus: EI HYVÄKSYTTY/);
+  assert.match(report, /Research-only transport: EI \/ EI TIETOA/);
 });
 
 test("runtime transport keeps research opt-in explicit", () => {
