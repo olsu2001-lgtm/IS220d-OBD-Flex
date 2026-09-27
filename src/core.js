@@ -29,7 +29,9 @@ import {
   getVehicleReadDataProbes,
   getVehicleDtcRequests,
   getProfileReadDataProbe,
+  getProfileResearchReadDataCandidate,
   isProfileReadOnlyCommand,
+  isProfileResearchReadOnlyCommand,
   metricSupportsVehicle,
   vehicleDisplayName
 } from "./vehicle-profiles.js";
@@ -66,7 +68,9 @@ export {
   getVehicleReadDataProbes,
   getVehicleDtcRequests,
   getProfileReadDataProbe,
+  getProfileResearchReadDataCandidate,
   isProfileReadOnlyCommand,
+  isProfileResearchReadOnlyCommand,
   metricSupportsVehicle,
   vehicleDisplayName
 } from "./vehicle-profiles.js";
@@ -3377,6 +3381,7 @@ export class Elm327Client {
     clearResponseFilter = true,
     cleanupResponseFilter = true,
     continueOnReadError = false,
+    allowResearchReadOnly = false,
     label = "Lexus read-only ECU",
     profileKey = this.vehicleKey,
     restoreRequestHeader = ""
@@ -3396,8 +3401,11 @@ export class Elm327Client {
     const normalizedRequests = requests.map(request => {
       const descriptor = typeof request === "string" ? { command: request } : { ...(request || {}) };
       const command = normalizeElmCommand(descriptor.command);
-      if (!isProfileReadOnlyCommand(command, profileKey)) throw new Error(`ECU-transaktion turvallisuussallintalista esti pyynnön ${command || "(tyhjä)"}`);
+      const productionAllowed = isProfileReadOnlyCommand(command, profileKey);
+      const researchAllowed = Boolean(allowResearchReadOnly) && isProfileResearchReadOnlyCommand(command, profileKey);
+      if (!productionAllowed && !researchAllowed) throw new Error(`ECU-transaktion turvallisuussallintalista esti pyynnön ${command || "(tyhjä)"}`);
       return {
+        researchReadOnly: researchAllowed && !productionAllowed,
         ...descriptor,
         command,
         timeoutMs: Math.max(1, Number(descriptor.timeoutMs) || 5000)
