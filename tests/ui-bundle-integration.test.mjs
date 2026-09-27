@@ -33,4 +33,8 @@ test("browser bundle contains the real simplified shell and Health Check UI", as
   assert.match(bundle, /Tekninen evidenssi/);
   assert.match(bundle, /publishIs220dComponentDiagnosticCoverageToUi/);
   assert.match(bundle, /buildIs220dComponentDiagnosticCoverage/);
+  assert.match(bundle, /21AD · Injection Feedback -raakakandidaatin kenttäkoe/);
+  assert.match(bundle, /Aja 21AD raakakoeluku/);
+  assert.match(bundle, /Techstream Data List · 21AD raakakandidaatti/);
+  assert.match(bundle, /allowResearchReadOnly: true/);
 });
