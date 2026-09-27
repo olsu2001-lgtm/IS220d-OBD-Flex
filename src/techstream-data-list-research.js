@@ -25,13 +25,15 @@ function hexByte(value) {
   return (Number(value) & 0xff).toString(16).padStart(2, "0").toUpperCase();
 }
 
-function parseLineBytes(line) {
+function parseLineFrame(line) {
   const text = String(line || "")
     .replace(/>/g, " ")
     .replace(/\b(?:TX|RX)\b/gi, " ")
     .trim()
     .toUpperCase();
-  if (!text || /NO DATA|STOPPED|CAN ERROR|UNABLE TO CONNECT/.test(text)) return [];
+  if (!text || /NO DATA|STOPPED|CAN ERROR|UNABLE TO CONNECT/.test(text)) {
+    return { data: [], totalLength: null };
+  }
 
   const tokens = text.match(/[0-9A-F]+/g) || [];
   let index = 0;
@@ -40,24 +42,29 @@ function parseLineBytes(line) {
     .filter(token => token.length === 2)
     .map(token => Number.parseInt(token, 16));
 
-  if (!bytes.length) return [];
+  if (!bytes.length) return { data: [], totalLength: null };
   const pci = bytes[0];
   if ((pci & 0xf0) === 0x00) {
     const length = pci & 0x0f;
-    return bytes.slice(1, 1 + length);
+    return { data: bytes.slice(1, 1 + length), totalLength: length };
   }
-  if ((pci & 0xf0) === 0x10) return bytes.slice(2);
-  if ((pci & 0xf0) === 0x20) return bytes.slice(1);
-  return bytes;
+  if ((pci & 0xf0) === 0x10 && bytes.length >= 2) {
+    const totalLength = ((pci & 0x0f) << 8) | bytes[1];
+    return { data: bytes.slice(2), totalLength };
+  }
+  if ((pci & 0xf0) === 0x20) return { data: bytes.slice(1), totalLength: null };
+  return { data: bytes, totalLength: null };
 }
 
 function extractPositivePayload(raw, identifier) {
   const wanted = Number(identifier) & 0xff;
   const collected = [];
   let started = false;
+  let totalLength = null;
 
   for (const line of String(raw || "").split(/[\r\n]+/)) {
-    const bytes = parseLineBytes(line);
+    const frame = parseLineFrame(line);
+    const bytes = frame.data;
     if (!bytes.length) continue;
     if (!started) {
       const index = bytes.findIndex((value, offset) =>
@@ -65,14 +72,17 @@ function extractPositivePayload(raw, identifier) {
       );
       if (index < 0) continue;
       started = true;
+      totalLength = Number.isInteger(frame.totalLength) ? frame.totalLength - index : null;
       collected.push(...bytes.slice(index));
-      continue;
+    } else {
+      collected.push(...bytes);
     }
-    collected.push(...bytes);
+    if (Number.isInteger(totalLength) && collected.length >= totalLength) break;
   }
 
   if (!started || collected.length < 2) return null;
-  return collected.slice(2);
+  const message = Number.isInteger(totalLength) ? collected.slice(0, totalLength) : collected;
+  return message.slice(2);
 }
 
 function negativeResponse(raw) {
