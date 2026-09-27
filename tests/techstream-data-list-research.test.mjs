@@ -14,6 +14,7 @@ import {
   configureTechstreamDataListResearch,
   techstreamDataListResearchAvailable,
   runTechstreamDataListResearchCapture,
+  evaluate21adInjectorFeedbackFamilyHypothesis,
   buildTechstreamDataListResearchReport
 } from "../src/techstream-data-list-research.js";
 
@@ -51,6 +52,32 @@ test("61AD ISO-TP multi-frame payload is reassembled for evidence only", () => {
   assert.equal(result.positive, true);
   assert.equal(result.payloadHex, "0102030405060708090A0B");
   assert.equal(result.payloadLength, 11);
+});
+
+test("1KD 21AD injector mapping is exposed only as a comparison hypothesis", () => {
+  const payloadBytes = Array(25).fill(0);
+  payloadBytes[17] = 65;
+  payloadBytes[18] = 70;
+  payloadBytes[19] = 63;
+  payloadBytes[20] = 57;
+  const expected = payloadBytes.slice(17, 21).map(raw => raw * 20 / 128 - 10);
+  const hypothesis = evaluate21adInjectorFeedbackFamilyHypothesis(
+    { payloadBytes },
+    {
+      injectionFeedback1: expected[0],
+      injectionFeedback2: expected[1],
+      injectionFeedback3: expected[2],
+      injectionFeedback4: expected[3]
+    }
+  );
+  assert.deepEqual(hypothesis.payloadLetters, ["R", "S", "T", "U"]);
+  assert.deepEqual(hypothesis.byteIndexesZeroBased, [17, 18, 19, 20]);
+  assert.deepEqual(hypothesis.hypothesisValuesMm3, expected);
+  assert.equal(hypothesis.comparableChannelCount, 4);
+  assert.equal(hypothesis.maxAbsDeltaMm3, 0);
+  assert.equal(hypothesis.withinTolerance, true);
+  assert.equal(hypothesis.decoderAuthorized, false);
+  assert.equal(hypothesis.targetEngine, "2AD-FHV");
 });
 
 test("NO DATA and NRC remain non-positive research outcomes", () => {
