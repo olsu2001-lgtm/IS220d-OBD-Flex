@@ -11,6 +11,7 @@ import {
 import {
   techstreamDataListResearchAvailable,
   runTechstreamDataListResearchCapture,
+  evaluate21adInjectorFeedbackFamilyHypothesis,
   buildTechstreamDataListResearchReport
 } from "./techstream-data-list-research.js";
 
@@ -152,6 +153,18 @@ function renderResearchCapture(details, result) {
     `21AD → 61AD · ${result.status} · payload ${result.payloadLength} B · transaction ${result.transactionId || "–"}`
   ));
   results.append(create("div", "techstream-gap-result techstream-gap-raw", `Payload HEX: ${result.payloadHex || "–"}`));
+  const hypothesis = evaluate21adInjectorFeedbackFamilyHypothesis(result, researchReferenceValues(details));
+  if (hypothesis.hypothesisValuesMm3.length === 4) {
+    const values = hypothesis.hypothesisValuesMm3.map(value => value.toFixed(3)).join(" / ");
+    const comparison = hypothesis.comparableChannelCount === 4
+      ? ` · max ero Techstreamiin ${hypothesis.maxAbsDeltaMm3.toFixed(3)} mm³/st`
+      : " · syötä kaikki neljä Techstream-arvoa vertailua varten";
+    results.append(create(
+      "div",
+      "techstream-gap-result",
+      `1KD-perheen R/S/T/U-hypoteesi: ${values} mm³/st${comparison} · EI 2AD-DEKOODAUS`
+    ));
+  }
   results.append(create("div", "techstream-gap-result techstream-gap-raw", `Raakavastaus: ${String(result.raw || "–").replace(/\r/g, "\\r").replace(/\n/g, "\\n")}`));
   results.append(create("div", "techstream-gap-result rejected", "Dekoodaus ei ole hyväksytty: tulos on vain raaka 2AD-FHV-kandidaattievidenssi."));
 }
