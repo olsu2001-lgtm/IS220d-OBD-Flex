@@ -86,6 +86,8 @@ class FakeElement {
       set(target, key, value) { target[key] = value; return true; }
     });
   }
+  querySelector(selector) { return document.querySelector(selector); }
+  querySelectorAll(selector) { return document.querySelectorAll(selector); }
 }
 
 const elements = [];
@@ -117,15 +119,46 @@ const document = {
     return this.querySelectorAll(selector)[0] || null;
   },
   querySelectorAll(selector) {
-    if (selector.startsWith(".")) return elements.filter(element => element.classList.contains(selector.slice(1)));
-    const dataMatch = selector.match(/^\[data-([\w-]+)\]$/);
-    if (dataMatch) {
-      const key = dataMatch[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-      return elements.filter(element => Object.hasOwn(element.dataset, key));
+    const source = String(selector || "").trim();
+    if (!source) return [];
+
+    const idMatch = source.match(/^#([\w-]+)$/);
+    if (idMatch) return [byId.get(idMatch[1])].filter(Boolean);
+
+    const classMatch = source.match(/^(?:([a-z][\w-]*)|)?((?:\.[\w-]+)+)$/i);
+    if (classMatch) {
+      const tag = classMatch[1]?.toUpperCase() || "";
+      const classes = classMatch[2].split(".").filter(Boolean);
+      return elements.filter(element =>
+        (!tag || element.tagName === tag) && classes.every(name => element.classList.contains(name))
+      );
+    }
+
+    const attrMatch = source.match(/^(?:([a-z][\w-]*)|)?\[([:\w-]+)(?:=["']?([^"'\]]+)["']?)?\]$/i);
+    if (attrMatch) {
+      const tag = attrMatch[1]?.toUpperCase() || "";
+      const name = attrMatch[2];
+      const expected = attrMatch[3];
+      return elements.filter(element => {
+        if (tag && element.tagName !== tag) return false;
+        const actual = name.startsWith("data-")
+          ? element.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())]
+          : element.attributes[name];
+        return expected === undefined ? actual !== undefined : String(actual) === expected;
+      });
+    }
+
+    if (/^[a-z][\w-]*$/i.test(source)) {
+      const tag = source.toUpperCase();
+      return elements.filter(element => element.tagName === tag);
     }
     return [];
   },
-  createElement(tagName) { return new FakeElement(tagName); },
+  createElement(tagName) {
+    const element = new FakeElement(tagName);
+    elements.push(element);
+    return element;
+  },
   addEventListener(type, listener) {
     const listeners = documentListeners.get(type) || [];
     listeners.push(listener);
