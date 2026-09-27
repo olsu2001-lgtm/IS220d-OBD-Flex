@@ -80,6 +80,10 @@ class FakeElement {
     for (const entry of entries) entry.listener(event);
     this.listeners.set(type, (this.listeners.get(type) || []).filter(entry => !entry.once));
   }
+  dispatchEvent(event) {
+    this.dispatch(event?.type || String(event || ""), event || {});
+    return true;
+  }
   click() { this.dispatch("click"); }
   append(...children) {
     for (const child of children) {
