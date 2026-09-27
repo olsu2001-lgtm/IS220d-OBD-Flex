@@ -45,8 +45,23 @@ class FakeElement {
   get innerHTML() { return this._innerHTML || ""; }
   set innerHTML(value) {
     this._innerHTML = String(value);
-    if (!value) { this.children = []; this.options = []; }
+    this.children = [];
+    this.options = [];
+    if (!value || typeof document === "undefined") return;
+    for (const match of String(value).matchAll(/<([a-z][\w-]*)\b([^>]*)>/gi)) {
+      const child = document.createElement(match[1]);
+      const attributes = {};
+      for (const attribute of match[2].matchAll(/([:\w-]+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)) {
+        attributes[attribute[1]] = attribute[2] ?? attribute[3] ?? attribute[4] ?? "";
+      }
+      for (const [name, attrValue] of Object.entries(attributes)) child.setAttribute(name, attrValue);
+      if (child.id) byId.set(child.id, child);
+      this.append(child);
+    }
   }
+  get firstElementChild() { return this.children[0] || null; }
+  get lastElementChild() { return this.children.at(-1) || null; }
+  get parentElement() { return this.parentNode || null; }
   get selectedOptions() {
     if (this.tagName !== "SELECT") return [];
     return [this.options.find(option => option.value === this.value) || this.options[0]].filter(Boolean);
@@ -68,15 +83,44 @@ class FakeElement {
   click() { this.dispatch("click"); }
   append(...children) {
     for (const child of children) {
+      if (!child) continue;
+      child.parentNode = this;
       this.children.push(child);
       if (child?.tagName === "OPTION") this.options.push(child);
     }
   }
   appendChild(child) { this.append(child); return child; }
-  remove() {}
+  insertBefore(child) { this.append(child); return child; }
+  insertAdjacentElement(_position, child) { this.append(child); return child; }
+  replaceChildren(...children) { this.children = []; this.options = []; this.append(...children); }
+  contains(node) {
+    if (node === this) return true;
+    return this.children.some(child => child === node || child?.contains?.(node));
+  }
+  matches(selector) { return document.querySelectorAll(selector).includes(this); }
+  closest(selector) {
+    let current = this;
+    while (current) {
+      if (current.matches?.(selector)) return current;
+      current = current.parentNode;
+    }
+    return document.querySelector(selector);
+  }
+  remove() {
+    if (!this.parentNode?.children) return;
+    this.parentNode.children = this.parentNode.children.filter(child => child !== this);
+    this.parentNode = null;
+  }
   focus() {}
   showModal() { this.open = true; }
-  setAttribute(name, value) { this.attributes[name] = String(value); if (name === "content") this.content = String(value); }
+  setAttribute(name, value) {
+    const text = String(value);
+    this.attributes[name] = text;
+    if (name === "id") { this.id = text; if (typeof byId !== "undefined") byId.set(text, this); }
+    if (name === "class") this.className = text;
+    if (name === "content") this.content = text;
+    if (name.startsWith("data-")) this.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = text;
+  }
   getAttribute(name) { return this.attributes[name] ?? null; }
   getBoundingClientRect() { return { width: 360, height: 210, top: 0, left: 0, right: 360, bottom: 210 }; }
   getContext() {
@@ -165,6 +209,10 @@ const document = {
     documentListeners.set(type, listeners);
   }
 };
+
+for (const element of elements) {
+  if (!element.parentNode) element.parentNode = document.body;
+}
 
 const stored = new Map();
 const localStorage = {
