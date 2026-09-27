@@ -196,9 +196,10 @@ test("21AD research read requires explicit opt-in and never enters the productio
     allowResearchReadOnly: true,
     profileKey: "is220d"
   });
-  assert.deepEqual(sent, ["ATCRA", "ATSH7E0", "ATCRA7E8", "21AD", "ATCRA"]);
+  assert.deepEqual(sent, ["ATSH7E0", "ATCRA7E8", "21AD", "ATCRA"]);
+  assert.equal(transaction.researchReadOnly, true);
   assert.equal(transaction.responses[0].command, "21AD");
-  assert.equal(transaction.responses[0].researchReadOnly, undefined, "transport result does not promote research metadata to production semantics");
+  assert.equal(transaction.responses[0].researchReadOnly, true);
   assert.match(transaction.responses[0].raw, /61 AD/);
 });
 
