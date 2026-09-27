@@ -272,6 +272,38 @@ export const IS220D_INJECTOR_SCREENING_PROBES = deepFreeze(
   }))
 );
 
+/**
+ * Explicit, raw-only research candidates. These are intentionally excluded
+ * from the production/live probe registry and from TOYOTA_READ_DATA_ALLOWED_COMMANDS.
+ * A candidate may be transmitted only by a caller that opts into the separate
+ * research gate. No engineering value is published until target-vehicle
+ * Techstream/J2534 correlation closes the byte layout.
+ */
+export const IS220D_RESEARCH_READ_DATA_CANDIDATES = deepFreeze([
+  {
+    id: "engine.injection_feedback_21ad_research",
+    service: 0x21,
+    responseService: 0x61,
+    identifier: 0xad,
+    identifierHex: "AD",
+    command: "21AD",
+    rawCommand: "0221AD0000000000",
+    expectedResponsePrefix: "61AD",
+    requestHeader: IS220D_ENGINE_ECU_PROFILE.requestHeader,
+    responseHeader: IS220D_ENGINE_ECU_PROFILE.responseHeader,
+    label: "Injection Feedback Val #1–#4 · 21AD raakakandidaatti",
+    evidence: "research-candidate",
+    evidenceScope: "Toyota/Denso diesel family reference; 2AD-FHV calibration 35360000 not yet verified",
+    targetVehicleVerified: false,
+    decoderAuthorized: false,
+    writable: false
+  }
+]);
+
+export const IS220D_RESEARCH_READ_ONLY_COMMANDS = Object.freeze(
+  IS220D_RESEARCH_READ_DATA_CANDIDATES.flatMap(candidate => [candidate.command, candidate.rawCommand])
+);
+
 export const IS220D_FIELD_DISABLED_COMMANDS = Object.freeze([
   "219C",
   "02219C0000000000"
@@ -363,6 +395,22 @@ export function getToyotaReadDataProbe(commandOrIdentifier) {
 export function isProfileReadOnlyCommand(command) {
   const normalized = String(command || "").replace(/\s+/g, "").toUpperCase();
   return TOYOTA_READ_DATA_ALLOWED_COMMANDS.includes(normalized);
+}
+
+export function getIs220dResearchReadDataCandidate(commandOrIdentifier) {
+  if (Number.isInteger(commandOrIdentifier)) {
+    const identifier = Number(commandOrIdentifier) & 0xff;
+    return IS220D_RESEARCH_READ_DATA_CANDIDATES.find(candidate => candidate.identifier === identifier) || null;
+  }
+  const command = String(commandOrIdentifier || "").replace(/\s+/g, "").toUpperCase();
+  return IS220D_RESEARCH_READ_DATA_CANDIDATES.find(candidate =>
+    candidate.command === command || candidate.rawCommand === command
+  ) || null;
+}
+
+export function isIs220dResearchReadOnlyCommand(command) {
+  const normalized = String(command || "").replace(/\s+/g, "").toUpperCase();
+  return IS220D_RESEARCH_READ_ONLY_COMMANDS.includes(normalized);
 }
 
 export function buildProfileProbeCommand(probe, queryForm = "formatted") {

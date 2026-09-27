@@ -13,7 +13,8 @@ This directory separates the **active development contract** from historical Dri
 7. [`FIELD_TEST_MODE.md`](FIELD_TEST_MODE.md) — guided one-run-at-a-time UI wrapper for collecting the three matching validation runs with an explicit engine state.
 8. [`TECHSTREAM_REFERENCE.md`](TECHSTREAM_REFERENCE.md) — neutral external-reference schema and explicit Techstream/ECU Survey comparison boundary.
 9. [`EVIDENCE_SUPPORT_BUNDLE.md`](EVIDENCE_SUPPORT_BUNDLE.md) — compact privacy-bounded JSON export for field-validation/support analysis without raw CAN/ELM data.
-10. Executable source and regression tests — the final source of truth for shipped behavior.
+10. [`FLEX_UI_DESIGN_SYSTEM.md`](FLEX_UI_DESIGN_SYSTEM.md) — current UI/UX hierarchy, navigation, accessibility and diagnostic-presentation rules; paired with [`../skills/flex-ui/SKILL.md`](../skills/flex-ui/SKILL.md).
+11. Executable source and regression tests — the final source of truth for shipped behavior.
 
 Historical documents never expand the active command allowlist by themselves.
 

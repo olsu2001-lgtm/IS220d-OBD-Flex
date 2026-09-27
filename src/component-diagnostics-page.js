@@ -1,8 +1,5 @@
 import { buildIs220dRepairManualVisualsHtml } from "./is220d-repair-manual-visuals.js";
-import {
-  IS220D_DIAGNOSTIC_GROUPS,
-  getIs220dDiagnosticGroupForComponent
-} from "./is220d-diagnostic-groups.js";
+import { IS220D_DIAGNOSTIC_GROUPS, getIs220dDiagnosticGroupForComponent } from "./is220d-diagnostic-groups.js";
 
 const STORAGE_KEY = "lexusIs220dBomComponentDiagnosticsV2";
 const LEGACY_STORAGE_KEY = "lexusIs220dBomComponentDiagnosticsV1";
@@ -22,75 +19,42 @@ export const COMPONENT_ASSESSMENT_STATUS = Object.freeze({
   "not-evaluated": Object.freeze({ label: "EI ARVIOITU", css: "not-evaluated" })
 });
 
+const HEALTH_ASSESSMENT_LABEL = Object.freeze({
+  "normal-pattern": "OK",
+  deviation: "HUOMIO",
+  "strong-deviation": "TARKISTA",
+  inconclusive: "EI VARMAA TULOSTA",
+  "not-evaluated": "EI ARVIOITU"
+});
+
 const CLASS_LABEL = Object.freeze({ direct: "DIRECT", indirect: "INDIRECT" });
+const escapeHtml = value => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-export function componentDiagnosticStatusLabel(status) {
-  return COMPONENT_DIAGNOSTIC_STATUS[status]?.label || String(status || "TUNTEMATON").toUpperCase();
-}
-
-export function componentAssessmentStatusLabel(status) {
-  return COMPONENT_ASSESSMENT_STATUS[status]?.label || String(status || "EI ARVIOITU").toUpperCase();
-}
+export function componentDiagnosticStatusLabel(status) { return COMPONENT_DIAGNOSTIC_STATUS[status]?.label || String(status || "TUNTEMATON").toUpperCase(); }
+export function componentAssessmentStatusLabel(status) { return COMPONENT_ASSESSMENT_STATUS[status]?.label || String(status || "EI ARVIOITU").toUpperCase(); }
 
 export function observedComponentSignals(component) {
-  if (!Array.isArray(component?.groupEvidence)) return [];
   const signals = [];
-  for (const group of component.groupEvidence) {
-    for (const signal of group?.signals || []) {
-      if (signal?.observed && signal?.command && !signals.includes(signal.command)) signals.push(signal.command);
-    }
-  }
+  for (const group of component?.groupEvidence || []) for (const signal of group?.signals || []) if (signal?.observed && signal?.command && !signals.includes(signal.command)) signals.push(signal.command);
   return signals;
 }
 
 export function attemptedComponentSignals(component) {
-  if (!Array.isArray(component?.groupEvidence)) return [];
   const signals = [];
-  for (const group of component.groupEvidence) {
-    for (const signal of group?.signals || []) {
-      if (signal?.attempted && signal?.command && !signals.includes(signal.command)) signals.push(signal.command);
-    }
-  }
+  for (const group of component?.groupEvidence || []) for (const signal of group?.signals || []) if (signal?.attempted && signal?.command && !signals.includes(signal.command)) signals.push(signal.command);
   return signals;
 }
 
-export function filterComponentDiagnostics(coverage, {
-  diagnosticClass = "all",
-  diagnosticGroup = "all",
-  status = "all",
-  assessmentStatus = "all",
-  query = ""
-} = {}) {
+export function filterComponentDiagnostics(coverage, { diagnosticClass = "all", diagnosticGroup = "all", status = "all", assessmentStatus = "all", query = "" } = {}) {
   const needle = String(query || "").trim().toLocaleLowerCase("fi");
-  const components = Array.isArray(coverage?.components) ? coverage.components : [];
-  return components.filter(component => {
+  return (coverage?.components || []).filter(component => {
     const group = getIs220dDiagnosticGroupForComponent(component.id);
     if (diagnosticClass !== "all" && component.diagnosticClass !== diagnosticClass) return false;
     if (diagnosticGroup !== "all" && group?.id !== diagnosticGroup) return false;
     if (status !== "all" && component.status !== status) return false;
     if (assessmentStatus !== "all" && component?.assessment?.status !== assessmentStatus) return false;
     if (!needle) return true;
-    const haystack = [
-      component.label,
-      component.pnc,
-      component.oe,
-      component.symptom,
-      component.id,
-      component.assessment?.status,
-      group?.label,
-      group?.shortLabel,
-      group?.physicalFocus
-    ].join(" ").toLocaleLowerCase("fi");
-    return haystack.includes(needle);
+    return [component.label, component.pnc, component.oe, component.symptom, component.id, group?.label, group?.shortLabel, group?.physicalFocus].join(" ").toLocaleLowerCase("fi").includes(needle);
   });
 }
 
@@ -102,360 +66,84 @@ function formatAssessmentValue(value) {
 }
 
 export function buildComponentDiagnosticCardHtml(component) {
-  const statusMeta = COMPONENT_DIAGNOSTIC_STATUS[component?.status] || { label: "TUNTEMATON", css: "not-tested" };
+  const statusMeta = COMPONENT_DIAGNOSTIC_STATUS[component?.status] || COMPONENT_DIAGNOSTIC_STATUS["not-tested"];
   const assessmentMeta = COMPONENT_ASSESSMENT_STATUS[component?.assessment?.status] || COMPONENT_ASSESSMENT_STATUS["not-evaluated"];
-  const classLabel = CLASS_LABEL[component?.diagnosticClass] || String(component?.diagnosticClass || "").toUpperCase();
   const group = getIs220dDiagnosticGroupForComponent(component?.id);
   const observed = observedComponentSignals(component);
   const attempted = attemptedComponentSignals(component);
   const required = Math.max(1, Number(component?.requiredGroups || 1));
   const observedGroups = Math.max(0, Number(component?.observedGroups || 0));
-  const signalText = observed.length
-    ? `Saatu: ${observed.join(", ")}`
-    : attempted.length
-      ? `Yritetty: ${attempted.join(", ")}`
-      : "Tämän ajon signaaleja ei ole kysytty";
-  const assessmentValues = (component?.assessment?.values || []).map(formatAssessmentValue).filter(Boolean);
-  const assessmentReason = component?.assessment?.reason || "Komponentille ei ole vielä erillistä arviointisääntöä.";
-  const assessmentLimitations = (component?.assessment?.limitations || []).filter(Boolean);
-  const assessmentHtml = `<div class="bom-assessment ${escapeHtml(assessmentMeta.css)}">
-    <div class="bom-assessment-title"><span>Arvio</span><strong>${escapeHtml(assessmentMeta.label)}</strong></div>
-    <p>${escapeHtml(assessmentReason)}</p>
-    ${assessmentValues.length ? `<div class="bom-assessment-values">${assessmentValues.map(value => `<code>${escapeHtml(value)}</code>`).join("")}</div>` : ""}
-    ${assessmentLimitations.length ? `<ul>${assessmentLimitations.map(value => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : ""}
-  </div>`;
+  const signalText = observed.length ? `Saatu: ${observed.join(", ")}` : attempted.length ? `Yritetty: ${attempted.join(", ")}` : "Tämän ajon signaaleja ei ole kysytty";
+  const values = (component?.assessment?.values || []).map(formatAssessmentValue).filter(Boolean);
+  const limitations = (component?.assessment?.limitations || []).filter(Boolean);
+  const healthAssessmentLabel = HEALTH_ASSESSMENT_LABEL[component?.assessment?.status] || assessmentMeta.label;
   const excluded = Array.isArray(component?.excludedSignals) && component.excludedSignals.length
     ? `<div class="bom-component-excluded">Ei käytetä evidenssinä: <code>${escapeHtml(component.excludedSignals.join(", "))}</code></div>`
     : "";
-  const note = component?.note ? `<p class="bom-component-note">${escapeHtml(component.note)}</p>` : "";
-
-  return `<article class="bom-component-card ${escapeHtml(statusMeta.css)}" data-component-class="${escapeHtml(component?.diagnosticClass)}" data-component-status="${escapeHtml(component?.status)}" data-assessment-status="${escapeHtml(component?.assessment?.status || "not-evaluated")}" data-diagnostic-group="${escapeHtml(group?.id || "")}">
-    <div class="bom-component-head">
-      <div>
-        <div class="bom-component-badges"><span class="bom-class ${escapeHtml(component?.diagnosticClass)}">${escapeHtml(classLabel)}</span><span class="bom-status ${escapeHtml(statusMeta.css)}">${escapeHtml(statusMeta.label)}</span><span class="bom-assessment-badge ${escapeHtml(assessmentMeta.css)}">${escapeHtml(assessmentMeta.label)}</span></div>
-        <h3>${escapeHtml(component?.label)}</h3>
-      </div>
-      <strong class="bom-coverage">${observedGroups}/${required}</strong>
+  return `<details class="health-component ${escapeHtml(assessmentMeta.css)}">
+    <summary>
+      <span class="health-component-main"><strong>${escapeHtml(component?.label)}</strong><small>${escapeHtml(group?.shortLabel || "")} · PNC ${escapeHtml(component?.pnc || "–")}</small></span>
+      <span class="health-component-state ${escapeHtml(assessmentMeta.css)}">${escapeHtml(healthAssessmentLabel)}</span>
+    </summary>
+    <div class="health-component-body">
+      <div class="bom-component-badges"><span class="bom-class ${escapeHtml(component?.diagnosticClass)}">${escapeHtml(CLASS_LABEL[component?.diagnosticClass] || "")}</span><span class="bom-status ${escapeHtml(statusMeta.css)}">${escapeHtml(statusMeta.label)}</span><span class="bom-coverage">${observedGroups}/${required}</span></div>
+      <div class="bom-part-numbers"><span>PNC ${escapeHtml(component?.pnc || "–")}</span><span>OE ${escapeHtml(component?.oe || "–")}</span></div>
+      ${component?.symptom ? `<p class="bom-symptom"><strong>Oire:</strong> ${escapeHtml(component.symptom)}</p>` : ""}
+      <div class="bom-assessment ${escapeHtml(assessmentMeta.css)}"><strong>${escapeHtml(assessmentMeta.label)}</strong><p>${escapeHtml(component?.assessment?.reason || "Komponentille ei ole vielä erillistä arviointisääntöä.")}</p>${values.length ? `<div class="bom-assessment-values">${values.map(v => `<code>${escapeHtml(v)}</code>`).join("")}</div>` : ""}${limitations.length ? `<ul>${limitations.map(v => `<li>${escapeHtml(v)}</li>`).join("")}</ul>` : ""}</div>
+      ${buildIs220dRepairManualVisualsHtml(component?.id)}
+      <details class="bom-component-details"><summary>Tekninen evidenssi</summary><div class="bom-signal-line">${escapeHtml(signalText)}</div><div class="bom-source">${escapeHtml(component?.bomSource || "")}</div>${excluded}${component?.note ? `<p class="bom-component-note">${escapeHtml(component.note)}</p>` : ""}</details>
     </div>
-    ${group ? `<div class="bom-group-name">${escapeHtml(group.shortLabel)}</div>` : ""}
-    <div class="bom-part-numbers"><span>PNC ${escapeHtml(component?.pnc || "–")}</span><span>OE ${escapeHtml(component?.oe || "–")}</span></div>
-    <p class="bom-symptom">${escapeHtml(component?.symptom || "")}</p>
-    ${assessmentHtml}
-    ${buildIs220dRepairManualVisualsHtml(component?.id)}
-    <details class="bom-component-details">
-      <summary>Diagnoosievidenssi</summary>
-      <div class="bom-signal-line">${escapeHtml(signalText)}</div>
-      <div class="bom-source">${escapeHtml(component?.bomSource || "")}</div>
-      ${excluded}
-      ${note}
-    </details>
-  </article>`;
+  </details>`;
 }
 
 export function buildComponentDiagnosticSummary(coverage) {
   const summary = coverage?.summary || {};
-  const components = Array.isArray(coverage?.components) ? coverage.components : [];
-  return Object.freeze({
-    total: Number(summary.total || 0),
-    direct: Number(summary.direct || 0),
-    indirect: Number(summary.indirect || 0),
-    observed: Number(summary.observed || 0),
-    partial: Number(summary.partial || 0),
-    unavailable: Number(summary.unavailable || 0),
-    notTested: Number(summary.notTested || 0),
-    normalPattern: components.filter(component => component?.assessment?.status === "normal-pattern").length,
-    deviation: components.filter(component => ["deviation", "strong-deviation"].includes(component?.assessment?.status)).length,
-    inconclusive: components.filter(component => component?.assessment?.status === "inconclusive").length
-  });
+  const components = coverage?.components || [];
+  return Object.freeze({ total:Number(summary.total||0), direct:Number(summary.direct||0), indirect:Number(summary.indirect||0), observed:Number(summary.observed||0), partial:Number(summary.partial||0), unavailable:Number(summary.unavailable||0), notTested:Number(summary.notTested||0), normalPattern:components.filter(c=>c?.assessment?.status==="normal-pattern").length, deviation:components.filter(c=>["deviation","strong-deviation"].includes(c?.assessment?.status)).length, inconclusive:components.filter(c=>c?.assessment?.status==="inconclusive").length });
 }
 
 let latestPayload = null;
-
-function parseStoredPayload(raw) {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed?.coverage?.applicable ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function safeStorageGet() {
-  try {
-    return parseStoredPayload(globalThis.localStorage?.getItem(STORAGE_KEY)) ||
-      parseStoredPayload(globalThis.localStorage?.getItem(LEGACY_STORAGE_KEY));
-  } catch {
-    return null;
-  }
-}
-
-function safeStorageSet(payload) {
-  try { globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch {}
-}
-
-function formatTimestamp(value) {
-  if (!Number.isFinite(Number(value))) return "";
-  try {
-    return new Intl.DateTimeFormat("fi-FI", {
-      dateStyle: "short",
-      timeStyle: "short"
-    }).format(new Date(Number(value)));
-  } catch {
-    return "";
-  }
-}
+function parseStoredPayload(raw) { if (!raw) return null; try { const parsed=JSON.parse(raw); return parsed?.coverage?.applicable ? parsed : null; } catch { return null; } }
+function safeStorageGet() { try { return parseStoredPayload(globalThis.localStorage?.getItem(STORAGE_KEY)) || parseStoredPayload(globalThis.localStorage?.getItem(LEGACY_STORAGE_KEY)); } catch { return null; } }
+function safeStorageSet(payload) { try { globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch {} }
+function formatTimestamp(value) { if (!Number.isFinite(Number(value))) return ""; try { return new Intl.DateTimeFormat("fi-FI", { dateStyle:"short", timeStyle:"short" }).format(new Date(Number(value))); } catch { return ""; } }
 
 function ensureStyles() {
-  if (typeof document === "undefined" || document.querySelector("#bom-component-diagnostics-styles")) return;
-  const style = document.createElement("style");
-  style.id = "bom-component-diagnostics-styles";
-  style.textContent = `
-    .bom-summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; margin-bottom:14px; }
-    .bom-summary-grid > div { padding:10px 5px; border:1px solid var(--line); border-radius:11px; background:var(--surface-inset); text-align:center; }
-    .bom-summary-grid span { display:block; color:var(--muted); font-size:9px; font-weight:800; text-transform:uppercase; }
-    .bom-summary-grid strong { display:block; margin-top:5px; font-size:18px; }
-    .bom-filter-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
-    .bom-filter-grid label { margin-bottom:5px; }
-    .bom-search { margin-top:10px; }
-    .bom-component-list { display:grid; gap:9px; }
-    .bom-component-card { padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--surface); }
-    .bom-component-card.observed { border-color:var(--success-border); }
-    .bom-component-card.partial { border-color:var(--warning-border); }
-    .bom-component-card.unavailable { border-color:var(--danger-border-soft); }
-    .bom-component-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-    .bom-component-head h3 { margin:7px 0 0; font-size:15px; line-height:1.3; }
-    .bom-component-badges { display:flex; flex-wrap:wrap; gap:5px; }
-    .bom-class,.bom-status,.bom-assessment-badge { display:inline-block; padding:4px 7px; border:1px solid var(--line); border-radius:999px; font-size:8px; font-weight:900; letter-spacing:.05em; }
-    .bom-class.direct { border-color:var(--info-border); background:var(--info-bg); color:var(--info); }
-    .bom-class.indirect { border-color:var(--warning-border); background:var(--warning-bg); color:var(--warning); }
-    .bom-status.observed,.bom-assessment-badge.normal-pattern { border-color:var(--success-border); background:var(--success-bg); color:var(--success); }
-    .bom-status.partial,.bom-assessment-badge.inconclusive,.bom-assessment-badge.deviation { border-color:var(--warning-border); background:var(--warning-bg); color:var(--warning); }
-    .bom-status.unavailable,.bom-assessment-badge.strong-deviation { border-color:var(--danger-border); background:var(--danger-bg); color:var(--danger-text); }
-    .bom-status.not-tested,.bom-assessment-badge.not-evaluated { color:var(--muted); }
-    .bom-coverage { min-width:42px; padding:6px 7px; border:1px solid var(--line); border-radius:10px; background:var(--surface-inset); text-align:center; font-size:12px; }
-    .bom-group-name { margin-top:7px; color:var(--info); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
-    .bom-part-numbers { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
-    .bom-part-numbers span { padding:4px 6px; border-radius:7px; background:var(--surface-2); color:var(--muted); font:9px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
-    .bom-symptom { margin:10px 0 0; color:var(--text-strong); font-size:12px; line-height:1.45; }
-    .bom-assessment { margin-top:10px; padding:9px 10px; border:1px solid var(--line-soft); border-radius:10px; background:var(--surface-inset); }
-    .bom-assessment.normal-pattern { border-color:var(--success-border); }
-    .bom-assessment.strong-deviation { border-color:var(--danger-border); }
-    .bom-assessment.inconclusive,.bom-assessment.deviation { border-color:var(--warning-border); }
-    .bom-assessment-title { display:flex; justify-content:space-between; gap:10px; font-size:9px; text-transform:uppercase; color:var(--muted); }
-    .bom-assessment-title strong { color:var(--text-strong); }
-    .bom-assessment p,.bom-assessment ul { margin:7px 0 0; font-size:10px; line-height:1.45; color:var(--text-strong); }
-    .bom-assessment ul { padding-left:17px; color:var(--muted); }
-    .bom-assessment-values { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
-    .bom-assessment-values code { padding:4px 6px; border-radius:7px; background:var(--surface-2); font-size:9px; }
-    .bom-component-details { margin-top:10px; border-top:1px solid var(--line-soft); padding-top:9px; }
-    .bom-component-details summary { color:var(--info); cursor:pointer; font-size:11px; font-weight:800; }
-    .bom-signal-line,.bom-source,.bom-component-excluded,.bom-component-note { margin-top:8px; color:var(--muted); font-size:10px; line-height:1.45; overflow-wrap:anywhere; }
-    .bom-signal-line { color:var(--text-strong); font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
-    .bom-component-note { color:var(--warning-text); }
-    .bom-empty { padding:22px; border:1px dashed var(--line); border-radius:13px; color:var(--muted); text-align:center; font-size:13px; }
-    .bom-run-meta { margin:7px 0 0; color:var(--muted); font-size:10px; }
-    @media (max-width:520px) { .bom-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .bom-filter-grid { grid-template-columns:1fr; } }
-  `;
+  if (typeof document === "undefined" || document.querySelector("#obd-health-check-styles")) return;
+  const style=document.createElement("style"); style.id="obd-health-check-styles"; style.textContent=`
+  .health-intro{margin-bottom:12px}.health-run-card{padding:14px}.health-run-card h3{margin-top:0}.health-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.health-summary>button{appearance:none;min-height:52px;color:inherit;padding:12px 6px;border:1px solid var(--line);border-radius:12px;background:var(--surface-inset);text-align:center}.health-summary span{display:block;font-size:9px;font-weight:800;color:var(--muted)}.health-summary strong{display:block;margin-top:4px;font-size:20px}.health-summary .attention strong{color:var(--warning)}.health-summary .check strong{color:var(--danger-text)}
+  .health-tools{position:sticky;top:0;z-index:4;padding:9px 0;background:var(--bg)}.health-search-row{display:flex;gap:7px}.health-search-row input{min-width:0;flex:1}.health-filter-toggle{min-height:44px;white-space:nowrap}.health-filters{margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}.health-filter-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.health-filter-grid label{margin-bottom:4px}.health-groups{display:grid;gap:9px}.health-group{border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden}.health-group>summary{display:flex;min-height:52px;align-items:center;justify-content:space-between;gap:10px;padding:14px;cursor:pointer;list-style:none}.health-group>summary::-webkit-details-marker,.health-component>summary::-webkit-details-marker{display:none}.health-group-title strong{display:block;font-size:14px}.health-group-title small{display:block;margin-top:3px;color:var(--muted);font-size:10px}.health-group-counts{display:flex;gap:5px;align-items:center}.health-pill{padding:4px 7px;border:1px solid var(--line);border-radius:999px;font-size:9px;font-weight:900}.health-pill.attention{border-color:var(--warning-border);color:var(--warning)}.health-pill.check{border-color:var(--danger-border);color:var(--danger-text)}.health-group-body{padding:0 8px 8px;display:grid;gap:6px}.health-component{border:1px solid var(--line-soft);border-radius:11px;background:var(--surface-inset);overflow:hidden}.health-component>summary{display:flex;min-height:48px;align-items:center;justify-content:space-between;gap:8px;padding:11px;cursor:pointer;list-style:none}.health-component-main{min-width:0}.health-component-main strong{display:block;font-size:12px}.health-component-main small{display:block;margin-top:3px;color:var(--muted);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.health-component-state{flex:none;padding:4px 6px;border:1px solid var(--line);border-radius:999px;font-size:8px;font-weight:900}.health-component-state.normal-pattern{color:var(--success);border-color:var(--success-border)}.health-component-state.deviation,.health-component-state.inconclusive{color:var(--warning);border-color:var(--warning-border)}.health-component-state.strong-deviation{color:var(--danger-text);border-color:var(--danger-border)}.health-component-body{padding:0 11px 11px}.bom-component-badges,.bom-part-numbers,.bom-assessment-values{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.bom-class,.bom-status,.bom-coverage,.bom-part-numbers span{padding:4px 6px;border:1px solid var(--line);border-radius:7px;font-size:8px}.bom-symptom,.bom-assessment p,.bom-assessment ul,.bom-source,.bom-signal-line,.bom-component-note{font-size:10px;line-height:1.45}.bom-assessment{margin-top:9px;padding:9px;border:1px solid var(--line-soft);border-radius:9px}.bom-assessment-values code{font-size:9px}.bom-component-details{margin-top:9px}.bom-empty{padding:22px;border:1px dashed var(--line);border-radius:13px;color:var(--muted);text-align:center}.bom-run-meta{margin-top:7px;color:var(--muted);font-size:10px}@media(max-width:520px){.health-filter-grid{grid-template-columns:1fr}.health-summary{grid-template-columns:repeat(3,1fr)}}`;
   document.head.append(style);
 }
 
-function groupOptionsMarkup() {
-  return IS220D_DIAGNOSTIC_GROUPS.map(group => `<option value="${escapeHtml(group.id)}">${escapeHtml(group.shortLabel)}</option>`).join("");
-}
+function groupOptionsMarkup(){ return IS220D_DIAGNOSTIC_GROUPS.map(g=>`<option value="${escapeHtml(g.id)}">${escapeHtml(g.shortLabel)}</option>`).join(""); }
+function pageMarkup(){ return `<section id="page-component-diagnostics" class="page hidden" data-vehicle-only="is220d" aria-labelledby="nav-component-diagnostics">
+  <div class="section-title"><div><div class="eyebrow">IS220d · AUTON YLEISTARKASTUS</div><h2>OBD Health Check</h2></div><span id="bomDiagnosticBadge" class="ct-test-badge neutral">EI AJETTU</span></div>
+  <div class="inline-message health-intro">Yksi tarkistus lukee auton käytettävissä olevat OBD- ja Toyota-arvot ja kokoaa löydökset järjestelmittäin. Avaa vain alue tai komponentti, jonka haluat tutkia tarkemmin.</div>
+  <div class="card health-run-card"><h3>Tarkista auton tila</h3><label for="bomDiagnosticEngineState">Moottori</label><select id="bomDiagnosticEngineState"><option value="auto">Tunnista automaattisesti</option><option value="running">Moottori käy</option><option value="stopped">Moottori ei käy</option></select><details><summary>Lisää oire tai huomio</summary><textarea id="bomDiagnosticNote" rows="3" placeholder="Esim. lämmin tyhjäkäynti 1100 rpm, dieselin haju, nykii 1300 rpm"></textarea></details><div class="diagnostic-progress"><div class="diagnostic-progress-track"><span id="bomDiagnosticProgressBar"></span></div><div class="diagnostic-progress-meta"><span id="bomDiagnosticProgressText">Valmis tarkistukseen</span><strong id="bomDiagnosticProgressCounts">–</strong></div></div><div class="button-row"><button id="bomDiagnosticRun" class="primary" type="button">Aloita OBD Health Check</button><button id="bomDiagnosticCancel" class="secondary" type="button" disabled>Keskeytä</button></div><div id="bomDiagnosticRunState" class="inline-message hidden" role="status" aria-live="polite"></div><div id="bomRunMeta" class="bom-run-meta"></div></div>
+  <div class="health-summary"><button type="button" data-health-assessment="normal-pattern"><span>OK</span><strong id="bomSummaryOk">0</strong></button><button class="attention" type="button" data-health-assessment="deviation"><span>HUOMIO</span><strong id="bomSummaryAttention">0</strong></button><button class="check" type="button" data-health-assessment="strong-deviation"><span>TARKISTA</span><strong id="bomSummaryCheck">0</strong></button></div>
+  <div class="health-tools"><div class="health-search-row"><input id="bomSearch" type="search" placeholder="Hae osaa, OE-numeroa tai järjestelmää"><button id="healthFilterToggle" class="secondary compact health-filter-toggle" type="button">Suodata</button></div><div id="healthFilters" class="health-filters hidden"><div class="health-filter-grid"><div><label for="bomGroupFilter">Järjestelmä</label><select id="bomGroupFilter"><option value="all">Kaikki</option>${groupOptionsMarkup()}</select></div><div><label for="bomAssessmentFilter">Tulos</label><select id="bomAssessmentFilter"><option value="all">Kaikki</option><option value="normal-pattern">OK</option><option value="deviation">Huomio</option><option value="strong-deviation">Tarkista</option><option value="inconclusive">Ei varmaa tulosta</option><option value="not-evaluated">Ei arvioitu</option></select></div><div><label for="bomStatusFilter">Data</label><select id="bomStatusFilter"><option value="all">Kaikki</option><option value="observed">Data saatu</option><option value="partial">Osittain</option><option value="unavailable">Ei vastausta</option><option value="not-tested">Ei testattu</option></select></div><div><label for="bomClassFilter">Diagnostiikkatapa</label><select id="bomClassFilter"><option value="all">Kaikki</option><option value="direct">Suora mittaus</option><option value="indirect">Epäsuora päätelmä</option></select></div></div></div></div>
+  <div id="bomComponentList" class="health-groups"><div class="bom-empty">Aja OBD Health Check nähdäksesi auton järjestelmät.</div></div>
+</section>`; }
 
-function pageMarkup() {
-  return `<section id="page-component-diagnostics" class="page hidden" data-vehicle-only="is220d" aria-labelledby="nav-component-diagnostics">
-    <div class="section-title">
-      <div><div class="eyebrow">IS220d · BOM · DIRECT / INDIRECT</div><h2>BOM-diagnoosi</h2></div>
-      <span id="bomDiagnosticBadge" class="ct-test-badge neutral">EI AJETTU</span>
-    </div>
-    <div class="inline-message">
-      Flex erottaa nyt <strong>datan kattavuuden</strong> ja <strong>komponenttiarvion</strong>. DATA SAATU kertoo vain, että reseptin signaali saatiin. ARVO USKOTTAVA tarkoittaa tässä vaiheessa vain, että ajoneuvovarmennettu DIRECT-arvo purkautui ja pysyi rakenteellisella uskottavuusalueella — se ei todista osaa ehjäksi.
-    </div>
-    <div class="card">
-      <h3>Aja komponenttipohjainen diagnoosi</h3>
-      <p class="hint ct-hint">Sama varmennettu vain luku -testisarja kuin laajassa ELM/Toyota-diagnostiikassa. BOM ei lisää omia ECU-komentoja eikä ohita ajoneuvoprofiilin sallintalistaa.</p>
-      <label for="bomDiagnosticEngineState">Moottorin tila testissä</label>
-      <select id="bomDiagnosticEngineState">
-        <option value="auto">Varmista kierrosluvusta automaattisesti</option>
-        <option value="running">Moottori käy</option>
-        <option value="stopped">Moottori ei käy</option>
-      </select>
-      <label for="bomDiagnosticNote">Oire tai huomio</label>
-      <textarea id="bomDiagnosticNote" rows="3" placeholder="Esim. lämmin tyhjäkäynti 1100 rpm, palamattoman dieselin haju, nykii 1300 rpm"></textarea>
-      <div class="diagnostic-progress" aria-live="polite">
-        <div class="diagnostic-progress-track"><span id="bomDiagnosticProgressBar"></span></div>
-        <div class="diagnostic-progress-meta"><span id="bomDiagnosticProgressText">Ei ajettu</span><strong id="bomDiagnosticProgressCounts">Odottamassa laajaa diagnostiikkaa</strong></div>
-      </div>
-      <div class="button-row">
-        <button id="bomDiagnosticRun" class="primary" type="button">Aja BOM-komponenttidiagnoosi</button>
-        <button id="bomDiagnosticCancel" class="secondary" type="button" disabled>Keskeytä</button>
-      </div>
-      <div id="bomDiagnosticRunState" class="inline-message hidden" aria-live="polite"></div>
-      <div id="bomRunMeta" class="bom-run-meta"></div>
-    </div>
-    <div id="bomDiagnosticSummary" class="bom-summary-grid">
-      <div><span>DIRECT</span><strong id="bomSummaryDirect">0</strong></div>
-      <div><span>INDIRECT</span><strong id="bomSummaryIndirect">0</strong></div>
-      <div><span>DATA SAATU</span><strong id="bomSummaryObserved">0</strong></div>
-      <div><span>ARVIOITU DIRECT</span><strong id="bomSummaryAssessed">0</strong></div>
-    </div>
-    <div class="card">
-      <div class="bom-filter-grid">
-        <div><label for="bomClassFilter">Luokka</label><select id="bomClassFilter"><option value="all">Kaikki</option><option value="direct">DIRECT</option><option value="indirect">INDIRECT</option></select></div>
-        <div><label for="bomGroupFilter">Tarkastusalue</label><select id="bomGroupFilter"><option value="all">Kaikki alueet</option>${groupOptionsMarkup()}</select></div>
-        <div><label for="bomStatusFilter">Kattavuus</label><select id="bomStatusFilter"><option value="all">Kaikki</option><option value="observed">Data saatu</option><option value="partial">Osittain</option><option value="unavailable">Ei vastausta</option><option value="not-tested">Ei testattu</option></select></div>
-        <div><label for="bomAssessmentFilter">Arvio</label><select id="bomAssessmentFilter"><option value="all">Kaikki</option><option value="normal-pattern">Arvo uskottava</option><option value="strong-deviation">Vahva poikkeama</option><option value="deviation">Poikkeama</option><option value="inconclusive">Ei ratkaisua</option><option value="not-evaluated">Ei arvioitu</option></select></div>
-      </div>
-      <div class="bom-search"><label for="bomSearch">Hae osaa / OE / PNC / aluetta</label><input id="bomSearch" type="text" placeholder="Esim. EGR, 89480, turbo, SCV, polttoaine"></div>
-    </div>
-    <div id="bomComponentList" class="bom-component-list"><div class="bom-empty">Komponenttidiagnoosia ei ole vielä ajettu tällä asennuksella.</div></div>
-  </section>`;
-}
+function installPage(){ if(typeof document==="undefined"||document.querySelector("#page-component-diagnostics"))return; ensureStyles(); const holder=document.createElement("div"); holder.innerHTML=pageMarkup().trim(); document.querySelector("#main")?.insertBefore(holder.firstElementChild,document.querySelector("#page-dtc")||null); const nav=document.querySelector(".bottom-nav"); if(nav&&!document.querySelector("#nav-component-diagnostics")){
+  const button=document.createElement("button");
+  button.id = "nav-component-diagnostics";
+  button.className="nav-item hidden";
+  button.type="button";
+  button.dataset.page = "component-diagnostics";
+  button.dataset.vehicleOnly="is220d";
+  button.innerHTML="<span>✓</span>Health";
+  nav.insertBefore(button,document.querySelector("#nav-dtc")||null);
+} document.querySelector("#bomDiagnosticRun")?.addEventListener("click",startComponentDiagnostic); document.querySelector("#bomDiagnosticCancel")?.addEventListener("click",()=>document.querySelector("#cancelGekoTest")?.click()); document.querySelector("#healthFilterToggle")?.addEventListener("click",()=>document.querySelector("#healthFilters")?.classList.toggle("hidden")); for(const s of ["#bomClassFilter","#bomGroupFilter","#bomStatusFilter","#bomAssessmentFilter","#bomSearch"])document.querySelector(s)?.addEventListener(s==="#bomSearch"?"input":"change",renderLatest); document.querySelectorAll("[data-health-assessment]").forEach(b=>b.addEventListener("click",()=>{const select=document.querySelector("#bomAssessmentFilter");if(select){select.value=select.value===b.dataset.healthAssessment?"all":b.dataset.healthAssessment;document.querySelector("#healthFilters")?.classList.remove("hidden");renderLatest();}})); observeFullDiagnosticUi();latestPayload=safeStorageGet();renderLatest();syncDiagnosticControls(); }
 
-function installPage() {
-  if (typeof document === "undefined") return;
-  if (document.querySelector("#page-component-diagnostics")) return;
-  ensureStyles();
-  const main = document.querySelector("#main");
-  if (!main) return;
-  const holder = document.createElement("div");
-  holder.innerHTML = pageMarkup().trim();
-  const page = holder.firstElementChild;
-  const beforePage = document.querySelector("#page-dtc");
-  main.insertBefore(page, beforePage || null);
+function startComponentDiagnostic(){const source=document.querySelector("#runGekoTest"),state=document.querySelector("#bomDiagnosticRunState");if(!source||source.disabled){document.querySelector("#nav-connection")?.click();if(state){state.textContent="Yhdistä ensin autoon. Health Check avautuu yhteyden jälkeen.";state.className="inline-message warning";}return;} const a=document.querySelector("#diagnosticEngineState"),b=document.querySelector("#bomDiagnosticEngineState"),c=document.querySelector("#diagnosticNote"),d=document.querySelector("#bomDiagnosticNote");if(a&&b)a.value=b.value;if(c&&d)c.value=d.value;if(state){state.textContent="OBD Health Check käynnissä…";state.className="inline-message";}source.click();syncDiagnosticControls();}
+function observeFullDiagnosticUi(){if(typeof MutationObserver==="undefined")return;const targets=["#runGekoTest","#cancelGekoTest","#diagnosticProgressText","#diagnosticProgressBar","#diagnosticResultCounts"].map(s=>document.querySelector(s)).filter(Boolean);const o=new MutationObserver(syncDiagnosticControls);targets.forEach(t=>o.observe(t,{attributes:true,childList:true,subtree:true,characterData:true}));}
+function syncDiagnosticControls(){if(typeof document==="undefined")return;const sourceRun=document.querySelector("#runGekoTest"),sourceCancel=document.querySelector("#cancelGekoTest"),run=document.querySelector("#bomDiagnosticRun"),cancel=document.querySelector("#bomDiagnosticCancel");const running=/käynnissä/i.test(String(sourceRun?.textContent||""))||sourceCancel?.disabled===false;if(run){run.disabled=Boolean(running);run.textContent=running?"Health Check käynnissä…":"Aloita OBD Health Check";}if(cancel)cancel.disabled=!running;const p=document.querySelector("#bomDiagnosticProgressBar");if(p)p.style.width=document.querySelector("#diagnosticProgressBar")?.style?.width||"0%";const t=document.querySelector("#bomDiagnosticProgressText");if(t)t.textContent=document.querySelector("#diagnosticProgressText")?.textContent||"Valmis tarkistukseen";const c=document.querySelector("#bomDiagnosticProgressCounts");if(c)c.textContent=document.querySelector("#diagnosticResultCounts")?.textContent||"–";}
 
-  const nav = document.querySelector(".bottom-nav");
-  if (nav && !document.querySelector("#nav-component-diagnostics")) {
-    const button = document.createElement("button");
-    button.id = "nav-component-diagnostics";
-    button.className = "nav-item hidden";
-    button.type = "button";
-    button.dataset.page = "component-diagnostics";
-    button.dataset.vehicleOnly = "is220d";
-    button.innerHTML = "<span>BOM</span>Diag.";
-    nav.insertBefore(button, document.querySelector("#nav-dtc") || null);
-  }
+function buildGroupedHtml(components){const byGroup=new Map();for(const component of components){const group=getIs220dDiagnosticGroupForComponent(component.id);const key=group?.id||"other";if(!byGroup.has(key))byGroup.set(key,{group,components:[]});byGroup.get(key).components.push(component);}return [...byGroup.values()].map(({group,components:list})=>{const attention=list.filter(c=>c?.assessment?.status==="deviation"||c?.assessment?.status==="inconclusive").length;const check=list.filter(c=>c?.assessment?.status==="strong-deviation").length;return `<details class="health-group"><summary><span class="health-group-title"><strong>${escapeHtml(group?.shortLabel||group?.label||"Muut")}</strong><small>${list.length} tarkastuskohdetta</small></span><span class="health-group-counts">${check?`<span class="health-pill check">${check} tarkista</span>`:""}${attention?`<span class="health-pill attention">${attention} huomio</span>`:""}<span class="health-pill">${list.length}</span></span></summary><div class="health-group-body">${list.map(buildComponentDiagnosticCardHtml).join("")}</div></details>`;}).join("");}
 
-  document.querySelector("#bomDiagnosticRun")?.addEventListener("click", startComponentDiagnostic);
-  document.querySelector("#bomDiagnosticCancel")?.addEventListener("click", () => document.querySelector("#cancelGekoTest")?.click());
-  for (const selector of ["#bomClassFilter", "#bomGroupFilter", "#bomStatusFilter", "#bomAssessmentFilter", "#bomSearch"]) {
-    document.querySelector(selector)?.addEventListener(selector === "#bomSearch" ? "input" : "change", renderLatest);
-  }
+function renderLatest(){if(typeof document==="undefined")return;const coverage=latestPayload?.coverage,list=document.querySelector("#bomComponentList");if(!coverage?.applicable||!list){if(list)list.innerHTML='<div class="bom-empty">Aja OBD Health Check nähdäksesi auton järjestelmät.</div>';return;}const summary=buildComponentDiagnosticSummary(coverage);const components=coverage.components||[];const ok=summary.normalPattern,check=components.filter(c=>c?.assessment?.status==="strong-deviation").length,attention=components.filter(c=>["deviation","inconclusive"].includes(c?.assessment?.status)).length;const set=(s,v)=>{const e=document.querySelector(s);if(e)e.textContent=String(v);};set("#bomSummaryOk",ok);set("#bomSummaryAttention",attention);set("#bomSummaryCheck",check);const badge=document.querySelector("#bomDiagnosticBadge");if(badge){badge.textContent=check?`${check} TARKISTA`:attention?`${attention} HUOMIO`:ok?"VALMIS":"EI TULOSTA";badge.className=`ct-test-badge ${check?"attention":attention?"attention":ok?"ready":"neutral"}`;}const meta=document.querySelector("#bomRunMeta");if(meta){const when=formatTimestamp(latestPayload?.endedAt||latestPayload?.startedAt);meta.textContent=[when?`Viimeisin tarkistus ${when}`:"",latestPayload?.runId?`Raportti ${latestPayload.runId}`:""].filter(Boolean).join(" · ");}const filtered=filterComponentDiagnostics(coverage,{diagnosticClass:document.querySelector("#bomClassFilter")?.value||"all",diagnosticGroup:document.querySelector("#bomGroupFilter")?.value||"all",status:document.querySelector("#bomStatusFilter")?.value||"all",assessmentStatus:document.querySelector("#bomAssessmentFilter")?.value||"all",query:document.querySelector("#bomSearch")?.value||""});list.innerHTML=filtered.length?buildGroupedHtml(filtered):'<div class="bom-empty">Näillä hakuehdoilla ei löytynyt tarkastuskohteita.</div>';}
 
-  observeFullDiagnosticUi();
-  latestPayload = safeStorageGet();
-  renderLatest();
-  syncDiagnosticControls();
-}
-
-function startComponentDiagnostic() {
-  const sourceButton = document.querySelector("#runGekoTest");
-  const runState = document.querySelector("#bomDiagnosticRunState");
-  if (!sourceButton || sourceButton.disabled) {
-    document.querySelector("#nav-connection")?.click();
-    if (runState) {
-      runState.textContent = "Yhdistä IS220d ELM/vLinker-yhteydellä ja palaa BOM-diagnoosiin.";
-      runState.className = "inline-message warning";
-    }
-    return;
-  }
-  const sourceEngineState = document.querySelector("#diagnosticEngineState");
-  const sourceNote = document.querySelector("#diagnosticNote");
-  const engineState = document.querySelector("#bomDiagnosticEngineState");
-  const note = document.querySelector("#bomDiagnosticNote");
-  if (sourceEngineState && engineState) sourceEngineState.value = engineState.value;
-  if (sourceNote && note) sourceNote.value = note.value;
-  if (runState) {
-    runState.textContent = "BOM-komponenttidiagnoosi käynnissä. Tulokset päivittyvät automaattisesti testin valmistuttua.";
-    runState.className = "inline-message";
-  }
-  sourceButton.click();
-  syncDiagnosticControls();
-}
-
-function observeFullDiagnosticUi() {
-  if (typeof MutationObserver === "undefined") return;
-  const targets = ["#runGekoTest", "#cancelGekoTest", "#diagnosticProgressText", "#diagnosticProgressBar", "#diagnosticResultCounts"]
-    .map(selector => document.querySelector(selector))
-    .filter(Boolean);
-  if (!targets.length) return;
-  const observer = new MutationObserver(syncDiagnosticControls);
-  for (const target of targets) observer.observe(target, { attributes: true, childList: true, subtree: true, characterData: true });
-}
-
-function syncDiagnosticControls() {
-  if (typeof document === "undefined") return;
-  const sourceRun = document.querySelector("#runGekoTest");
-  const sourceCancel = document.querySelector("#cancelGekoTest");
-  const runButton = document.querySelector("#bomDiagnosticRun");
-  const cancelButton = document.querySelector("#bomDiagnosticCancel");
-  const sourceText = String(sourceRun?.textContent || "");
-  const running = /käynnissä/i.test(sourceText) || sourceCancel?.disabled === false;
-  if (runButton) {
-    runButton.disabled = Boolean(running);
-    runButton.textContent = running ? "BOM-diagnoosi käynnissä…" : "Aja BOM-komponenttidiagnoosi";
-  }
-  if (cancelButton) cancelButton.disabled = !running;
-  const sourceProgress = document.querySelector("#diagnosticProgressBar");
-  const progress = document.querySelector("#bomDiagnosticProgressBar");
-  if (progress) progress.style.width = sourceProgress?.style?.width || "0%";
-  const progressText = document.querySelector("#bomDiagnosticProgressText");
-  if (progressText) progressText.textContent = document.querySelector("#diagnosticProgressText")?.textContent || "Ei ajettu";
-  const counts = document.querySelector("#bomDiagnosticProgressCounts");
-  if (counts) counts.textContent = document.querySelector("#diagnosticResultCounts")?.textContent || "Odottamassa laajaa diagnostiikkaa";
-}
-
-function renderLatest() {
-  if (typeof document === "undefined") return;
-  const coverage = latestPayload?.coverage;
-  const list = document.querySelector("#bomComponentList");
-  if (!coverage?.applicable || !list) {
-    if (list) list.innerHTML = '<div class="bom-empty">Komponenttidiagnoosia ei ole vielä ajettu tällä asennuksella.</div>';
-    return;
-  }
-  const summary = buildComponentDiagnosticSummary(coverage);
-  const setText = (selector, value) => { const element = document.querySelector(selector); if (element) element.textContent = String(value); };
-  setText("#bomSummaryDirect", summary.direct);
-  setText("#bomSummaryIndirect", summary.indirect);
-  setText("#bomSummaryObserved", summary.observed);
-  setText("#bomSummaryAssessed", summary.normalPattern + summary.deviation + summary.inconclusive);
-
-  const badge = document.querySelector("#bomDiagnosticBadge");
-  if (badge) {
-    badge.textContent = `${summary.observed}/${summary.total} DATA`;
-    badge.className = `ct-test-badge ${summary.observed === summary.total ? "ready" : summary.observed > 0 ? "attention" : "neutral"}`;
-  }
-  const meta = document.querySelector("#bomRunMeta");
-  if (meta) {
-    const when = formatTimestamp(latestPayload?.endedAt || latestPayload?.startedAt);
-    meta.textContent = [when ? `Viimeisin ajo ${when}` : "", latestPayload?.runId ? `Raportti ${latestPayload.runId}` : ""].filter(Boolean).join(" · ");
-  }
-
-  const filtered = filterComponentDiagnostics(coverage, {
-    diagnosticClass: document.querySelector("#bomClassFilter")?.value || "all",
-    diagnosticGroup: document.querySelector("#bomGroupFilter")?.value || "all",
-    status: document.querySelector("#bomStatusFilter")?.value || "all",
-    assessmentStatus: document.querySelector("#bomAssessmentFilter")?.value || "all",
-    query: document.querySelector("#bomSearch")?.value || ""
-  });
-  list.innerHTML = filtered.length
-    ? filtered.map(buildComponentDiagnosticCardHtml).join("")
-    : '<div class="bom-empty">Suodattimilla ei löytynyt komponentteja.</div>';
-}
-
-export function publishIs220dComponentDiagnosticCoverage(coverage, meta = {}) {
-  if (!coverage?.applicable) return null;
-  latestPayload = Object.freeze({
-    coverage,
-    runId: String(meta.runId || ""),
-    startedAt: Number.isFinite(Number(meta.startedAt)) ? Number(meta.startedAt) : null,
-    endedAt: Number.isFinite(Number(meta.endedAt)) ? Number(meta.endedAt) : null
-  });
-  safeStorageSet(latestPayload);
-  renderLatest();
-  return latestPayload;
-}
-
+export function publishIs220dComponentDiagnosticCoverage(coverage,meta={}){if(!coverage?.applicable)return null;latestPayload=Object.freeze({coverage,runId:String(meta.runId||""),startedAt:Number.isFinite(Number(meta.startedAt))?Number(meta.startedAt):null,endedAt:Number.isFinite(Number(meta.endedAt))?Number(meta.endedAt):null});safeStorageSet(latestPayload);renderLatest();return latestPayload;}
 installPage();

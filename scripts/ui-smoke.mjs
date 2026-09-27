@@ -45,8 +45,23 @@ class FakeElement {
   get innerHTML() { return this._innerHTML || ""; }
   set innerHTML(value) {
     this._innerHTML = String(value);
-    if (!value) { this.children = []; this.options = []; }
+    this.children = [];
+    this.options = [];
+    if (!value || typeof document === "undefined") return;
+    for (const match of String(value).matchAll(/<([a-z][\w-]*)\b([^>]*)>/gi)) {
+      const child = document.createElement(match[1]);
+      const attributes = {};
+      for (const attribute of match[2].matchAll(/([:\w-]+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)) {
+        attributes[attribute[1]] = attribute[2] ?? attribute[3] ?? attribute[4] ?? "";
+      }
+      for (const [name, attrValue] of Object.entries(attributes)) child.setAttribute(name, attrValue);
+      if (child.id) byId.set(child.id, child);
+      this.append(child);
+    }
   }
+  get firstElementChild() { return this.children[0] || null; }
+  get lastElementChild() { return this.children.at(-1) || null; }
+  get parentElement() { return this.parentNode || null; }
   get selectedOptions() {
     if (this.tagName !== "SELECT") return [];
     return [this.options.find(option => option.value === this.value) || this.options[0]].filter(Boolean);
@@ -65,18 +80,51 @@ class FakeElement {
     for (const entry of entries) entry.listener(event);
     this.listeners.set(type, (this.listeners.get(type) || []).filter(entry => !entry.once));
   }
+  dispatchEvent(event) {
+    this.dispatch(event?.type || String(event || ""), event || {});
+    return true;
+  }
   click() { this.dispatch("click"); }
   append(...children) {
     for (const child of children) {
+      if (!child) continue;
+      child.parentNode = this;
       this.children.push(child);
       if (child?.tagName === "OPTION") this.options.push(child);
     }
   }
   appendChild(child) { this.append(child); return child; }
-  remove() {}
+  insertBefore(child) { this.append(child); return child; }
+  insertAdjacentElement(_position, child) { this.append(child); return child; }
+  replaceChildren(...children) { this.children = []; this.options = []; this.append(...children); }
+  contains(node) {
+    if (node === this) return true;
+    return this.children.some(child => child === node || child?.contains?.(node));
+  }
+  matches(selector) { return document.querySelectorAll(selector).includes(this); }
+  closest(selector) {
+    let current = this;
+    while (current) {
+      if (current.matches?.(selector)) return current;
+      current = current.parentNode;
+    }
+    return document.querySelector(selector);
+  }
+  remove() {
+    if (!this.parentNode?.children) return;
+    this.parentNode.children = this.parentNode.children.filter(child => child !== this);
+    this.parentNode = null;
+  }
   focus() {}
   showModal() { this.open = true; }
-  setAttribute(name, value) { this.attributes[name] = String(value); if (name === "content") this.content = String(value); }
+  setAttribute(name, value) {
+    const text = String(value);
+    this.attributes[name] = text;
+    if (name === "id") { this.id = text; if (typeof byId !== "undefined") byId.set(text, this); }
+    if (name === "class") this.className = text;
+    if (name === "content") this.content = text;
+    if (name.startsWith("data-")) this.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = text;
+  }
   getAttribute(name) { return this.attributes[name] ?? null; }
   getBoundingClientRect() { return { width: 360, height: 210, top: 0, left: 0, right: 360, bottom: 210 }; }
   getContext() {
@@ -86,6 +134,8 @@ class FakeElement {
       set(target, key, value) { target[key] = value; return true; }
     });
   }
+  querySelector(selector) { return document.querySelector(selector); }
+  querySelectorAll(selector) { return document.querySelectorAll(selector); }
 }
 
 const elements = [];
@@ -117,21 +167,56 @@ const document = {
     return this.querySelectorAll(selector)[0] || null;
   },
   querySelectorAll(selector) {
-    if (selector.startsWith(".")) return elements.filter(element => element.classList.contains(selector.slice(1)));
-    const dataMatch = selector.match(/^\[data-([\w-]+)\]$/);
-    if (dataMatch) {
-      const key = dataMatch[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-      return elements.filter(element => Object.hasOwn(element.dataset, key));
+    const source = String(selector || "").trim();
+    if (!source) return [];
+
+    const idMatch = source.match(/^#([\w-]+)$/);
+    if (idMatch) return [byId.get(idMatch[1])].filter(Boolean);
+
+    const classMatch = source.match(/^(?:([a-z][\w-]*)|)?((?:\.[\w-]+)+)$/i);
+    if (classMatch) {
+      const tag = classMatch[1]?.toUpperCase() || "";
+      const classes = classMatch[2].split(".").filter(Boolean);
+      return elements.filter(element =>
+        (!tag || element.tagName === tag) && classes.every(name => element.classList.contains(name))
+      );
+    }
+
+    const attrMatch = source.match(/^(?:([a-z][\w-]*)|)?\[([:\w-]+)(?:=["']?([^"'\]]+)["']?)?\]$/i);
+    if (attrMatch) {
+      const tag = attrMatch[1]?.toUpperCase() || "";
+      const name = attrMatch[2];
+      const expected = attrMatch[3];
+      return elements.filter(element => {
+        if (tag && element.tagName !== tag) return false;
+        const actual = name.startsWith("data-")
+          ? element.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())]
+          : element.attributes[name];
+        return expected === undefined ? actual !== undefined : String(actual) === expected;
+      });
+    }
+
+    if (/^[a-z][\w-]*$/i.test(source)) {
+      const tag = source.toUpperCase();
+      return elements.filter(element => element.tagName === tag);
     }
     return [];
   },
-  createElement(tagName) { return new FakeElement(tagName); },
+  createElement(tagName) {
+    const element = new FakeElement(tagName);
+    elements.push(element);
+    return element;
+  },
   addEventListener(type, listener) {
     const listeners = documentListeners.get(type) || [];
     listeners.push(listener);
     documentListeners.set(type, listeners);
   }
 };
+
+for (const element of elements) {
+  if (!element.parentNode) element.parentNode = document.body;
+}
 
 const stored = new Map();
 const localStorage = {

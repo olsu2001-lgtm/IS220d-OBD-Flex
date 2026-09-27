@@ -72,12 +72,15 @@ export function buildVikadiagObdDiagnosticCatalogHtml(catalog = IS220D_VIKADIAG_
         </article>`).join("")}
     </section>`).join("");
 
-  return `<section id="vikadiagObdDiagnostics" class="card" style="margin-top:16px">
-    <h2>OBD-diagnostiikkakohteet</h2>
-    <p>Näissä kohteissa Flexillä on jo tuotantokäyttöön hyväksytty luettava OBD-signaali. Suora mittaus ja epäsuora järjestelmäseulonta on eroteltu toisistaan. Korjaamo-opaskuvat ovat alkuperäisiä RM0150-kuvia.</p>
-    <p><strong>${candidates.length} kohdetta</strong> · vain lukutoiminnot · ei Active Testiä, pakotettua regenerointia, vikakoodien nollausta tai ECU-kirjoituksia.</p>
-    ${groupsHtml}
-  </section>`;
+  return `<details id="vikadiagObdDiagnostics" class="card simple-advanced vikadiag-obd-catalog" style="margin-top:16px">
+    <summary><span><strong>Tekninen OBD-katalogi</strong><small>${candidates.length} tuotantoon hyväksyttyä luku-/seulontakohdetta</small></span></summary>
+    <div class="vikadiag-obd-catalog-body">
+      <h2>OBD-diagnostiikkakohteet</h2>
+      <p>Näissä kohteissa Flexillä on jo tuotantokäyttöön hyväksytty luettava OBD-signaali. Suora mittaus ja epäsuora järjestelmäseulonta on eroteltu toisistaan. Korjaamo-opaskuvat ovat alkuperäisiä RM0150-kuvia.</p>
+      <p><strong>${candidates.length} kohdetta</strong> · vain lukutoiminnot · ei Active Testiä, pakotettua regenerointia, vikakoodien nollausta tai ECU-kirjoituksia.</p>
+      ${groupsHtml}
+    </div>
+  </details>`;
 }
 
 export function publishVikadiagObdDiagnosticCatalog() {
