@@ -45,7 +45,7 @@ test("61AD single-frame response is preserved as raw payload without decoding", 
 
 test("61AD ISO-TP multi-frame payload is reassembled for evidence only", () => {
   const result = analyzeTechstreamResearchReadDataResponse([
-    "7E8 10 0A 61 AD 01 02 03 04",
+    "7E8 10 0D 61 AD 01 02 03 04",
     "7E8 21 05 06 07 08 09 0A 0B"
   ].join("\r\n"));
   assert.equal(result.positive, true);
