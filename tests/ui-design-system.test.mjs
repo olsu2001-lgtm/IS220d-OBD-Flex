@@ -100,6 +100,17 @@ test("Health Check keeps data availability distinct from diagnostic assessment",
 });
 
 
+test("Techstream research layer keeps technical controls accessible and touch-sized", async () => {
+  const source = await read("src/techstream-data-list-gap-ui.js");
+
+  assert.match(source, /21AD · Injection Feedback -raakakandidaatin kenttäkoe/);
+  assert.match(source, /techstream-gap summary\{display:flex;min-height:44px/);
+  assert.match(source, /techstream-gap-reference-grid input\{width:100%;min-height:44px/);
+  assert.match(source, /techstream-gap-actions button\{min-height:44px/);
+  assert.match(source, /aria-live/);
+  assert.doesNotMatch(source, /#[0-9a-f]{6}\b/i);
+});
+
 test("Health Check technical layers stay collapsed by default", async () => {
   const [overview, catalog, lab] = await Promise.all([
     read("src/component-diagnostic-group-overview.js"),
