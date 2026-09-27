@@ -159,8 +159,52 @@ function referenceNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+export function evaluate21adInjectorFeedbackFamilyHypothesis(result = null, reference = {}, toleranceMm3 = 0.35) {
+  const payload = Array.isArray(result?.payloadBytes) ? result.payloadBytes : [];
+  const rawBytes = payload.length >= 21 ? payload.slice(17, 21) : [];
+  const hypothesisValues = rawBytes.length === 4
+    ? rawBytes.map(raw => raw * 20 / 128 - 10)
+    : [];
+  const referenceValues = [1, 2, 3, 4].map(index => referenceNumber(reference[`injectionFeedback${index}`]));
+  const deltas = hypothesisValues.length === 4
+    ? hypothesisValues.map((value, index) =>
+        referenceValues[index] == null ? null : value - referenceValues[index]
+      )
+    : [];
+  const comparable = deltas.filter(Number.isFinite);
+  const maxAbsDeltaMm3 = comparable.length ? Math.max(...comparable.map(value => Math.abs(value))) : null;
+  const tolerance = Math.max(0, Number(toleranceMm3) || 0);
+
+  return deepFreeze({
+    sourceFamily: "Toyota 1KD-FTV community reverse-engineering",
+    targetEngine: "2AD-FHV",
+    targetCalibration: "35360000",
+    byteIndexesZeroBased: [17, 18, 19, 20],
+    payloadLetters: ["R", "S", "T", "U"],
+    formula: "raw * 20 / 128 - 10",
+    hypothesisValuesMm3: hypothesisValues,
+    referenceValuesMm3: referenceValues,
+    deltasMm3: deltas,
+    comparableChannelCount: comparable.length,
+    maxAbsDeltaMm3,
+    toleranceMm3: tolerance,
+    withinTolerance: comparable.length === 4 && maxAbsDeltaMm3 <= tolerance,
+    decoderAuthorized: false,
+    interpretation: comparable.length === 4
+      ? "Korrelaatiotulos on tutkimusevidenssiä; se ei yksin hyväksy 2AD-FHV-dekooderia."
+      : "Syötä samalta hetkeltä kaikki neljä Techstream Injection Feedback -arvoa korrelaatiota varten."
+  });
+}
+
 export function buildTechstreamDataListResearchReport(result = null, reference = {}) {
   const feedback = [1, 2, 3, 4].map(index => referenceNumber(reference[`injectionFeedback${index}`]));
+  const hypothesis = evaluate21adInjectorFeedbackFamilyHypothesis(result, reference);
+  const hypothesisText = hypothesis.hypothesisValuesMm3.length === 4
+    ? hypothesis.hypothesisValuesMm3.map(value => value.toFixed(3)).join(" / ")
+    : "–";
+  const deltaText = hypothesis.deltasMm3.length === 4
+    ? hypothesis.deltasMm3.map(value => Number.isFinite(value) ? value.toFixed(3) : "–").join(" / ")
+    : "–";
   const lines = [
     "===== BEGIN LEXUS IS220D TECHSTREAM DATA LIST RESEARCH =====",
     `Schema: ${TECHSTREAM_DATA_LIST_RESEARCH_SCHEMA_VERSION}`,
@@ -182,6 +226,15 @@ export function buildTechstreamDataListResearchReport(result = null, reference =
     `Techstream Injection Feedback #1–#4: ${feedback.map(value => value == null ? "–" : value).join(" / ")} mm³/st`,
     `Techstream Target Common Rail Pressure: ${referenceNumber(reference.targetCommonRailPressureKpa) ?? "–"} kPa`,
     `Techstream Target Pump SCV Current: ${referenceNumber(reference.targetPumpScvCurrentMa) ?? "–"} mA`,
+    "",
+    "1KD-perheen 21AD-hypoteesi (EI 2AD-dekoodaus):",
+    "IF1–IF4 tavut: payload R/S/T/U = indeksit 17/18/19/20 (0-based)",
+    "Kaava: raw × 20/128 − 10 mm³/st",
+    `Hypoteesiarvot: ${hypothesisText} mm³/st`,
+    `Erot Techstreamiin: ${deltaText} mm³/st`,
+    `Vertailukanavia: ${hypothesis.comparableChannelCount}/4 · max |ero| ${hypothesis.maxAbsDeltaMm3 == null ? "–" : hypothesis.maxAbsDeltaMm3.toFixed(3)} mm³/st`,
+    `0,35 mm³/st toleranssin sisällä: ${hypothesis.withinTolerance ? "KYLLÄ" : "EI / EI RIITTÄVÄÄ DATAA"}`,
+    "Tulkinta: korrelaatio on vain kenttäevidenssiä. decoderAuthorized=false kunnes 2AD-FHV/35360000 varmennus on tehty.",
     "",
     "Raakavastaus:",
     String(result?.raw || "–"),
