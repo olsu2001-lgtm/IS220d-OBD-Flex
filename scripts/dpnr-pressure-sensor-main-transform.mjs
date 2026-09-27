@@ -139,7 +139,21 @@ function count(source, needle) {
 
 export function patchMainForDpnrPressureSensorTest(source) {
   const input = String(source || "");
-  if (input.includes(DPNR_PRESSURE_SENSOR_BUILD_MARKER)) return input;
+  if (input.includes(DPNR_PRESSURE_SENSOR_BUILD_MARKER)) {
+    if (count(input, SENSOR_IMPORT) !== 1) {
+      throw new Error("DPNR pressure sensor transform: sensor import anchor missing or ambiguous");
+    }
+    if (count(input, DPNR_PAGE_ANCHOR) !== 1) {
+      throw new Error("DPNR pressure sensor transform: DPNR page navigation anchor missing or ambiguous");
+    }
+    if (count(input, "async function captureFreshDpnrPressureTestSample") !== 1) {
+      throw new Error("DPNR pressure sensor transform: direct capture anchor missing or ambiguous");
+    }
+    if (count(input, "    capture: captureFreshDpnrPressureTestSample,") !== 1) {
+      throw new Error("DPNR pressure sensor transform: test-live adapter anchor missing or ambiguous");
+    }
+    return input;
+  }
   if (count(input, APP_VERSION_ANCHOR) !== 1) {
     throw new Error("DPNR pressure sensor transform: APP_VERSION anchor missing or ambiguous");
   }

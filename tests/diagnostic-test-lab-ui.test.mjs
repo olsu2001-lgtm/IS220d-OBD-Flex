@@ -61,6 +61,8 @@ test("published Test Lab filters cards and opens the existing DPNR page through 
     assert.equal(publishIs220dDiagnosticTestLab({ documentObject: document, storage: dom.window.localStorage }), true);
     const root = document.querySelector("#is220dDiagnosticTestLab");
     assert.ok(root);
+    assert.equal(root.tagName, "DETAILS");
+    assert.equal(root.open, false);
     assert.ok(document.querySelector("#is220dDiagnosticTestLabStyles"));
     assert.equal(document.querySelector("#vikadiagObdDiagnostics").nextElementSibling, root);
 

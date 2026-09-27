@@ -169,6 +169,40 @@ test("ECU-transaktion estää kirjoituskomennot ennen kuljetusta", async () => {
   assert.deepEqual(sent, []);
 });
 
+test("21AD research read requires explicit opt-in and never enters the production gate", async () => {
+  const sent = [];
+  const client = new Elm327Client({
+    async send(command) {
+      sent.push(command);
+      if (command.startsWith("AT")) return "OK\r>";
+      if (command === "21AD") return "7E8 06 61 AD 80 81 7F 82\r>";
+      return "NO DATA\r>";
+    },
+    async disconnect() {}
+  }, () => {}, () => {}, { wait: async () => {} });
+
+  assert.throws(() => client.runReadOnlyEcuTransaction({
+    requestHeader: "7E0",
+    responseHeader: "7E8",
+    requests: [{ command: "21AD", service: 0x21 }],
+    profileKey: "is220d"
+  }), /turvallisuussallintalista/);
+  assert.deepEqual(sent, []);
+
+  const transaction = await client.runReadOnlyEcuTransaction({
+    requestHeader: "7E0",
+    responseHeader: "7E8",
+    requests: [{ command: "21AD", service: 0x21 }],
+    allowResearchReadOnly: true,
+    profileKey: "is220d"
+  });
+  assert.deepEqual(sent, ["ATSH7E0", "ATCRA7E8", "21AD", "ATCRA"]);
+  assert.equal(transaction.researchReadOnly, true);
+  assert.equal(transaction.responses[0].command, "21AD");
+  assert.equal(transaction.responses[0].researchReadOnly, true);
+  assert.match(transaction.responses[0].raw, /61 AD/);
+});
+
 test("continueOnReadError kerää NO DATA -tuloksen ja jatkaa seuraavaan varmennettuun pyyntöön", async () => {
   const transport = {
     async send(command) {

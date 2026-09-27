@@ -38,6 +38,27 @@ on a previous chat transcript.
   When adding a build-time source transform, make it fail closed on changed
   anchors, make it idempotent and add a marker that the APK build verifies.
 
+## UI/UX development contract
+
+Before changing any user-facing layout, navigation, copy, visual hierarchy or
+interaction, read `skills/flex-ui/SKILL.md` and
+`docs/FLEX_UI_DESIGN_SYSTEM.md`.
+
+- Treat the Flex UI skill as the default review rubric for all new screens and
+  UI changes.
+- Keep one obvious primary task per screen/state and use progressive disclosure
+  for advanced settings, raw evidence and developer tools.
+- Keep persistent navigation small; infrequent functions belong under `Lisää`.
+- Interactive targets must be at least 44 × 44 CSS px.
+- Never communicate diagnostic state by colour alone.
+- Keep measurement availability separate from diagnostic assessment.
+- Use existing theme variables; do not introduce one-off hard-coded feature
+  colours.
+- Preserve safe-area handling and deterministic UI guardrail tests.
+
+The design system governs presentation only. It never overrides the safety,
+protocol or evidence boundaries below.
+
 ## Non-negotiable safety boundary
 
 - Vehicle communication is read-only and fail-closed.
