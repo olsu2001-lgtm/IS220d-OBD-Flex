@@ -165,6 +165,27 @@
       "buildInfoSha256": "2bd9c9c11d60a976e8460a4de39c42ea52db2eef4b2ebc735b69c811f5ce1dee",
       "registeredAt": "2026-09-25T12:31:21.332Z",
       "buildRunUrl": "https://github.com/olsu2001-lgtm/IS220d-OBD-Flex/actions/runs/36135333111"
+    },
+    {
+      "versionName": "0.9.10",
+      "versionCode": 910,
+      "packageId": "fi.oliver.is220dobd",
+      "gitSha": "f46a7be9f6c3fb6fdeffa170f8dc90d8da4a3aef",
+      "artifacts": [
+        {
+          "file": "Lexus_OBD-Flex-0.9.10-debug.apk",
+          "bytes": 809736,
+          "sha256": "a78b6a668bce56c2fa0294ebd600f8acfaca8c86b006d95dee9a952afc46f7a6"
+        },
+        {
+          "file": "Lexus_OBD-Flex-0.9.10-release.apk",
+          "bytes": 752392,
+          "sha256": "c716d84930bb26be79d0e8d939e31edcdf64f551a25081b3904655c186a931f9"
+        }
+      ],
+      "buildInfoSha256": "4f3abac9e0341f9e8d333e7b98e318ce801a414d088e5027efe5e289bed807f4",
+      "registeredAt": "2026-09-27T18:47:20.532Z",
+      "buildRunUrl": "https://github.com/olsu2001-lgtm/IS220d-OBD-Flex/actions/runs/36341908055"
     }
   ]
 }
