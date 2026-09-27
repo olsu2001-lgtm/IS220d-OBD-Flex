@@ -108,6 +108,7 @@ import {
   buildIs220dComponentDiagnosticTextReport
 } from "./is220d-component-diagnostics.js";
 import { publishIs220dComponentDiagnosticCoverageToUi } from "./component-diagnostics-publisher.js";
+import { configureTechstreamDataListResearch } from "./techstream-data-list-research.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -4177,6 +4178,46 @@ function attachEvents() {
   });
 }
 
+async function captureTechstreamDataListResearchCandidate(candidate = {}) {
+  const command = String(candidate?.command || "").replace(/\s+/g, "").toUpperCase();
+  if (
+    command !== "21AD" ||
+    state.vehicleKey !== VEHICLE_KEYS.IS220D ||
+    !state.connected ||
+    !state.ecuConnected ||
+    state.quicklynks ||
+    state.liveActive ||
+    Boolean(state.recording) ||
+    state.diagnosticRunning ||
+    state.injectorTestRunning ||
+    !state.client?.runReadOnlyEcuTransaction
+  ) {
+    throw new Error("21AD-tutkimuskoe vaatii vapaan IS220d-moottori-ECU:n ASCII ELM/vLinker -yhteyden.");
+  }
+
+  const transaction = await state.client.runReadOnlyEcuTransaction({
+    requestHeader: candidate.requestHeader || "7E0",
+    responseHeader: candidate.responseHeader || "7E8",
+    setupCommands: ["ATSP6", "ATCAF1", "ATCFC1", "ATAL", "ATH0", "ATS0", "ATSTFF"],
+    requests: [{
+      command,
+      service: 0x21,
+      timeoutMs: 8000
+    }],
+    continueOnReadError: true,
+    allowResearchReadOnly: true,
+    label: "Techstream Data List · 21AD raakakandidaatti",
+    profileKey: VEHICLE_KEYS.IS220D
+  });
+  const response = transaction.responses[0] || {};
+  return {
+    raw: response.raw || "",
+    error: response.error || "",
+    responseClass: response.responseClass || "",
+    transactionId: transaction.transactionId || response.transactionId || ""
+  };
+}
+
 async function captureFreshDpnrPressureTestSample(phase = {}) {
   if (
     state.vehicleKey !== VEHICLE_KEYS.IS220D ||
@@ -4304,6 +4345,12 @@ async function captureFreshDpnrPressureTestSample(phase = {}) {
 }
 
 async function init() {
+  configureTechstreamDataListResearch({
+    available: () => state.vehicleKey === VEHICLE_KEYS.IS220D && state.connected &&
+      state.ecuConnected && !state.quicklynks && !state.liveActive && !state.recording &&
+      !state.diagnosticRunning && !state.injectorTestRunning,
+    capture: captureTechstreamDataListResearchCandidate
+  });
   configureDpnrTestLive({
     available: () => state.vehicleKey === VEHICLE_KEYS.IS220D && state.connected &&
       state.ecuConnected && !state.quicklynks && !state.diagnosticRunning &&
