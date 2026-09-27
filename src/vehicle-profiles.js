@@ -3,7 +3,11 @@ import {
   TOYOTA_READ_DATA_PROBES,
   IS220D_INJECTOR_SCREENING_PROBES,
   TOYOTA_READ_DATA_ALLOWED_COMMANDS,
-  getToyotaReadDataProbe
+  IS220D_RESEARCH_READ_DATA_CANDIDATES,
+  IS220D_RESEARCH_READ_ONLY_COMMANDS,
+  getToyotaReadDataProbe,
+  getIs220dResearchReadDataCandidate,
+  isIs220dResearchReadOnlyCommand
 } from "./is220d-profile.js";
 import {
   CT200H_DIAGNOSTIC_PROFILE,
@@ -68,6 +72,18 @@ export function isProfileReadOnlyCommand(command, vehicleKey = "") {
   if (vehicleKey === VEHICLE_KEYS.CT200H) return CT200H_READ_ONLY_ALLOWED_COMMANDS.includes(normalized);
   return ALL_PROFILE_READ_ONLY_COMMANDS.includes(normalized);
 }
+
+export function getProfileResearchReadDataCandidate(commandOrIdentifier, vehicleKey = "") {
+  if (vehicleKey !== VEHICLE_KEYS.IS220D) return null;
+  return getIs220dResearchReadDataCandidate(commandOrIdentifier);
+}
+
+export function isProfileResearchReadOnlyCommand(command, vehicleKey = "") {
+  if (vehicleKey !== VEHICLE_KEYS.IS220D) return false;
+  return isIs220dResearchReadOnlyCommand(command);
+}
+
+export { IS220D_RESEARCH_READ_DATA_CANDIDATES, IS220D_RESEARCH_READ_ONLY_COMMANDS };
 
 export function vehicleDisplayName(vehicleKey) {
   return getVehicleProfile(vehicleKey)?.vehicle?.displayName || (vehicleKey === VEHICLE_KEYS.AUTO ? "Automaattinen tunnistus" : "Yleinen EOBD");
