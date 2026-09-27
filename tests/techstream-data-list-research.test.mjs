@@ -113,6 +113,26 @@ test("research capture requires explicit availability and returns raw evidence",
   }
 });
 
+test("research capture fails closed when transport cannot prove research-only gating", async () => {
+  configureTechstreamDataListResearch({
+    available: () => true,
+    capture: async () => ({
+      raw: "7E8 06 61 AD 80 81 7F 82\r>",
+      responseClass: "positive-response",
+      transactionId: "ECU-UNMARKED",
+      researchReadOnly: false
+    })
+  });
+  try {
+    await assert.rejects(
+      () => runTechstreamDataListResearchCapture("21AD"),
+      /ei vahvistanut research-only-gatea/i
+    );
+  } finally {
+    configureTechstreamDataListResearch({});
+  }
+});
+
 test("research report keeps Techstream reference values separate from raw 61AD data", () => {
   const result = analyzeTechstreamResearchReadDataResponse("61 AD 80 81 7F 82");
   const report = buildTechstreamDataListResearchReport(result, {
