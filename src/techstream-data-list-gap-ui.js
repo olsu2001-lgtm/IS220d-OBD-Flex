@@ -8,11 +8,17 @@ import {
   parseTechstreamDataListExport,
   buildTechstreamDataListExportTextReport
 } from "./techstream-data-list-export.js";
+import {
+  techstreamDataListResearchAvailable,
+  runTechstreamDataListResearchCapture,
+  buildTechstreamDataListResearchReport
+} from "./techstream-data-list-research.js";
 
 const PANEL_ID = "techstreamDataListGap";
 const STYLE_ID = "techstream-data-list-gap-styles";
 let lastAnalysis = analyzeTechstreamDataListTrace("");
 let lastDataListExport = parseTechstreamDataListExport("");
+let lastResearchCapture = null;
 
 function create(tag, className = "", text = "") {
   const node = document.createElement(tag);
@@ -33,8 +39,10 @@ function ensureStyles() {
     .techstream-gap details{margin-top:9px;border-top:1px solid var(--line);padding-top:8px}.techstream-gap summary{cursor:pointer;color:var(--info);font-size:9px;font-weight:850}
     .techstream-gap textarea{width:100%;min-height:145px;margin-top:8px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-inset);color:var(--text-strong);resize:vertical;font:8px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
     .techstream-gap-file{width:100%;margin-top:7px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--surface-inset);color:var(--muted);font-size:8px}
+    .techstream-gap-reference-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}.techstream-gap-reference-grid label{display:grid;gap:3px;color:var(--muted);font-size:8px}.techstream-gap-reference-grid input{width:100%;min-height:40px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--surface-inset);color:var(--text-strong)}
+    .techstream-gap-raw{white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
     .techstream-gap-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.techstream-gap-actions button{min-height:34px;font-size:8px}.techstream-gap-results{display:grid;gap:5px;margin-top:8px}.techstream-gap-result{padding:7px;border-radius:8px;background:var(--surface-inset);font-size:8px;line-height:1.4}.techstream-gap-result strong{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.techstream-gap-result.rejected{border-left:3px solid var(--warning)}.techstream-gap-result.complete{border-left:3px solid var(--success)}.techstream-gap-result.partial{border-left:3px solid var(--warning)}
-    @media(max-width:420px){.techstream-gap-actions{grid-template-columns:1fr}}
+    @media(max-width:420px){.techstream-gap-actions,.techstream-gap-reference-grid{grid-template-columns:1fr}}
   `;
   document.head.append(style);
 }
@@ -118,6 +126,116 @@ function buildCaptureTool(root) {
   renderAnalysis(root, lastAnalysis);
 }
 
+function researchReferenceValues(details) {
+  const read = name => details.querySelector(`[data-techstream-reference="${name}"]`)?.value || "";
+  return {
+    injectionFeedback1: read("feedback1"),
+    injectionFeedback2: read("feedback2"),
+    injectionFeedback3: read("feedback3"),
+    injectionFeedback4: read("feedback4"),
+    targetCommonRailPressureKpa: read("rail"),
+    targetPumpScvCurrentMa: read("scv")
+  };
+}
+
+function renderResearchCapture(details, result) {
+  const results = details.querySelector("[data-techstream-research-results]");
+  if (!results) return;
+  results.replaceChildren();
+  if (!result) {
+    results.append(create("div", "techstream-gap-result", "Ei 21AD-tutkimusajoa."));
+    return;
+  }
+  results.append(create(
+    "div",
+    `techstream-gap-result ${result.positive ? "complete" : "partial"}`,
+    `21AD → 61AD · ${result.status} · payload ${result.payloadLength} B · transaction ${result.transactionId || "–"}`
+  ));
+  results.append(create("div", "techstream-gap-result techstream-gap-raw", `Payload HEX: ${result.payloadHex || "–"}`));
+  results.append(create("div", "techstream-gap-result techstream-gap-raw", `Raakavastaus: ${String(result.raw || "–").replace(/\r/g, "\\r").replace(/\n/g, "\\n")}`));
+  results.append(create("div", "techstream-gap-result rejected", "Dekoodaus ei ole hyväksytty: tulos on vain raaka 2AD-FHV-kandidaattievidenssi."));
+}
+
+function buildResearchTool(root) {
+  const details = create("details");
+  details.dataset.techstreamResearch = "1";
+  details.append(create("summary", "", "21AD · Injection Feedback -raakakandidaatin kenttäkoe"));
+  details.append(create(
+    "p",
+    "techstream-gap-note",
+    "21AD on tässä vain tutkimuskandidaatti Toyota/Denso-dieselperheen vertailuevidenssin perusteella. Se ei kuulu tuotantoallowlistiin, eikä Flex pura siitä suutinkorjausarvoja ennen 2AD-FHV/35360000-korrelaatiota."
+  ));
+
+  const grid = create("div", "techstream-gap-reference-grid");
+  const fields = [
+    ["feedback1", "Techstream IF #1, mm³/st"],
+    ["feedback2", "Techstream IF #2, mm³/st"],
+    ["feedback3", "Techstream IF #3, mm³/st"],
+    ["feedback4", "Techstream IF #4, mm³/st"],
+    ["rail", "Target rail, kPa"],
+    ["scv", "Target SCV, mA"]
+  ];
+  for (const [name, labelText] of fields) {
+    const label = create("label", "", labelText);
+    const input = create("input");
+    input.type = "text";
+    input.inputMode = "decimal";
+    input.dataset.techstreamReference = name;
+    input.autocomplete = "off";
+    label.append(input);
+    grid.append(label);
+  }
+
+  const actions = create("div", "techstream-gap-actions");
+  const run = create("button", "primary", "Aja 21AD raakakoeluku");
+  const copy = create("button", "secondary", "Kopioi tutkimusraportti");
+  run.type = copy.type = "button";
+  const state = create("span", "inline-message");
+  state.setAttribute("aria-live", "polite");
+
+  run.addEventListener("click", async () => {
+    if (!techstreamDataListResearchAvailable()) {
+      state.textContent = "Tutkimusajo ei ole nyt käytettävissä. Yhdistä IS220d:n moottori-ECU ja pysäytä muut live-/testiajot.";
+      state.className = "inline-message warning";
+      return;
+    }
+    run.disabled = true;
+    state.textContent = "Luetaan yksi 21AD-pyyntö read-only-tilassa…";
+    state.className = "inline-message";
+    try {
+      lastResearchCapture = await runTechstreamDataListResearchCapture("21AD");
+      renderResearchCapture(details, lastResearchCapture);
+      state.textContent = lastResearchCapture.positive
+        ? "61AD-raakavastaus saatiin. Tallenna raportti korrelaatiota varten."
+        : `21AD valmistui ilman positiivista 61AD-vastausta: ${lastResearchCapture.status}.`;
+      state.className = `inline-message${lastResearchCapture.positive ? "" : " warning"}`;
+    } catch (error) {
+      state.textContent = error?.message || String(error);
+      state.className = "inline-message warning";
+    } finally {
+      run.disabled = false;
+    }
+  });
+
+  copy.addEventListener("click", async () => {
+    const report = buildTechstreamDataListResearchReport(lastResearchCapture, researchReferenceValues(details));
+    try {
+      await navigator.clipboard.writeText(report);
+      copy.textContent = "Raportti kopioitu";
+    } catch {
+      copy.textContent = "Kopiointi epäonnistui";
+    }
+    setTimeout(() => { copy.textContent = "Kopioi tutkimusraportti"; }, 1600);
+  });
+
+  actions.append(run, copy, state);
+  const results = create("div", "techstream-gap-results");
+  results.dataset.techstreamResearchResults = "1";
+  details.append(grid, actions, results);
+  root.append(details);
+  renderResearchCapture(details, lastResearchCapture);
+}
+
 function buildCsvImportTool(root) {
   const details = create("details");
   details.open = true;
@@ -190,6 +308,7 @@ function ensurePanel() {
   root.append(head);
   root.append(create("p", "techstream-gap-note", "Tavoitteena on tunnistaa oikea Techstream-arvo ja myöhemmin sen raakatapahtuma ilman PID-arvausta. Nykyinen Toyota-tuotantoallowlist ei muutu."));
   renderTargets(root);
+  buildResearchTool(root);
   buildCsvImportTool(root);
   buildCaptureTool(root);
   anchor.insertAdjacentElement("afterend", root);
